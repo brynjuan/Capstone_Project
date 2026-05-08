@@ -6,6 +6,9 @@ import { motion, AnimatePresence, Variants } from "framer-motion";
 import Webcam from "react-webcam";
 import { Hash, User, Building, Target, CheckCircle, ChevronRight, ChevronLeft, Phone, MapPin, Tag, Contact } from "lucide-react";
 import { submitVisitorData } from "./actions/kiosk";
+import { QRCodeCanvas } from "qrcode.react";
+import Keyboard from "react-simple-keyboard";
+import "react-simple-keyboard/build/css/index.css";
 
 
 const slideVariants: Variants = {
@@ -32,10 +35,48 @@ export default function KioskPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const webcamRef = useRef<Webcam>(null);
+  const audioRef = useRef<HTMLAudioElement>(null); // Referensi audio
+
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+  const [activeInput, setActiveInput] = useState<string>("fullName"); // Melacak input mana yang aktif
+  const voiceRef = useRef<HTMLAudioElement>(null);
+  const keyboardRef = useRef<any>(null);
 
 const [selectedCategory, setSelectedCategory] = useState<string>("");
-const { register, handleSubmit, formState: { errors }, reset, trigger, setValue } = useForm(); // Pastikan ada setValue
+const [currentTime, setCurrentTime] = useState(new Date());
+const [isAgreed, setIsAgreed] = useState(false); // State untuk checkbox privasi
 
+const { register, handleSubmit, formState: { errors }, reset, trigger, setValue } = useForm(); // Pastikan ada setValue
+useEffect(() => {
+  const timer = setInterval(() => {
+    setCurrentTime(new Date());
+  }, 1000);
+  return () => clearInterval(timer);
+}, []);
+const timeString = currentTime.toLocaleTimeString('id-ID', { 
+  hour: '2-digit', 
+  minute: '2-digit', 
+  second: '2-digit', 
+  hour12: false 
+});
+
+const dateString = currentTime.toLocaleDateString('id-ID', { 
+  weekday: 'long', 
+  day: 'numeric', 
+  month: 'long', 
+  year: 'numeric' 
+});
+
+useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.volume = 0.3; // Atur volume 30% agar tidak berisik
+      
+      // Paksa browser mencoba memutar audio
+      audioRef.current.play().catch((error) => {
+        console.warn("Browser memblokir autoplay, membutuhkan trik Kiosk Mode.", error);
+      });
+    }
+  }, []);
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
     if (step > 0 && step < 3) {
@@ -81,6 +122,36 @@ const { register, handleSubmit, formState: { errors }, reset, trigger, setValue 
     }
   };
 
+  // 1. Fungsi untuk memulai Kiosk & Audio
+  const handleStartKiosk = () => {
+    setStep(1); // Pindah ke form Layar 1
+    
+    // Mainkan musik latar dengan volume 10% agar tidak menutupi suara mbak-mbaknya
+    if (audioRef.current) {
+      audioRef.current.volume = 0.1; 
+      audioRef.current.play().catch(e => console.log("Browser menahan musik latar", e));
+    }
+
+    // Mainkan Voice Over sapaan dengan volume 100%
+    if (voiceRef.current) {
+      voiceRef.current.volume = 1.0;
+      voiceRef.current.play().catch(e => console.log("Browser menahan voice over", e));
+    }
+  };
+
+  // 2. Fungsi saat tombol Virtual Keyboard ditekan (mengetik huruf)
+  const onKeyboardChange = (input: string) => {
+    // setValue akan memasukkan huruf yang diketik keyboard ke dalam react-hook-form
+    setValue(activeInput, input, { shouldValidate: true });
+  };
+
+  // 3. Fungsi saat tombol khusus di Virtual Keyboard ditekan (seperti Enter)
+  const onKeyboardKeyPress = (button: string) => {
+    if (button === "{enter}") {
+      setKeyboardOpen(false); // Tutup keyboard jika tombol Enter ditekan
+    }
+  };
+
   return (
     <div className="relative w-full h-screen overflow-hidden bg-black flex items-center justify-center font-sans select-none">
       
@@ -93,6 +164,41 @@ const { register, handleSubmit, formState: { errors }, reset, trigger, setValue 
         src="/video-telkom.mp4" 
         className="absolute inset-0 w-full h-full object-cover z-0"
       />
+      {/* 1.5. AUDIO PLAYER (Looping) */}
+      <audio ref={audioRef} src="/bg-music.mp3" loop />
+
+{/* 1.6. WIDGET JAM & TANGGAL (Gaya iPhone Notch / Dynamic Island) */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 z-30 pointer-events-none">
+<motion.div 
+  initial={{ opacity: 0, y: -50 }} 
+  animate={{ opacity: 1, y: 0 }}
+  transition={{ type: "spring", stiffness: 300, damping: 20 }}
+  className="flex items-center justify-center gap-6 
+             bg-gray-800/60 backdrop-blur-xl 
+             px-10 pt-2 pb-4 
+             rounded-b-[2.5rem] 
+             border-b border-x border-white/20 
+             shadow-[0_15px_30px_rgba(0,0,0,0.4)]"
+>
+          {/* Jam */}
+          <div className="text-xl font-bold text-white tracking-widest tabular-nums drop-shadow-md">
+            {timeString}
+          </div>
+          
+          {/* Indikator "Kamera/Sensor" ala iPhone (Estetika) */}
+          <div className="flex gap-2 items-center mx-2">
+            {/* Titik hijau berkedip seperti indikator iOS */}
+            <div className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.8)]"></div>
+            {/* Lensa kamera palsu */}
+            <div className="w-4 h-4 rounded-full bg-[#0a0a0a] border border-white/10 shadow-inner"></div>
+          </div>
+          
+          {/* Tanggal */}
+          <div className="text-sm font-semibold text-gray-300 uppercase tracking-widest drop-shadow-sm">
+            {dateString}
+          </div>
+        </motion.div>
+      </div>
 
       {/* 2. OVERLAY GELAP DINAMIS */}
       <AnimatePresence>
@@ -120,12 +226,12 @@ const { register, handleSubmit, formState: { errors }, reset, trigger, setValue 
  {/* 4. AREA KONTEN UI */}
       <AnimatePresence mode="wait">
         
-        {/* ================= LAYAR 0: IDLE ================= */}
+{/* ================= LAYAR 0: IDLE ================= */}
         {step === 0 && (
           <motion.div 
             key="idle" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="absolute inset-0 flex flex-col items-center justify-end pb-24 cursor-pointer z-20"
-            onClick={() => setStep(1)}
+            onClick={handleStartKiosk} // <--- INI YANG DIUBAH
           >
             <motion.div 
               animate={{ scale: [1, 1.05, 1], y: [0, -10, 0] }} transition={{ repeat: Infinity, duration: 2 }}
@@ -304,23 +410,41 @@ const { register, handleSubmit, formState: { errors }, reset, trigger, setValue 
               </div>
             </div>
 
-            <div className="mt-10 flex justify-between items-center">
-              <button 
-                onClick={() => setStep(1)} 
-                className="px-8 py-5 text-xl font-semibold text-gray-400 hover:text-white transition-all flex items-center gap-2"
-              >
-                <ChevronLeft className="w-6 h-6" /> Kembali
-              </button>
-              <button 
-                onClick={handleSubmit(onSubmit)} 
-                disabled={isSubmitting}
-                className={`px-14 py-5 text-white text-xl font-bold rounded-2xl backdrop-blur-md border border-white/20 shadow-xl active:scale-95 transition-all flex items-center gap-3 ${
-                  isSubmitting ? 'bg-gray-600/50 cursor-not-allowed' : 'bg-red-600/90 hover:bg-red-500'
-                }`}
-              >
-                {isSubmitting ? 'Menyimpan...' : 'Selesai & Kirim'}
-              </button>
-            </div>
+
+            {/* CHECKBOX KEBIJAKAN PRIVASI */}
+<div className="mt-8 p-4 bg-black/20 rounded-2xl border border-white/5">
+  <label className="flex items-start gap-4 cursor-pointer group">
+    <div className="relative flex items-center justify-center mt-1">
+      <input 
+        type="checkbox" 
+        checked={isAgreed}
+        onChange={(e) => setIsAgreed(e.target.checked)}
+        className="peer h-7 w-7 appearance-none rounded-lg border-2 border-white/20 bg-black/40 checked:bg-red-600 checked:border-red-400 transition-all cursor-pointer"
+      />
+      <CheckCircle className="absolute w-5 h-5 text-white opacity-0 peer-checked:opacity-100 transition-opacity pointer-events-none" />
+    </div>
+    <p className="text-gray-300 text-lg leading-snug select-none group-hover:text-white transition-colors">
+      Saya setuju bahwa data yang saya berikan digunakan untuk kepentingan keamanan dan administrasi kunjungan di <span className="text-red-400 font-bold">Telkom Witel Sulbagteng</span>.
+    </p>
+  </label>
+</div>
+
+{/* UPDATE TOMBOL SELESAI */}
+<div className="mt-10 flex justify-between items-center">
+  <button onClick={() => setStep(1)} className="px-8 py-5 text-xl font-semibold text-gray-400 hover:text-white transition-all flex items-center gap-2">
+    <ChevronLeft className="w-6 h-6" /> Kembali
+  </button>
+  
+  <button 
+    onClick={handleSubmit(onSubmit)} 
+    disabled={isSubmitting || !isAgreed} // <--- Tombol mati jika belum centang
+    className={`px-14 py-5 text-white text-xl font-bold rounded-2xl backdrop-blur-md border border-white/20 shadow-xl active:scale-95 transition-all flex items-center gap-3 ${
+      (isSubmitting || !isAgreed) ? 'bg-gray-600/50 grayscale cursor-not-allowed opacity-50' : 'bg-red-600/90 hover:bg-red-500 shadow-[0_0_30px_rgba(220,38,38,0.4)]'
+    }`}
+  >
+    {isSubmitting ? 'Menyimpan...' : 'Selesai & Kirim'}
+  </button>
+</div>
           </motion.div>
         )}
 
