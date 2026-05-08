@@ -136,7 +136,7 @@ const { register, handleSubmit, formState: { errors }, reset, trigger, setValue 
           </motion.div>
         )}
 
-{/* ================= LAYAR 1: DATA PELANGGAN (UPDATED) ================= */}
+{/* ================= LAYAR 1: DATA PELANGGAN (DIPERBARUI) ================= */}
         {step === 1 && (
           <motion.div 
             key="step1" variants={slideVariants} initial="hidden" animate="visible" exit="exit"
@@ -146,8 +146,10 @@ const { register, handleSubmit, formState: { errors }, reset, trigger, setValue 
               <h2 className="text-3xl font-bold text-white tracking-tight">Identitas Tamu</h2>
             </div>
             
-            <div className="grid grid-cols-2 gap-10">
-              {/* KOLOM KIRI */}
+            {/* Menggunakan Grid agar tertata rapi dan tidak saling tabrak */}
+            <div className="grid grid-cols-2 gap-x-10 gap-y-8">
+              
+              {/* Kolom 1 */}
               <div className="space-y-6">
                 <div>
                   <label className="text-xl font-semibold text-gray-200 flex items-center gap-3 mb-3">
@@ -157,6 +159,7 @@ const { register, handleSubmit, formState: { errors }, reset, trigger, setValue 
                     {...register("institution", { required: true })}
                     className={`w-full text-2xl p-5 bg-black/30 backdrop-blur-sm border rounded-xl outline-none transition-all text-white placeholder-gray-500 ${errors.institution ? 'border-red-500 bg-red-500/10' : 'border-white/20 focus:border-red-500'}`}
                     placeholder="Contoh: Telkom"
+                    autoComplete="off"
                   />
                 </div>
 
@@ -164,58 +167,63 @@ const { register, handleSubmit, formState: { errors }, reset, trigger, setValue 
                   <label className="text-xl font-semibold text-gray-200 flex items-center gap-3 mb-3">
                     <User className="w-6 h-6 text-red-400" /> Nama PIC (Pengunjung) <span className="text-red-500">*</span>
                   </label>
-                  <div className="flex gap-3">
-                    <select {...register("salutation")} className="text-xl p-5 bg-black/40 border border-white/20 rounded-xl text-white outline-none">
-                      <option value="Bapak">Bapak</option>
-                      <option value="Ibu">Ibu</option>
-                    </select>
-                    <input 
-                      {...register("fullName", { required: true })}
-                      className={`flex-1 text-2xl p-5 bg-black/30 backdrop-blur-sm border rounded-xl outline-none transition-all text-white placeholder-gray-500 ${errors.fullName ? 'border-red-500' : 'border-white/20 focus:border-red-500'}`}
-                      placeholder="Contoh: Nita"
-                    />
+                  
+                  {/* Desain "Keren" untuk Pilihan Bapak/Ibu menggunakan Radio Group yang ditata */}
+                  <div className="flex gap-4 mb-4">
+                    <label className="flex-1 cursor-pointer">
+                      <input type="radio" {...register("salutation")} value="Bapak" className="peer sr-only" defaultChecked />
+                      <div className="flex items-center justify-center gap-3 text-xl p-5 bg-black/40 border border-white/20 rounded-xl text-white peer-checked:bg-red-600 peer-checked:border-red-400 transition-all hover:bg-white/10">
+                        <User className="w-6 h-6" /> Bapak
+                      </div>
+                    </label>
+                    <label className="flex-1 cursor-pointer">
+                      <input type="radio" {...register("salutation")} value="Ibu" className="peer sr-only" />
+                      <div className="flex items-center justify-center gap-3 text-xl p-5 bg-black/40 border border-white/20 rounded-xl text-white peer-checked:bg-red-600 peer-checked:border-red-400 transition-all hover:bg-white/10">
+                        <User className="w-6 h-6" /> Ibu
+                      </div>
+                    </label>
                   </div>
+
+                  <input 
+                    {...register("fullName", { required: true })}
+                    className={`flex-1 text-2xl p-5 bg-black/30 backdrop-blur-sm border rounded-xl outline-none transition-all text-white placeholder-gray-500 ${errors.fullName ? 'border-red-500' : 'border-white/20 focus:border-red-500'}`}
+                    placeholder="Contoh: Nita"
+                    autoComplete="off"
+                  />
                 </div>
               </div>
 
-              {/* KOLOM KANAN */}
+              {/* Kolom 2 */}
               <div className="space-y-6">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-xl font-semibold text-gray-200 flex items-center gap-3 mb-3">
-                      <Phone className="w-6 h-6 text-red-400" /> No. HP PIC <span className="text-red-500">*</span>
-                    </label>
-                    <input 
-                      type="tel" {...register("phoneNumber", { required: true })}
-                      className={`w-full text-2xl p-5 bg-black/30 border rounded-xl outline-none text-white placeholder-gray-500 ${errors.phoneNumber ? 'border-red-500' : 'border-white/20 focus:border-red-500'}`}
-                      placeholder="0822..."
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xl font-semibold text-gray-200 flex items-center gap-3 mb-3">
-                      <Hash className="w-6 h-6 text-red-400" /> No. Internet
-                    </label>
-                    <input 
-                      type="text" {...register("internetNumber")}
-                      className="w-full text-2xl p-5 bg-black/30 border border-white/20 rounded-xl outline-none text-white placeholder-gray-500 focus:border-red-500"
-                      placeholder="Contoh: 1412..."
-                    />
-                  </div>
+                <div>
+                  <label className="text-xl font-semibold text-gray-200 flex items-center gap-3 mb-3">
+                    <Phone className="w-6 h-6 text-red-400" /> No. HP PIC <span className="text-red-500">*</span>
+                  </label>
+                  <input 
+                    type="tel"
+                    {...register("phoneNumber", { required: true })}
+                    className={`w-full text-2xl p-5 bg-black/30 backdrop-blur-sm border rounded-xl outline-none transition-all text-white placeholder-gray-500 ${errors.phoneNumber ? 'border-red-500' : 'border-white/20 focus:border-red-500'}`}
+                    placeholder="Contoh: 0822..."
+                    autoComplete="off"
+                  />
                 </div>
 
                 <div>
                   <label className="text-xl font-semibold text-gray-200 flex items-center gap-3 mb-3">
                     <MapPin className="w-6 h-6 text-red-400" /> Alamat Customer
                   </label>
-                  <input 
+                  {/* Menggunakan textarea agar menampung alamat panjang dengan rapi */}
+                  <textarea 
                     {...register("address")}
-                    className="w-full text-2xl p-5 bg-black/30 border border-white/20 rounded-xl outline-none text-white placeholder-gray-500 focus:border-red-500"
+                    className="w-full text-xl p-5 bg-black/30 backdrop-blur-sm border border-white/20 rounded-xl outline-none transition-all text-white placeholder-gray-500 focus:border-red-500 min-h-[160px] resize-none"
                     placeholder="Jl. Cik Ditiro"
+                    autoComplete="off"
                   />
                 </div>
               </div>
             </div>
 
+            {/* Tombol Navigasi */}
             <div className="mt-12 flex justify-between">
               <button onClick={() => setStep(0)} className="px-8 py-5 text-xl font-semibold text-gray-400 hover:text-white transition-all">Batal</button>
               <button onClick={handleNext} className="px-12 py-5 bg-red-600 text-white text-xl font-bold rounded-xl shadow-xl flex items-center gap-3 hover:bg-red-500 active:scale-95 transition-all">
@@ -224,7 +232,6 @@ const { register, handleSubmit, formState: { errors }, reset, trigger, setValue 
             </div>
           </motion.div>
         )}
-
 {/* ================= LAYAR 2: DETAIL KUNJUNGAN (GRID CARD VERSION) ================= */}
         {step === 2 && (
           <motion.div 
