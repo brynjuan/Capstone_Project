@@ -54,27 +54,59 @@ const toTitleCase = (str: string) => {
 // ================= KOMPONEN JAM INDEPENDEN =================
 const ClockWidget = () => {
   const [time, setTime] = useState(new Date());
+  const [isMounted, setIsMounted] = useState(false); // Penanda apakah komponen sudah terpasang di browser
 
   useEffect(() => {
+    // useEffect HANYA berjalan di browser, tidak di server.
+    // Jadi kita tandai bahwa komponen sudah aman untuk dimunculkan.
+    setIsMounted(true);
+    
+    // Update jam setiap 1 detik
     const timer = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
 
-  const timeString = time.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
-  const dateString = time.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  // Mencegah error "Hydration Mismatch"
+  // Jika belum terpasang di browser, jangan tampilkan apa-apa (null)
+  if (!isMounted) {
+    return null; 
+  }
+
+  // Format jam (24 jam) dan tanggal Indonesia
+  const timeString = time.toLocaleTimeString('id-ID', { 
+    hour: '2-digit', 
+    minute: '2-digit', 
+    second: '2-digit', 
+    hour12: false 
+  });
+  
+  const dateString = time.toLocaleDateString('id-ID', { 
+    weekday: 'long', 
+    day: 'numeric', 
+    month: 'long', 
+    year: 'numeric' 
+  });
 
   return (
     <div className="absolute top-0 left-1/2 -translate-x-1/2 z-30 pointer-events-none">
       <motion.div 
-        initial={{ opacity: 0, y: -50 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 300, damping: 20 }}
+        initial={{ opacity: 0, y: -50 }} 
+        animate={{ opacity: 1, y: 0 }} 
+        transition={{ type: "spring", stiffness: 300, damping: 20 }}
         className="flex items-center justify-center gap-6 bg-gray-800/80 backdrop-blur-xl px-10 pt-2 pb-4 rounded-b-[2.5rem] border-b border-x border-white/20 shadow-[0_15px_30px_rgba(0,0,0,0.4)]"
       >
-        <div className="text-xl font-bold text-white tracking-widest tabular-nums drop-shadow-md">{timeString}</div>
+        <div className="text-xl font-bold text-white tracking-widest tabular-nums drop-shadow-md">
+          {timeString}
+        </div>
+        
         <div className="flex gap-2 items-center mx-2">
           <div className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.8)]"></div>
           <div className="w-4 h-4 rounded-full bg-[#0a0a0a] border border-white/10 shadow-inner"></div>
         </div>
-        <div className="text-sm font-semibold text-gray-300 uppercase tracking-widest drop-shadow-sm">{dateString}</div>
+        
+        <div className="text-sm font-semibold text-gray-300 uppercase tracking-widest drop-shadow-sm">
+          {dateString}
+        </div>
       </motion.div>
     </div>
   );
