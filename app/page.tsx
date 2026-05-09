@@ -4,12 +4,17 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { motion, AnimatePresence, Variants } from "framer-motion";
 import Webcam from "react-webcam";
-import { Hash, Star, User, Building, Target, CheckCircle, ChevronRight, ChevronLeft, ChevronDown, Phone, MapPin, Tag, Contact, QrCode, Volume2, VolumeX } from "lucide-react";
+import { Headset, Hash, Star, User, Building, Target, CheckCircle, ChevronRight, ChevronLeft, ChevronDown, Phone, MapPin, Tag, Contact, QrCode, Volume2, VolumeX } from "lucide-react";
 import { submitVisitorData } from "./actions/kiosk";
 import Tesseract from 'tesseract.js';
 import { performOCR } from "./actions/kiosk";
 import { submitVisitorRating } from "./actions/kiosk"; // Import action yang baru dibuat
 import { uploadPhotoboothImage } from "./actions/kiosk";
+import dynamic from "next/dynamic";
+
+const ZegoCall = dynamic(() => import("./components/ZegoCall"), { 
+  ssr: false 
+});
 
 
 // LIBRARY
@@ -121,6 +126,9 @@ export default function KioskPage() {
   const [step, setStep] = useState(0); 
   const [photoBase64, setPhotoBase64] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  //telponan/vc
+  const [showIntercom, setShowIntercom] = useState(false);
 
   //photobooth
   const [showPhotobooth, setShowPhotobooth] = useState(false);
@@ -598,9 +606,15 @@ const onSubmit = async (data: any) => {
       </AnimatePresence>
 
       {/* KAMERA TERSEMBUNYI */}
-      {!isScanning && (
+{/* Matikan kamera jika sedang scanning ATAU jika Intercom sedang menyala */}
+      {!isScanning && !showIntercom && (
         <div className="absolute top-0 left-0 opacity-0 pointer-events-none z-0">
-          <Webcam audio={false} ref={webcamRef} screenshotFormat="image/jpeg" videoConstraints={{ facingMode: "user" }} />
+          <Webcam 
+            audio={false} 
+            ref={webcamRef} 
+            screenshotFormat="image/jpeg" 
+            videoConstraints={{ facingMode: "user" }} 
+          />
         </div>
       )}
 
@@ -1041,6 +1055,56 @@ setTimeout(() => {
     </motion.div>
   )}
 </AnimatePresence>
+
+{/* ================= TOMBOL BANTUAN DARURAT (MUNCUL JIKA STEP 0 ATAU 1) ================= */}
+      {step < 2 && !showIntercom && (
+        <motion.button
+          initial={{ scale: 0 }} animate={{ scale: 1 }}
+          whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}
+          onClick={() => setShowIntercom(true)}
+          className="fixed bottom-10 right-10 z-50 bg-red-600 p-6 rounded-full shadow-[0_0_30px_rgba(220,38,38,0.6)] flex items-center justify-center group"
+        >
+          <Headset className="w-10 h-10 text-white animate-pulse group-hover:animate-none" />
+        </motion.button>
+      )}
+
+{/* ================= MODAL VIDEO CALL ZEGO ================= */}
+          <AnimatePresence>
+            {showIntercom && (
+              <motion.div
+                initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 50 }}
+                className="fixed inset-0 z-[300] flex items-center justify-center p-10 
+                bg-gray-700/40 backdrop-blur-md 
+                border border-white/20 
+                rounded-xl 
+                shadow-[0_0_30px_rgba(0,0,0,0.4)]"
+              >
+                {/* --- KONTAINER GLASSMORPH TERBARU --- */}
+<div className="w-[95vw] max-w-7xl h-[85vh] flex flex-col p-8 rounded-[40px] border border-white/10 bg-gray-800/15 backdrop-blur-[30px] shadow-[0_30px_60px_-15px_rgba(0,0,0,0.5)]">
+                  
+                  {/* Header (Teks & Tombol) */}
+                  <div className="flex justify-between items-center mb-6 px-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-4 h-4 bg-red-500 rounded-full animate-pulse"></div>
+                      <h2 className="text-3xl font-bold text-white tracking-tight">Layanan Bantuan Langsung</h2>
+                    </div>
+                    <button onClick={() => setShowIntercom(false)} 
+                            className="px-6 py-3 bg-gray-600/50 hover:bg-gray-500/50 text-white rounded-xl font-semibold transition-all">
+                      Tutup Panggilan
+                    </button>
+                  </div>
+
+                  {/* AREA VIDEO ZEGO DI-RENDER DI SINI */}
+                  <div className="flex-1 w-full relative">
+                    <div className="absolute inset-0 bg-black/40 border border-white/5 rounded-[32px] overflow-hidden">
+                      <ZegoCall roomID="ruang-bantuan-telkom" onClose={() => setShowIntercom(false)} />
+                    </div>
+                  </div>
+
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
       {/* ================= 5. GLASSMORPH VIRTUAL KEYBOARD ================= */}
       <AnimatePresence>
