@@ -34,6 +34,7 @@ model VisitorLog {
   status      VisitStatus @default(VISITING)
   checkInTime DateTime  @default(now())
   checkOutTime DateTime?
+  rating  Int?   // Tanda tanya (?) artinya opsional, karena tamu bisa saja pergi tanpa memberi rating
   
   adminId     String?   
   processedBy Admin?    @relation(fields: [adminId], references: [id])

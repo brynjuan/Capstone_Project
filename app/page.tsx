@@ -4,8 +4,13 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { motion, AnimatePresence, Variants } from "framer-motion";
 import Webcam from "react-webcam";
-import { Hash, User, Building, Target, CheckCircle, ChevronRight, ChevronLeft, ChevronDown, Phone, MapPin, Tag, Contact, QrCode, Volume2, VolumeX } from "lucide-react";
+import { Hash, Star, User, Building, Target, CheckCircle, ChevronRight, ChevronLeft, ChevronDown, Phone, MapPin, Tag, Contact, QrCode, Volume2, VolumeX } from "lucide-react";
 import { submitVisitorData } from "./actions/kiosk";
+import Tesseract from 'tesseract.js';
+import { performOCR } from "./actions/kiosk";
+import { submitVisitorRating } from "./actions/kiosk"; // Import action yang baru dibuat
+import { uploadPhotoboothImage } from "./actions/kiosk";
+
 
 // LIBRARY
 import { QRCodeCanvas } from "qrcode.react";
@@ -116,6 +121,23 @@ export default function KioskPage() {
   const [step, setStep] = useState(0); 
   const [photoBase64, setPhotoBase64] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  //photobooth
+  const [showPhotobooth, setShowPhotobooth] = useState(false);
+  const [photoboothResult, setPhotoboothResult] = useState<string | null>(null);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [photoboothUrl, setPhotoboothUrl] = useState<string | null>(null);
+
+  //rating
+  const [ratingSubmitted, setRatingSubmitted] = useState(false);
+  const [currentVisitorId, setCurrentVisitorId] = useState<string>("");
+
+  //ocr punya
+  const [isOcrLoading, setIsOcrLoading] = useState(false);
+
+  // pin puunya
+  const [showPinInput, setShowPinInput] = useState(false);
+  const [vipPin, setVipPin] = useState("");
   
   // Referensi Multimedia
   const webcamRef = useRef<Webcam>(null);
@@ -168,6 +190,148 @@ export default function KioskPage() {
   else if (currentHour >= 11 && currentHour < 15) greeting = "Selamat Siang";
   else if (currentHour >= 15 && currentHour < 18) greeting = "Selamat Sore";
 
+  //photobooth punya
+const handleCapturePhotobooth = () => {
+    if (!webcamRef.current) return;
+    
+    const webcamImageSrc = webcamRef.current.getScreenshot();
+    if (!webcamImageSrc) return;
+
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    const webcamImg = new Image();
+    const frameImg = new Image();
+
+    webcamImg.onload = () => {
+      canvas.width = webcamImg.width;
+      canvas.height = webcamImg.height;
+      ctx?.drawImage(webcamImg, 0, 0, canvas.width, canvas.height);
+
+      // Ubah fungsi onload frame menjadi async agar bisa memanggil backend
+      frameImg.onload = async () => {
+        ctx?.drawImage(frameImg, 0, 0, canvas.width, canvas.height);
+        const finalImage = canvas.toDataURL("image/jpeg", 0.9);
+        
+        // 1. Tampilkan hasilnya langsung ke layar (Instant Feedback)
+        setPhotoboothResult(finalImage); 
+        
+        // 2. Mulai proses upload di latar belakang
+        setIsUploadingPhoto(true);
+        try {
+          const response = await uploadPhotoboothImage(finalImage);
+          if (response.success && response.url) {
+            // 3. Simpan URL publik dari Cloudflare R2
+            setPhotoboothUrl(response.url);
+          } else {
+            alert("Gagal mengunggah foto ke server.");
+          }
+        } catch (error) {
+          console.error("Upload error:", error);
+        } finally {
+          setIsUploadingPhoto(false);
+        }
+      };
+      
+      frameImg.src = "/frame-telkom.png"; 
+    };
+    webcamImg.src = webcamImageSrc;
+  };
+
+  // pin punya
+  const checkVipPin = () => {
+  // PIN Contoh untuk demo
+  if (vipPin === "202611") { 
+    // Jika PIN benar, otomatis isi data dummy VIP
+    setValue('fullName', 'Tamu VIP Telkom');
+    setValue('institution', 'PT Telkom Indonesia (Persero) Tbk');
+    setValue('phoneNumber', '0811-0000-1234');
+    setStep(1); // Langsung lompat ke konfirmasi data
+    setShowPinInput(false);
+    alert("Selamat datang, Tamu VIP! Data Anda telah dimuat.");
+  } else {
+    alert("PIN Salah atau Tidak Terdaftar.");
+    setVipPin("");
+  }
+};
+
+  //ocr puny
+const handleScanKTP = async () => {
+  if (!webcamRef.current) return;
+  
+  setIsOcrLoading(true);
+  const imageSrc = webcamRef.current.getScreenshot();
+  
+  if (imageSrc) {
+    try {
+      const result = await performOCR(imageSrc);
+      
+if (result.success && result.text) {
+  const text = result.text;
+  console.log("Raw OCR:", text);
+
+  const lines = text.split('\n')
+                    .map((l: string) => l.trim().toUpperCase())
+                    .filter((l: string) => l.length > 0);
+
+  let extractedName = "";
+  let extractedAddress = "";
+
+  // ================= JANGKAR NIK (Trik Paling Ampuh) =================
+  // Cari baris yang mengandung 16 digit angka (contoh: 7204073007060001)
+  const nikIdx = lines.findIndex((l: string) => /\d{16}/.test(l));
+  
+  if (nikIdx !== -1 && lines[nikIdx + 1]) {
+    // Ambil baris tepat di bawah NIK sebagai NAMA
+    extractedName = lines[nikIdx + 1].replace(/[:;|]/g, "").trim();
+    console.log("Dapat Nama dari bawah NIK:", extractedName);
+  } else {
+    // Fallback jika NIK juga hancur (cari kata NAMA walau ejaannya salah)
+    const nameIdx = lines.findIndex((l: string) => l.includes("NAMA") || l.includes("N A M A"));
+    if (nameIdx !== -1 && lines[nameIdx + 1]) {
+      extractedName = lines[nameIdx + 1].replace(/[:;|]/g, "").trim();
+    }
+  }
+
+  // ================= EKSTRAKSI ALAMAT =================
+  // Alamat biasanya lebih mudah ditebak karena ada RT/RW atau Kel/Desa
+  const addrIdx = lines.findIndex((l: string) => l.includes("ALAMAT") || l.includes("RT") || l.includes("RW"));
+  if (addrIdx !== -1) {
+    extractedAddress = lines[addrIdx].replace(/A L A M A T|ALAMAT|[:;|]/g, "").trim();
+    if (!extractedAddress && lines[addrIdx + 1]) {
+      extractedAddress = lines[addrIdx + 1].replace(/[:;|]/g, "").trim();
+    }
+  }
+
+  // ================= MASUKKAN KE FORM =================
+  if (extractedName) {
+    setValue("fullName", extractedName, { shouldValidate: true, shouldDirty: true });
+  }
+  
+  if (extractedAddress) {
+    setValue("address", extractedAddress, { shouldValidate: true, shouldDirty: true });
+  }
+
+  if (extractedName || extractedAddress) {
+     alert("Data KTP berhasil diekstrak sebagian!");
+  } else {
+     alert("KTP terlalu buram/gelap. Silakan dekatkan ke kamera atau ketik manual.");
+  }
+
+
+
+
+      } else {
+        alert("Gagal membaca teks. Pastikan KTP terlihat jelas.");
+      }
+    } catch (error) {
+      console.error("Gagal OCR:", error);
+      alert("Terjadi gangguan koneksi ke Google Vision.");
+    } finally {
+      setIsOcrLoading(false);
+    }
+  }
+};
+
   // --- EFEK RIPPLE (RIAK AIR) GLOBAL ---
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     const newRipple = { id: Date.now(), x: e.clientX, y: e.clientY };
@@ -184,7 +348,7 @@ export default function KioskPage() {
     setShowTimeoutWarning(false);
     setCountdown(10);
 
-    if (step > 0 && step < 3) {
+    if (step > 0 && step < 4) {
       idleTimerRef.current = setTimeout(() => {
         setShowTimeoutWarning(true);
         countdownTimerRef.current = setInterval(() => {
@@ -201,7 +365,7 @@ export default function KioskPage() {
             return prev - 1;
           });
         }, 1000);
-      }, 110000); // Muncul warning setelah 110 detik didiamkan
+      }, 10000); // Muncul warning setelah 110 detik didiamkan
     }
   }, [step, reset]);
 
@@ -242,28 +406,37 @@ export default function KioskPage() {
     }
   };
 
-  const onSubmit = async (data: any) => {
+const onSubmit = async (data: any) => {
     setIsSubmitting(true);
     setKeyboardOpen(false);
+    
+    // Asumsi photoBase64 sudah ada di state (sesuai kode Anda)
     const result = await submitVisitorData(data, photoBase64);
     
-    
     if (result.success) {
-      setStep(3);
+      // ========================================================
+      // 1. TANGKAP ID UNTUK FITUR RATING
+      if (result.visitorId) {
+        setCurrentVisitorId(result.visitorId);
+      }
+      // ========================================================
+
+      // 2. AUDIO & VOICE OVER (Logika Anda yang sangat keren!)
       if (audioRef.current) audioRef.current.volume = 0.1;
       if (successVoiceRef.current && !isMuted) {
         successVoiceRef.current.currentTime = 0;
         successVoiceRef.current.volume = 1.0;
         successVoiceRef.current.play().catch(() => {});
       }
-      setTimeout(() => {
-        setStep(0);
-        reset();
-        setPhotoBase64(null);
-        setIsSubmitting(false);
-        setIsAgreed(false);
-        setSelectedCategory("");
-      }, 10000); 
+
+      // 3. PINDAH KE LAYAR SUKSES
+      setStep(3);
+      setIsSubmitting(false);
+      
+      // CATATAN PENTING: setTimeout 10 detik DIHAPUS DARI SINI!
+      // Karena kita ingin tamu menekan tombol "Selesai & Beri Rating" 
+      // untuk pindah ke Step 4 dengan tenang.
+
     } else {
       setIsSubmitting(false);
       alert("Terjadi kesalahan jaringan, mohon coba lagi.");
@@ -458,6 +631,39 @@ export default function KioskPage() {
             <motion.div animate={{ scale: [1, 1.05, 1], y: [0, -10, 0] }} transition={{ repeat: Infinity, duration: 2 }} className="px-10 py-5 bg-red-600/90 backdrop-blur-md border border-red-400/50 text-white rounded-full text-2xl font-bold shadow-[0_0_40px_rgba(220,38,38,0.6)] flex items-center gap-3 cursor-pointer" onClick={handleStartKiosk}>
               Sentuh Layar Untuk Memulai <ChevronRight className="w-8 h-8" />
             </motion.div>
+            <div className="flex gap-4 mt-6">
+  {/* Tombol VIP */}
+  <motion.button 
+    onClick={() => setShowPinInput(true)}
+    className="px-6 py-3 bg-amber-500/20 backdrop-blur-md border border-amber-500/50 text-amber-400 rounded-full text-lg font-semibold flex items-center gap-3"
+  >
+    <Star className="w-6 h-6" /> Jalur VIP (PIN)
+  </motion.button>
+
+  {/* Tombol Scan KTP (Tersedia di Layar Pengisian Data/Layar 1) */}
+</div>
+
+{/* MODAL INPUT PIN VIP */}
+<AnimatePresence>
+  {showPinInput && (
+    <motion.div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/90 backdrop-blur-md">
+       <div className="bg-white/10 p-10 rounded-[40px] border border-white/20 text-center w-[400px]">
+          <h2 className="text-2xl font-bold text-white mb-6">Masukkan PIN VIP</h2>
+          <input 
+            type="password" 
+            value={vipPin}
+            onChange={(e) => setVipPin(e.target.value)}
+            className="w-full bg-white/5 border border-white/20 rounded-2xl p-4 text-white text-3xl text-center mb-6"
+            placeholder="******"
+          />
+          <div className="flex gap-4">
+            <button onClick={() => setShowPinInput(false)} className="flex-1 py-3 bg-white/10 text-white rounded-full">Batal</button>
+            <button onClick={checkVipPin} className="flex-1 py-3 bg-amber-500 text-black font-bold rounded-full">Masuk</button>
+          </div>
+       </div>
+    </motion.div>
+  )}
+</AnimatePresence>
             <motion.button onClick={(e) => { e.stopPropagation(); setIsScanning(true); if (scanVoiceRef.current && !isMuted) scanVoiceRef.current.play(); }} className="mt-6 px-6 py-3 bg-black/40 backdrop-blur-md border border-white/20 text-white rounded-full text-lg font-semibold flex items-center gap-3 hover:bg-black/60 transition-all cursor-pointer">
               <QrCode className="w-6 h-6 text-red-400" /> Punya QR Code? Scan di Sini
             </motion.button>
@@ -466,15 +672,40 @@ export default function KioskPage() {
 
         {/* ================= LAYAR 1: DATA PELANGGAN ================= */}
         {/* ================= LAYAR 1: DATA PELANGGAN ================= */}
-        {step === 1 && (
+{step === 1 && (
           <motion.div key="step1" variants={slideVariants} initial="hidden" animate="visible" exit="exit" className="w-full max-w-5xl z-20">
             {/* INI KUNCI AUTO-SCROLL: Wrapper ini yang akan bergeser y: shiftY */}
             <motion.div animate={{ y: shiftY }} transition={{ type: "spring", stiffness: 300, damping: 30 }} className="bg-white/10 backdrop-blur-2xl border border-white/20 p-12 rounded-[40px] shadow-2xl">
               
-              {/* SAPAAN WAKTU DINAMIS */}
-              <div className="mb-8 border-b-2 border-red-500/50 pb-2 inline-block">
-                <h2 className="text-3xl font-bold text-white tracking-tight">{greeting}, silakan isi data Anda</h2>
+              {/* ================= AREA HEADER & TOMBOL SCAN KTP ================= */}
+              <div className="mb-8 pb-4 border-b-2 border-red-500/50 flex justify-between items-end">
+                <div>
+                  <h2 className="text-3xl font-bold text-white tracking-tight">{greeting}, silakan isi data Anda</h2>
+                </div>
+                
+                {/* TOMBOL AI OCR KTP */}
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  type="button"
+                  onClick={handleScanKTP}
+                  disabled={isOcrLoading}
+                  className={`px-6 py-3 rounded-xl flex items-center gap-3 font-bold transition-all border ${
+                    isOcrLoading 
+                      ? "bg-gray-600/50 text-gray-300 border-gray-400/30 cursor-not-allowed"
+                      : "bg-blue-600/80 hover:bg-blue-500 text-white border-blue-400/50 shadow-[0_0_20px_rgba(37,99,235,0.5)]"
+                  }`}
+                >
+                  {isOcrLoading ? (
+                    <div className="animate-spin w-6 h-6 border-4 border-white border-t-transparent rounded-full"></div>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><rect width="10" height="8" x="7" y="8" rx="1"/><path d="M7 12h10"/></svg>
+                  )}
+                  {isOcrLoading ? "Membaca KTP..." : "Scan KTP Otomatis"}
+                </motion.button>
               </div>
+              {/* ================================================================= */}
+
               
               <div className="grid grid-cols-2 gap-x-10 gap-y-8">
                 <div className="space-y-8">
@@ -521,7 +752,6 @@ export default function KioskPage() {
                   
                   <div>
                     <label className="text-xl font-semibold text-gray-200 flex items-center gap-3 mb-3"><MapPin className="w-6 h-6 text-red-400" /> Alamat Customer</label>
-                    {/* ALAMAT SATU BARIS */}
                     <input type="text" {...register("address")} onFocus={() => { setActiveInput("address"); setKeyboardOpen(true); }} value={watch("address") || ""} className="w-full text-2xl p-5 bg-black/30 backdrop-blur-sm border border-white/20 rounded-xl outline-none text-white focus:border-red-500 transition-all" placeholder="Jl. Cik Ditiro" autoComplete="off" />
                   </div>
                 </div>
@@ -575,22 +805,242 @@ export default function KioskPage() {
           </motion.div>
         )}
 
-        {/* ================= LAYAR 3: SUCCESS & QR CODE ================= */}
+{/* ================= LAYAR 3: SUCCESS & QR CODE ================= */}
         {step === 3 && (
-          <motion.div key="step3" variants={slideVariants} initial="hidden" animate="visible" exit="exit" className="flex w-full max-w-5xl bg-white/10 backdrop-blur-2xl border border-white/20 rounded-[40px] shadow-2xl z-20 overflow-hidden">
-            <div className="flex-1 p-16 flex flex-col items-center justify-center text-center border-r border-white/10">
-              <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring" }} className="bg-green-500/20 rounded-full p-4 mb-8"><CheckCircle className="w-32 h-32 text-green-400" /></motion.div>
-              <h2 className="text-5xl font-bold text-white mb-4">Pendaftaran Berhasil!</h2>
-              <p className="text-2xl text-gray-300">Mohon tunggu sebentar, petugas kami akan menemui Anda.</p>
-            </div>
-            <div className="w-[400px] bg-black/40 p-12 flex flex-col items-center justify-center text-center">
-              <QrCode className="w-12 h-12 text-red-400 mb-4" /><h3 className="text-2xl font-bold text-white mb-2">Sering Berkunjung?</h3>
-              <p className="text-sm text-gray-400 mb-8">Scan & simpan QR Code ini untuk pendaftaran instan di kunjungan berikutnya.</p>
-              <div className="p-4 bg-white rounded-2xl shadow-[0_0_30px_rgba(255,255,255,0.2)]"><QRCodeCanvas value={JSON.stringify({ inst: getValues("institution"), nama: getValues("fullName"), hp: getValues("phoneNumber"), inet: getValues("internetNumber") })} size={180} level="H" /></div>
+          <motion.div key="step3" variants={slideVariants} initial="hidden" animate="visible" exit="exit" className="flex flex-col w-full max-w-5xl z-20">
+            <div className="flex w-full bg-white/10 backdrop-blur-2xl border border-white/20 rounded-[40px] shadow-2xl overflow-hidden">
+              <div className="flex-1 p-16 flex flex-col items-center justify-center text-center border-r border-white/10">
+                <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring" }} className="bg-green-500/20 rounded-full p-4 mb-8">
+                  <CheckCircle className="w-32 h-32 text-green-400" />
+                </motion.div>
+                <h2 className="text-5xl font-bold text-white mb-4">Pendaftaran Berhasil!</h2>
+                <p className="text-2xl text-gray-300">Mohon tunggu sebentar, petugas kami akan menemui Anda.</p>
+                
+                {/* ================= AREA TOMBOL AKSI ================= */}
+                <div className="mt-12 flex flex-row gap-6 justify-center">
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setShowPhotobooth(true)}
+                    className="px-8 py-5 bg-blue-600 text-white text-xl font-bold rounded-2xl shadow-lg shadow-blue-900/20 hover:bg-blue-500 transition-all flex items-center gap-3"
+                  >
+                    <span className="text-2xl">📸</span> Buka Photobooth
+                  </motion.button>
+
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setStep(4)}
+                    className="px-8 py-5 bg-green-600 text-white text-xl font-bold rounded-2xl shadow-lg shadow-green-900/20 hover:bg-green-500 transition-all"
+                  >
+                    Selesai & Beri Rating
+                  </motion.button>
+                </div>
+                {/* ==================================================== */}
+
+              </div>
+              
+              <div className="w-[400px] bg-black/40 p-12 flex flex-col items-center justify-center text-center">
+                <QrCode className="w-12 h-12 text-red-400 mb-4" />
+                <h3 className="text-2xl font-bold text-white mb-2">Sering Berkunjung?</h3>
+                <p className="text-sm text-gray-400 mb-8">Scan & simpan QR Code ini untuk pendaftaran instan di kunjungan berikutnya.</p>
+                <div className="p-4 bg-white rounded-2xl shadow-[0_0_30px_rgba(255,255,255,0.2)]">
+                  <QRCodeCanvas 
+                    value={JSON.stringify({ 
+                      inst: getValues("institution"), 
+                      nama: getValues("fullName"), 
+                      hp: getValues("phoneNumber"), 
+                      inet: getValues("internetNumber") 
+                    })} 
+                    size={180} 
+                    level="H" 
+                  />
+                </div>
+              </div>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* ================= STEP 4: RATING KEPUASAN (CSAT) ================= */}
+{step === 4 && (
+  <motion.div key="step4" variants={slideVariants} initial="hidden" animate="visible" exit="exit" className="w-full max-w-5xl z-20">
+    <div className="bg-white/10 backdrop-blur-2xl border border-white/20 p-12 rounded-[40px] shadow-2xl flex flex-col items-center justify-center min-h-[500px]">
+      
+      {!ratingSubmitted ? (
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="text-center w-full">
+          <h2 className="text-4xl font-bold text-white mb-4">Langkah Terakhir</h2>
+          <h3 className="text-xl text-gray-300 mb-12">
+            Bagaimana pengalaman Anda menggunakan layanan Kiosk ini?
+          </h3>
+          
+          <div className="flex justify-center gap-8">
+            {[
+              { score: 1, emoji: "😡", label: "Buruk" },
+              { score: 2, emoji: "🙁", label: "Kurang" },
+              { score: 3, emoji: "😐", label: "Cukup" },
+              { score: 4, emoji: "🙂", label: "Baik" },
+              { score: 5, emoji: "😍", label: "Sangat Baik" }
+            ].map((item) => (
+              <motion.button
+                key={item.score}
+                whileHover={{ scale: 1.2, y: -10 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={async () => {
+                  setRatingSubmitted(true);
+                  // UNCOMMENT NANTI SAAT ID SUDAH SIAP:
+                  await submitVisitorRating(currentVisitorId, item.score);
+
+                  // Opsional: Otomatis kembali ke layar awal (Step 0) setelah 3 detik
+setTimeout(() => {
+  setStep(0);
+  setRatingSubmitted(false);
+  setCurrentVisitorId(""); 
+  reset(); // dari react-hook-form
+  // + Tambahkan reset state bawaan Anda yang tertinggal:
+  setPhotoBase64(null);
+  setIsAgreed(false);
+  setSelectedCategory("");
+}, 3000);
+                }}
+                className="flex flex-col items-center gap-4 group"
+              >
+                <span className="text-7xl filter grayscale opacity-70 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-300">
+                  {item.emoji}
+                </span>
+                <span className="text-lg font-medium text-gray-400 group-hover:text-white transition-colors">
+                  {item.label}
+                </span>
+              </motion.button>
+            ))}
+          </div>
+
+          <div className="mt-16">
+<button onClick={() => {
+  setStep(0);
+  setRatingSubmitted(false);
+  setCurrentVisitorId("");
+  reset();
+  setPhotoBase64(null);
+  setIsAgreed(false);
+  setSelectedCategory("");
+}} className="text-gray-400 hover:text-white transition-colors">
+  Lewati (Tutup)
+</button>
+          </div>
+        </motion.div>
+
+      ) : (
+
+        <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="py-6 text-center">
+          <div className="inline-flex flex-col items-center gap-6">
+            <div className="w-24 h-24 bg-green-500/20 border border-green-500/50 rounded-full flex items-center justify-center text-5xl mb-4">
+              🎉
+            </div>
+            <h2 className="text-3xl font-bold text-white">Terima Kasih!</h2>
+            <p className="text-xl text-gray-300">Penilaian Anda sangat berarti bagi pengembangan Telkom.</p>
+            <p className="text-sm text-gray-500 mt-4">Kiosk akan kembali ke layar awal dalam beberapa detik...</p>
+          </div>
+        </motion.div>
+
+      )}
+
+    </div>
+  </motion.div>
+)}
+
+{/* ================= MODAL PHOTOBOOTH ================= */}
+<AnimatePresence>
+  {showPhotobooth && (
+    <motion.div 
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[200] flex items-center justify-center bg-black/90 backdrop-blur-md p-10"
+    >
+      <div className="bg-white/10 p-8 rounded-[40px] border border-white/20 shadow-2xl flex gap-10 max-w-6xl w-full">
+        
+        {/* KIRI: Area Kamera / Hasil */}
+        <div className="flex-1 relative overflow-hidden rounded-3xl bg-black border-4 border-red-500/50">
+          {!photoboothResult ? (
+            <>
+              {/* Webcam Live */}
+              <Webcam audio={false} ref={webcamRef} screenshotFormat="image/jpeg" videoConstraints={{ facingMode: "user" }} className="w-full h-full object-cover scale-x-[-1]" />
+              {/* Preview Bingkai transparan di atas kamera live */}
+              <img src="/frame-telkom.png" alt="frame" className="absolute inset-0 w-full h-full object-cover pointer-events-none z-10" />
+            </>
+          ) : (
+             <img src={photoboothResult} alt="Hasil Photobooth" className="w-full h-full object-cover" />
+          )}
+        </div>
+
+        {/* KANAN: Kontrol & QR Code */}
+        <div className="w-[350px] flex flex-col justify-center text-center">
+          <h2 className="text-3xl font-bold text-white mb-4">Telkom Photobooth</h2>
+          <p className="text-gray-400 mb-8">Buat kenang-kenangan kunjungan Anda hari ini!</p>
+
+{!photoboothResult ? (
+            <div className="flex flex-col gap-4">
+               <button onClick={handleCapturePhotobooth} className="py-6 bg-red-600 text-white font-bold text-2xl rounded-2xl shadow-lg shadow-red-900/30 hover:bg-red-500 transition-all">📸 Jepret Foto!</button>
+               <button onClick={() => setShowPhotobooth(false)} className="py-4 bg-white/10 text-white rounded-2xl hover:bg-white/20 transition-all">Batal / Tutup</button>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-6">
+              
+              {/* AREA QR CODE / LOADING */}
+              <div className="p-4 bg-white rounded-2xl shadow-lg w-[232px] h-[232px] flex items-center justify-center">
+                {isUploadingPhoto ? (
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="animate-spin w-10 h-10 border-4 border-red-500 border-t-transparent rounded-full"></div>
+                    <span className="text-gray-500 font-semibold text-sm animate-pulse">Menyiapkan QR Code...</span>
+                  </div>
+                ) : photoboothUrl ? (
+                  <QRCodeCanvas value={photoboothUrl} size={200} level="H" />
+                ) : (
+                  <span className="text-red-500 text-sm font-bold">Gagal memuat QR</span>
+                )}
+              </div>
+
+              {/* INSTRUKSI */}
+              <div className="text-center">
+                {isUploadingPhoto ? (
+                  <p className="text-sm text-yellow-400 font-semibold">Sedang mengunggah ke server Telkom...</p>
+                ) : photoboothUrl ? (
+                  <p className="text-sm text-green-400 font-bold">Scan QR di atas untuk menyimpan foto ke HP Anda!</p>
+                ) : (
+                  <p className="text-sm text-red-400">Terjadi kesalahan jaringan.</p>
+                )}
+              </div>
+              
+              {/* TOMBOL KONTROL */}
+              <div className="flex w-full gap-3 mt-4">
+                <button 
+                  onClick={() => {
+                    setPhotoboothResult(null);
+                    setPhotoboothUrl(null); // Reset URL saat foto ulang
+                  }} 
+                  disabled={isUploadingPhoto}
+                  className={`flex-1 py-3 text-white font-semibold rounded-xl transition-all ${isUploadingPhoto ? 'bg-white/5 text-gray-500 cursor-not-allowed' : 'bg-white/10 hover:bg-white/20'}`}
+                >
+                  Ulangi
+                </button>
+                <button 
+                  onClick={() => {
+                    setShowPhotobooth(false);
+                    setPhotoboothResult(null);
+                    setPhotoboothUrl(null);
+                  }} 
+                  className="flex-1 py-3 bg-green-600 text-white font-bold rounded-xl shadow-lg hover:bg-green-500 transition-all"
+                >
+                  Selesai
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+      </div>
+    </motion.div>
+  )}
+</AnimatePresence>
 
       {/* ================= 5. GLASSMORPH VIRTUAL KEYBOARD ================= */}
       <AnimatePresence>

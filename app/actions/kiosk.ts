@@ -13,6 +13,80 @@ const s3 = new S3Client({
   },
 });
 
+export async function performOCR(photoBase64: string) {
+  try {
+    const apiKey = process.env.GOOGLE_VISION_API_KEY;
+    const url = `https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`;
+
+    // Membersihkan header base64 jika ada
+    const base64Image = photoBase64.replace(/^data:image\/\w+;base64,/, "");
+
+    const requestBody = {
+      requests: [
+        {
+          image: { content: base64Image },
+          features: [{ type: "TEXT_DETECTION" }],
+        },
+      ],
+    };
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(requestBody),
+    });
+
+    const result = await response.json();
+    const fullText = result.responses[0]?.fullTextAnnotation?.text || "";
+
+    return { success: true, text: fullText };
+  } catch (error) {
+    console.error("OCR Error:", error);
+    return { success: false, error: "Gagal memproses gambar" };
+  }
+}
+// Tambahkan di bagian bawah actions/kiosk.ts
+
+export async function uploadPhotoboothImage(photoBase64: string) {
+  try {
+    // 1. Bersihkan header base64
+    const base64Data = photoBase64.replace(/^data:image\/\w+;base64,/, "");
+    const imageBuffer = Buffer.from(base64Data, "base64");
+    
+    // 2. Buat nama file unik untuk photobooth
+    const fileName = `photobooth/telkom-${uuidv4().substring(0, 8)}.jpg`;
+
+    // 3. Kirim ke Cloudflare R2
+    await s3.send(new PutObjectCommand({
+      Bucket: process.env.R2_BUCKET_NAME,
+      Key: fileName,
+      Body: imageBuffer,
+      ContentType: "image/jpeg",
+    }));
+
+    // 4. Rakit URL publiknya
+    const publicUrl = `${process.env.R2_PUBLIC_DOMAIN}/${fileName}`;
+
+    return { success: true, url: publicUrl };
+  } catch (error) {
+    console.error("Gagal upload photobooth:", error);
+    return { success: false, error: "Gagal menyimpan foto ke cloud." };
+  }
+}
+export async function submitVisitorRating(visitorId: string, ratingScore: number) {
+  try {
+    // Asumsi nama tabel Anda adalah visitorLog. Sesuaikan jika namanya berbeda!
+    await prisma.visitorLog.update({
+      where: { id: visitorId },
+      data: { rating: ratingScore }
+    });
+    return { success: true };
+  } catch (error) {
+    console.error("Gagal menyimpan rating:", error);
+    return { success: false, error: "Gagal menyimpan rating" };
+  }
+}
+
 export async function submitVisitorData(formData: any, photoBase64: string | null) {
   try {
     let photoUrl = null;
@@ -37,7 +111,7 @@ export async function submitVisitorData(formData: any, photoBase64: string | nul
     const cleanPhoneNumber = formData.phoneNumber ? formData.phoneNumber.replace(/\D/g, '') : "";
 
     // 2. SIMPAN KE DATABASE
-    await prisma.visitorLog.create({
+    const newVisitor = await prisma.visitorLog.create({
       data: {
         fullName: `${formData.salutation} ${formData.fullName}`,
         phoneNumber: cleanPhoneNumber, 
@@ -116,7 +190,7 @@ export async function submitVisitorData(formData: any, photoBase64: string | nul
       }
     }
 
-    return { success: true };
+  return { success: true, visitorId: newVisitor.id };
 
   } catch (error: any) {
     console.error("Gagal memproses data tamu:", error.message || error);
