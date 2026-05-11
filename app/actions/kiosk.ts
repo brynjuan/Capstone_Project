@@ -65,7 +65,10 @@ export async function uploadPhotoboothImage(photoBase64: string) {
     }));
 
     // 4. Rakit URL publiknya
-    const publicUrl = `${process.env.R2_PUBLIC_DOMAIN}/${fileName}`;
+// Mengambil URL dan membersihkan semua tanda kutip ganda/tunggal secara paksa
+const baseUrl = (process.env.R2_PUBLIC_URL || "").replace(/['"]/g, '');
+
+const publicUrl = `${baseUrl}/photobooth/${fileName}`;
 
     return { success: true, url: publicUrl };
   } catch (error) {
