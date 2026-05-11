@@ -3,7 +3,6 @@
 import { useEffect, useRef } from "react";
 import { ZegoUIKitPrebuilt } from "@zegocloud/zego-uikit-prebuilt";
 
-// 1. DAFTARKAN USERID DAN USERNAME DI SINI (Opsional dengan tanda '?')
 interface ZegoCallProps {
   roomID: string;
   onClose: () => void;
@@ -11,26 +10,29 @@ interface ZegoCallProps {
   userName?: string; 
 }
 
-// 2. PANGGIL MEREKA DI DALAM KURUNG KURAWAL INI
 export default function ZegoCall({ roomID, onClose, userID, userName }: ZegoCallProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
   const zpRef = useRef<any>(null);
+  
+  // DETEKTIF BARU: Mencatat apakah kita sudah masuk ruangan atau belum
+  const isJoined = useRef(false);
 
-  const myMeeting = (element: HTMLDivElement | null) => {
-    if (!element) return; 
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    // =================================================================
+    // BENTENG BESI: Jika terdeteksi sudah join, tendang keluar eksekusi ke-2!
+    if (isJoined.current) return;
+    isJoined.current = true; // Langsung kunci pintunya!
+    // =================================================================
 
     const appID = Number(process.env.NEXT_PUBLIC_ZEGO_APP_ID);
     const serverSecret = process.env.NEXT_PUBLIC_ZEGO_SERVER_SECRET as string;
     
-    if (!appID || !serverSecret) {
-      console.error("API Key ZegoCloud belum terbaca.");
-      return;
-    }
+    if (!appID || !serverSecret) return;
 
-    // 3. SEKARANG TYPESCRIPT PAHAM DARI MANA ASAL USERID & USERNAME INI
     const finalUserID = userID ? userID : "Kiosk-witel-01";
     const finalUserName = userName ? userName : "CS Witel Sulbagteng";
-
-    console.log("Masuk sebagai:", finalUserName, `(ID: ${finalUserID})`);
 
     const kitToken = ZegoUIKitPrebuilt.generateKitTokenForTest(
       appID,
@@ -42,8 +44,9 @@ export default function ZegoCall({ roomID, onClose, userID, userName }: ZegoCall
 
     zpRef.current = ZegoUIKitPrebuilt.create(kitToken);
     
+    // Sekarang joinRoom aman di dalam benteng perlindungan
     zpRef.current.joinRoom({
-      container: element, 
+      container: containerRef.current, 
       scenario: {
         mode: ZegoUIKitPrebuilt.OneONoneCall,
       },
@@ -55,20 +58,26 @@ export default function ZegoCall({ roomID, onClose, userID, userName }: ZegoCall
         onClose(); 
       },
     });
-  };
 
-  useEffect(() => {
     return () => {
+      // CLEANUP: Bersihkan semuanya saat Kiosk menutup panggilan
       if (zpRef.current) {
         zpRef.current.destroy();
+        zpRef.current = null;
+      }
+      isJoined.current = false; // Buka kunci untuk panggilan berikutnya
+      
+      if (containerRef.current) {
+        containerRef.current.innerHTML = "";
       }
     };
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // <-- Array kosong memastikan ini hanya pernah dijalankan 1x saat komponen muncul
 
   return (
     <div 
       className="w-full h-full rounded-[32px] overflow-hidden bg-black border border-white/10" 
-      ref={myMeeting} 
+      ref={containerRef} 
     />
   );
 }
