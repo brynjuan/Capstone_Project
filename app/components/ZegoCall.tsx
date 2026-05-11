@@ -27,8 +27,8 @@ export default function ZegoCall({ roomID, onClose, userID, userName }: ZegoCall
     }
 
     // 3. SEKARANG TYPESCRIPT PAHAM DARI MANA ASAL USERID & USERNAME INI
-    const finalUserID = userID ? userID : "kiosk-witel-01";
-    const finalUserName = userName ? userName : "Kiosk Witel Sulbagteng";
+    const finalUserID = userID ? userID : "Kiosk-witel-01";
+    const finalUserName = userName ? userName : "CS Witel Sulbagteng";
 
     console.log("Masuk sebagai:", finalUserName, `(ID: ${finalUserID})`);
 
