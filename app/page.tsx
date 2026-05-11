@@ -11,6 +11,7 @@ import { performOCR } from "./actions/kiosk";
 import { submitVisitorRating } from "./actions/kiosk"; // Import action yang baru dibuat
 import { uploadPhotoboothImage } from "./actions/kiosk";
 import dynamic from "next/dynamic";
+import { useRef } from "react";
 
 const ZegoCall = dynamic(() => import("./components/ZegoCall"), { 
   ssr: false 
@@ -126,6 +127,17 @@ export default function KioskPage() {
   const [step, setStep] = useState(0); 
   const [photoBase64, setPhotoBase64] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  //soun inputan
+  // 1. Buat referensi ke elemen audio
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const playBeep = () => {
+    if (audioRef.current) {
+      audioRef.current.currentTime = 0; 
+      audioRef.current.play().catch((err) => console.log("Audio terblokir:", err));
+    }
+  };
 
   //telponan/vc
   const [showIntercom, setShowIntercom] = useState(false);
