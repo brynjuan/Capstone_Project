@@ -628,7 +628,7 @@ useEffect(() => {
                         <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-400 pointer-events-none" />
                       </div>
                       <motion.div animate={errors.fullName ? { x: [-8, 8, -5, 5, 0], transition: { duration: 0.4 } } : {}} className="flex-1">
-                        <input {...register("fullName", { required: true })} onFocus={() => { setActiveInput("fullName"); setKeyboardOpen(true); }} onKeyDown={playBeep} value={watch("fullName") || ""} className={`w-full text-2xl p-5 bg-black/30 backdrop-blur-sm border rounded-xl outline-none text-white ${errors.fullName ? 'border-red-500 bg-red-500/10' : 'border-white/20 focus:border-red-500'}`} placeholder="Contoh: Nita" autoComplete="off" />
+                        <input {...register("fullName", { required: true })} onFocus={() => { setActiveInput("fullName"); setKeyboardOpen(true); }} onKeyDown={playBeep} value={watch("fullName") || ""} className={`w-full text-2xl p-5 bg-black/30 backdrop-blur-sm border rounded-xl outline-none text-white ${errors.fullName ? 'border-red-500 bg-red-500/10' : 'border-white/20 focus:border-red-500'}`} placeholder="Contoh: Nita" autoComplete="off" inputMode="none"/>
                       </motion.div>
                     </div>
                   </div>
@@ -639,19 +639,19 @@ useEffect(() => {
                     <div>
                       <label className="text-xl font-semibold text-gray-200 flex items-center gap-3 mb-3"><Phone className="w-6 h-6 text-red-400" /> No. HP PIC <span className="text-red-500">*</span></label>
                       <motion.div animate={errors.phoneNumber ? { x: [-8, 8, -5, 5, 0], transition: { duration: 0.4 } } : {}}>
-                        <input type="tel" {...register("phoneNumber", { required: true })} onFocus={() => { setActiveInput("phoneNumber"); setKeyboardOpen(true); }} onKeyDown={playBeep} onChange={(e) => { const formatted = formatPhone(e.target.value); setValue("phoneNumber", formatted, { shouldValidate: true }); if (keyboardRef.current && activeInput === "phoneNumber") keyboardRef.current.setInput(formatted); }} value={watch("phoneNumber") || ""} className={`w-full text-2xl p-5 bg-black/30 border rounded-xl outline-none text-white ${errors.phoneNumber ? 'border-red-500 bg-red-500/10' : 'border-white/20 focus:border-red-500'}`} placeholder="0812..." autoComplete="off" />
+                        <input type="tel" {...register("phoneNumber", { required: true })} onFocus={() => { setActiveInput("phoneNumber"); setKeyboardOpen(true); }} onKeyDown={playBeep} onChange={(e) => { const formatted = formatPhone(e.target.value); setValue("phoneNumber", formatted, { shouldValidate: true }); if (keyboardRef.current && activeInput === "phoneNumber") keyboardRef.current.setInput(formatted); }} value={watch("phoneNumber") || ""} className={`w-full text-2xl p-5 bg-black/30 border rounded-xl outline-none text-white ${errors.phoneNumber ? 'border-red-500 bg-red-500/10' : 'border-white/20 focus:border-red-500'}`} placeholder="0812..." autoComplete="off" inputMode="none" />
                       </motion.div>
                     </div>
                     <div>
                       <label className="text-xl font-semibold text-gray-200 flex items-center gap-3 mb-3"><Hash className="w-6 h-6 text-red-400" /> No. Internet <span className="text-red-500">*</span></label>
                       <motion.div animate={errors.internetNumber ? { x: [-8, 8, -5, 5, 0], transition: { duration: 0.4 } } : {}}>
-                        <input type="text" {...register("internetNumber", { required: true })} onFocus={() => { setActiveInput("internetNumber"); setKeyboardOpen(true); }} onKeyDown={playBeep} value={watch("internetNumber") || ""} className={`w-full text-2xl p-5 bg-black/30 border border-white/20 rounded-xl outline-none text-white ${errors.internetNumber ? 'border-red-500 bg-red-500/10' : 'focus:border-red-500'}`} placeholder="Contoh: 1412..." autoComplete="off" />
+                        <input type="text" {...register("internetNumber", { required: true })} onFocus={() => { setActiveInput("internetNumber"); setKeyboardOpen(true); }} onKeyDown={playBeep} value={watch("internetNumber") || ""} className={`w-full text-2xl p-5 bg-black/30 border border-white/20 rounded-xl outline-none text-white ${errors.internetNumber ? 'border-red-500 bg-red-500/10' : 'focus:border-red-500'}`} placeholder="Contoh: 1412..." autoComplete="off" inputMode="none"/>
                       </motion.div>
                     </div>
                   </div>
                   <div>
                     <label className="text-xl font-semibold text-gray-200 flex items-center gap-3 mb-3"><MapPin className="w-6 h-6 text-red-400" /> Alamat Customer</label>
-                    <input type="text" {...register("address")} onFocus={() => { setActiveInput("address"); setKeyboardOpen(true); }} onKeyDown={playBeep} value={watch("address") || ""} className="w-full text-2xl p-5 bg-black/30 backdrop-blur-sm border border-white/20 rounded-xl outline-none text-white focus:border-red-500 transition-all" placeholder="Jl. Cik Ditiro" autoComplete="off" />
+                    <input type="text" {...register("address")} onFocus={() => { setActiveInput("address"); setKeyboardOpen(true); }} onKeyDown={playBeep} value={watch("address") || ""} className="w-full text-2xl p-5 bg-black/30 backdrop-blur-sm border border-white/20 rounded-xl outline-none text-white focus:border-red-500 transition-all" placeholder="Jl. Cik Ditiro" autoComplete="off" inputMode="none"/>
                   </div>
                 </div>
               </div>
@@ -679,16 +679,16 @@ useEffect(() => {
                       </motion.div>
                     ))}
                   </motion.div>
-                  <input type="hidden" {...register("category", { required: true })} />
+                  <input type="hidden" {...register("category", { required: true })} inputMode="none"/>
                 </div>
                 <div className="col-span-5 space-y-6">
-                  <div><label className="text-xl font-semibold text-gray-200 flex items-center gap-3 mb-3"><Contact className="w-6 h-6 text-red-400" /> Petugas Dituju</label><input {...register("hostName")} onFocus={() => { setActiveInput("hostName"); setKeyboardOpen(true); }} onKeyDown={playBeep} value={watch("hostName") || ""} className="w-full text-xl p-5 bg-black/30 border border-white/10 rounded-2xl outline-none text-white focus:border-red-500" placeholder="Nita Wulandari" autoComplete="off" /></div>
-                  <div><label className="text-xl font-semibold text-gray-200 flex items-center gap-3 mb-3"><Target className="w-6 h-6 text-red-400" /> Detail Lainnya</label><textarea {...register("purpose")} onFocus={() => { setActiveInput("purpose"); setKeyboardOpen(true); }} onKeyDown={playBeep} value={watch("purpose") || ""} className="w-full text-lg p-5 bg-black/30 border border-white/10 rounded-2xl outline-none text-white min-h-[160px] resize-none focus:border-red-500" placeholder="Silahkan jabarkan detail kunjungan anda" /></div>
+                  <div><label className="text-xl font-semibold text-gray-200 flex items-center gap-3 mb-3"><Contact className="w-6 h-6 text-red-400" /> Petugas Dituju</label><input {...register("hostName")} onFocus={() => { setActiveInput("hostName"); setKeyboardOpen(true); }} onKeyDown={playBeep} value={watch("hostName") || ""} className="w-full text-xl p-5 bg-black/30 border border-white/10 rounded-2xl outline-none text-white focus:border-red-500" placeholder="Nita Wulandari" autoComplete="off" inputMode="none"/></div>
+                  <div><label className="text-xl font-semibold text-gray-200 flex items-center gap-3 mb-3"><Target className="w-6 h-6 text-red-400" /> Detail Lainnya</label><textarea {...register("purpose")} onFocus={() => { setActiveInput("purpose"); setKeyboardOpen(true); }} onKeyDown={playBeep} value={watch("purpose") || ""} className="w-full text-lg p-5 bg-black/30 border border-white/10 rounded-2xl outline-none text-white min-h-[160px] resize-none focus:border-red-500" placeholder="Silahkan jabarkan detail kunjungan anda" inputMode="none" /></div>
                 </div>
               </div>
               <div className="mt-8 p-4 bg-black/20 rounded-2xl border border-white/5">
                 <label className="flex items-start gap-4 cursor-pointer group">
-                  <input type="checkbox" checked={isAgreed} onChange={(e) => setIsAgreed(e.target.checked)} className="h-7 w-7 rounded-lg border-2 border-white/20 bg-black/40 accent-red-600 cursor-pointer" />
+                  <input type="checkbox" checked={isAgreed} onChange={(e) => setIsAgreed(e.target.checked)} className="h-7 w-7 rounded-lg border-2 border-white/20 bg-black/40 accent-red-600 cursor-pointer" inputMode="none"/>
                   <p className="text-gray-300 text-lg leading-snug">Saya setuju data saya digunakan untuk administrasi di <span className="text-red-400 font-bold">Telkom Witel Sulbagteng</span>.</p>
                 </label>
               </div>
