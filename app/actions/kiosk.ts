@@ -68,10 +68,10 @@ export async function uploadPhotoboothImage(photoBase64: string) {
 // Mengambil URL dan membersihkan semua tanda kutip ganda/tunggal secara paksa
 // PERBAIKAN: Ganti "" menjadi domain asli Telkom Anda!
     // Tambahkan juga .replace(/\/+$/, '') agar tidak ada double slash (//)
-    const rawDomain = process.env.R2_PUBLIC_URL || "https://assets.telkomsulbagteng.my.id";
+    const rawDomain = process.env.R2_PUBLIC_DOMAIN || "";
     const baseUrl = rawDomain.replace(/['"]/g, '').replace(/\/+$/, '');
 
-    const publicUrl = `${baseUrl}/photobooth/${fileName}`;
+    const publicUrl = `${baseUrl}/${fileName}`;
 
     return { success: true, url: publicUrl };
   } catch (error) {

@@ -615,7 +615,7 @@ useEffect(() => {
                   <div>
                     <label className="text-xl font-semibold text-gray-200 flex items-center gap-3 mb-3"><Building className="w-6 h-6 text-red-400" /> Nama Instansi <span className="text-red-500">*</span></label>
                     <motion.div animate={errors.institution ? { x: [-8, 8, -5, 5, 0], transition: { duration: 0.4 } } : {}}>
-                      <input {...register("institution", { required: true })} onFocus={() => { setActiveInput("institution"); setKeyboardOpen(true); }} onKeyDown={playBeep} value={watch("institution") || ""} className={`w-full text-2xl p-5 bg-black/30 backdrop-blur-sm border rounded-xl outline-none text-white transition-all ${errors.institution ? 'border-red-500 bg-red-500/10' : 'border-white/20 focus:border-red-500'}`} placeholder="Contoh: Telkom" autoComplete="off" />
+                      <input {...register("institution", { required: true })} onFocus={() => { setActiveInput("institution"); setKeyboardOpen(true); }} onKeyDown={playBeep} value={watch("institution") || ""} className={`w-full text-2xl p-5 bg-black/30 backdrop-blur-sm border rounded-xl outline-none text-white transition-all ${errors.institution ? 'border-red-500 bg-red-500/10' : 'border-white/20 focus:border-red-500'}`} placeholder="Contoh: Telkom" autoComplete="off" inputMode="none"/>
                     </motion.div>
                   </div>
                   <div>
