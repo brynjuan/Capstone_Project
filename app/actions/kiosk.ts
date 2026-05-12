@@ -1,9 +1,13 @@
 "use server"
 
 import { prisma } from "@/lib/prisma";
+import { VisitStatus } from "@prisma/client"; // <-- PENTING: Import Enum dari Prisma
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { v4 as uuidv4 } from "uuid";
 
+// ============================================================================
+// KONFIGURASI CLOUDFLARE R2 (S3 COMPATIBLE)
+// ============================================================================
 const s3 = new S3Client({
   region: "auto",
   endpoint: process.env.R2_ENDPOINT_URL!,
@@ -13,6 +17,9 @@ const s3 = new S3Client({
   },
 });
 
+// ============================================================================
+// 1. FUNGSI OCR KTP (GOOGLE VISION API)
+// ============================================================================
 export async function performOCR(photoBase64: string) {
   try {
     const apiKey = process.env.GOOGLE_VISION_API_KEY;
@@ -45,8 +52,10 @@ export async function performOCR(photoBase64: string) {
     return { success: false, error: "Gagal memproses gambar" };
   }
 }
-// Tambahkan di bagian bawah actions/kiosk.ts
 
+// ============================================================================
+// 2. FUNGSI UPLOAD PHOTOBOOTH
+// ============================================================================
 export async function uploadPhotoboothImage(photoBase64: string) {
   try {
     // 1. Bersihkan header base64
@@ -64,10 +73,7 @@ export async function uploadPhotoboothImage(photoBase64: string) {
       ContentType: "image/jpeg",
     }));
 
-    // 4. Rakit URL publiknya
-// Mengambil URL dan membersihkan semua tanda kutip ganda/tunggal secara paksa
-// PERBAIKAN: Ganti "" menjadi domain asli Telkom Anda!
-    // Tambahkan juga .replace(/\/+$/, '') agar tidak ada double slash (//)
+    // 4. Rakit URL publiknya (Aman dari kutip ganda)
     const rawDomain = process.env.R2_PUBLIC_DOMAIN || "";
     const baseUrl = rawDomain.replace(/['"]/g, '').replace(/\/+$/, '');
 
@@ -79,9 +85,12 @@ export async function uploadPhotoboothImage(photoBase64: string) {
     return { success: false, error: "Gagal menyimpan foto ke cloud." };
   }
 }
+
+// ============================================================================
+// 3. FUNGSI SIMPAN RATING PELANGGAN
+// ============================================================================
 export async function submitVisitorRating(visitorId: string, ratingScore: number) {
   try {
-    // Asumsi nama tabel Anda adalah visitorLog. Sesuaikan jika namanya berbeda!
     await prisma.visitorLog.update({
       where: { id: visitorId },
       data: { rating: ratingScore }
@@ -93,6 +102,9 @@ export async function submitVisitorRating(visitorId: string, ratingScore: number
   }
 }
 
+// ============================================================================
+// 4. FUNGSI SUBMIT DATA TAMU + LOGIKA ANTREAN CERDAS + TELEGRAM
+// ============================================================================
 export async function submitVisitorData(formData: any, photoBase64: string | null) {
   try {
     let photoUrl = null;
@@ -110,13 +122,30 @@ export async function submitVisitorData(formData: any, photoBase64: string | nul
         ContentType: "image/jpeg",
       }));
 
-      photoUrl = `${process.env.R2_PUBLIC_DOMAIN}/${fileName}`;
+      const rawDomain = process.env.R2_PUBLIC_DOMAIN || "https://assets.telkomsulbagteng.my.id";
+      const baseUrl = rawDomain.replace(/['"]/g, '').replace(/\/+$/, '');
+      photoUrl = `${baseUrl}/${fileName}`;
     }
 
     // 1. BERSIHKAN DATA NOMOR HP
     const cleanPhoneNumber = formData.phoneNumber ? formData.phoneNumber.replace(/\D/g, '') : "";
 
-    // 2. SIMPAN KE DATABASE
+    // 2. CEK ANTREAN (SMART QUEUE)
+    // Cek apakah ada tamu yang sedang dilayani saat ini
+    const activeVisitor = await prisma.visitorLog.findFirst({
+      where: { status: VisitStatus.ON_PROGRESS }
+    });
+
+    let initialStatus: VisitStatus = VisitStatus.PENDING;
+    let startTime = null;
+
+    if (!activeVisitor) {
+      // Jika CS sedang kosong, tamu ini langsung dilayani tanpa menunggu!
+      initialStatus = VisitStatus.ON_PROGRESS;
+      startTime = new Date(); 
+    }
+
+    // 3. SIMPAN KE DATABASE
     const newVisitor = await prisma.visitorLog.create({
       data: {
         fullName: `${formData.salutation} ${formData.fullName}`,
@@ -128,34 +157,36 @@ export async function submitVisitorData(formData: any, photoBase64: string | nul
         hostName: formData.hostName || "Nita Wulandari", 
         purpose: formData.purpose || "Kunjungan Umum",
         photoUrl: photoUrl,
+        
+        // Simpan status antrean & waktu mulai pelayanan
+        status: initialStatus,
+        serviceStartTime: startTime, 
       }
     });
 
-    // 3. --- NOTIFIKASI TELEGRAM OTOMATIS ---
+    // 4. --- NOTIFIKASI TELEGRAM OTOMATIS ---
     const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN; 
     const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 
     if (TELEGRAM_BOT_TOKEN && TELEGRAM_CHAT_ID) {
       
-      // Membuat format Tanggal & Jam khusus WITA (Asia/Makassar)
       const now = new Date();
       const waktuDaftar = new Intl.DateTimeFormat('id-ID', {
         timeZone: 'Asia/Makassar',
-        weekday: 'long',
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        timeZoneName: 'short'
+        weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+        hour: '2-digit', minute: '2-digit', second: '2-digit', timeZoneName: 'short'
       }).format(now);
 
-      // Merakit Pesan Telegram
+      // Status Antrean untuk pesan Telegram
+      const statusAntreanTG = initialStatus === VisitStatus.PENDING 
+        ? "⏳ <i>Berada di antrean (Menunggu)</i>" 
+        : "✅ <i>Langsung dilayani di meja CS</i>";
+
       const tgMessage = `
 🚨 <b>Pelanggan TELKOM</b> 🚨
 
 🗓 <b>Waktu:</b> ${waktuDaftar}
+📊 <b>Status:</b> ${statusAntreanTG}
 
 🏢 <b>Instansi:</b> ${formData.institution}
 👤 <b>Nama:</b> ${formData.salutation} ${formData.fullName}
@@ -169,7 +200,6 @@ export async function submitVisitorData(formData: any, photoBase64: string | nul
 `;
 
       if (imageBuffer) {
-        // Kirim dengan Foto
         const blob = new Blob([new Uint8Array(imageBuffer)], { type: "image/jpeg" });
         const tgFormData = new FormData();
         tgFormData.append("chat_id", TELEGRAM_CHAT_ID);
@@ -183,7 +213,6 @@ export async function submitVisitorData(formData: any, photoBase64: string | nul
         }).catch((err) => console.error("Gagal mengirim Telegram:", err));
 
       } else {
-        // Kirim Teks Saja (Bila tidak ada foto)
         fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -196,10 +225,49 @@ export async function submitVisitorData(formData: any, photoBase64: string | nul
       }
     }
 
-  return { success: true, visitorId: newVisitor.id };
+    return { success: true, visitorId: newVisitor.id };
 
   } catch (error: any) {
     console.error("Gagal memproses data tamu:", error.message || error);
     return { success: false, error: "Terjadi kesalahan sistem saat menyimpan data." };
+  }
+}
+
+// ============================================================================
+// 5. FUNGSI ADMIN SELESAIKAN PELAYANAN (ESTAFET OTOMATIS)
+// ============================================================================
+export async function completeAdminService(visitorId: string, finalStatus: VisitStatus, adminId?: string) {
+  try {
+    // 1. Akhiri pelayanan tamu saat ini
+    await prisma.visitorLog.update({
+      where: { id: visitorId },
+      data: {
+        status: finalStatus,
+        checkOutTime: new Date(), 
+        adminId: adminId || null  
+      }
+    });
+
+    // 2. Cari tamu antrean berikutnya (Cari status PENDING yang datang paling awal)
+    const nextInQueue = await prisma.visitorLog.findFirst({
+      where: { status: VisitStatus.PENDING }, 
+      orderBy: { checkInTime: "asc" } 
+    });
+
+    // 3. Otomatis "Panggil" ke meja CS
+    if (nextInQueue) {
+      await prisma.visitorLog.update({
+        where: { id: nextInQueue.id },
+        data: {
+          status: VisitStatus.ON_PROGRESS,
+          serviceStartTime: new Date() 
+        }
+      });
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error("Gagal update status admin:", error);
+    return { success: false, error: "Gagal memproses antrean." };
   }
 }
