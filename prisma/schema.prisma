@@ -21,10 +21,10 @@ model Admin {
 }
 
 model VisitorLog {
-  id          String    @id @default(uuid())
-  fullName    String    @db.VarChar(100)  // Nama PIC (Pengunjung)
-  phoneNumber String?   @db.VarChar(20)   // Nope PIC
-  institution String?   @db.VarChar(100)  // Nama Customer / Instansi
+  id             String    @id @default(uuid())
+  fullName       String    @db.VarChar(100)  // Nama PIC (Pengunjung)
+  phoneNumber    String?   @db.VarChar(20)   // Nope PIC
+  institution    String?   @db.VarChar(100)  // Nama Customer / Instansi
   internetNumber String?   @db.VarChar(50)
   address     String?   @db.Text          // Alamat
   category    String?   @db.VarChar(100)  // Kategori Kunjungan
@@ -37,15 +37,26 @@ model VisitorLog {
   checkOutTime DateTime?
   rating  Int?   // Tanda tanya (?) artinya opsional, karena tamu bisa saja pergi tanpa memberi rating
   
-  adminId     String?   
-  processedBy Admin?    @relation(fields: [adminId], references: [id])
+  // ========================================================
+  // SISTEM ANTREAN CERDAS (SMART QUEUE)
+  status           VisitStatus @default(PENDING) // Default saat daftar adalah PENDING
+  checkInTime      DateTime    @default(now())   // Waktu mulai mengantri di lobi
+  serviceStartTime DateTime?                     // Waktu dipanggil / mulai dilayani CS
+  checkOutTime     DateTime?                     // Waktu selesai dilayani / batal
+  // ========================================================
+
+  rating         Int?      // Tanda tanya (?) artinya opsional
+  
+  adminId        String?   
+  processedBy    Admin?    @relation(fields: [adminId], references: [id])
   
   @@map("visitor_logs")
 }
 
+// Enum baru untuk mengakomodasi alur kerja CS
 enum VisitStatus {
-  PENDING
-  ON_PROGRESS
-  VISITING
-  COMPLETED
+  PENDING      // Sedang menunggu antrean
+  ON_PROGRESS  // Sedang dilayani CS di meja
+  SUCCESS      // Pelayanan selesai dengan sukses
+  CANCELLED    // Pelayanan dibatalkan/tamu pulang duluan
 }
