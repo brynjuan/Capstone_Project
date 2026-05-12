@@ -4,6 +4,18 @@ import { prisma } from "@/lib/prisma";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { v4 as uuidv4 } from "uuid";
 
+type VisitorFormData = {
+  salutation?: string;
+  fullName?: string;
+  phoneNumber?: string;
+  institution?: string;
+  internetNumber?: string;
+  address?: string;
+  category?: string;
+  hostName?: string;
+  purpose?: string;
+};
+
 const s3 = new S3Client({
   region: "auto",
   endpoint: process.env.R2_ENDPOINT_URL!,
@@ -93,7 +105,7 @@ export async function submitVisitorRating(visitorId: string, ratingScore: number
   }
 }
 
-export async function submitVisitorData(formData: any, photoBase64: string | null) {
+export async function submitVisitorData(formData: VisitorFormData, photoBase64: string | null) {
   try {
     let photoUrl = null;
     let imageBuffer: Buffer | null = null; 
@@ -116,6 +128,15 @@ export async function submitVisitorData(formData: any, photoBase64: string | nul
     // 1. BERSIHKAN DATA NOMOR HP
     const cleanPhoneNumber = formData.phoneNumber ? formData.phoneNumber.replace(/\D/g, '') : "";
 
+    const hasActiveVisit = await prisma.visitorLog.count({
+      where: {
+        status: {
+          in: ["ON_PROGRESS", "VISITING"],
+        },
+      },
+    });
+    const queueStatus = hasActiveVisit > 0 ? "PENDING" : "ON_PROGRESS";
+
     // 2. SIMPAN KE DATABASE
     const newVisitor = await prisma.visitorLog.create({
       data: {
@@ -128,6 +149,8 @@ export async function submitVisitorData(formData: any, photoBase64: string | nul
         hostName: formData.hostName || "Nita Wulandari", 
         purpose: formData.purpose || "Kunjungan Umum",
         photoUrl: photoUrl,
+        status: queueStatus,
+        checkInTime: queueStatus === "ON_PROGRESS" ? new Date() : null,
       }
     });
 
@@ -198,8 +221,8 @@ export async function submitVisitorData(formData: any, photoBase64: string | nul
 
   return { success: true, visitorId: newVisitor.id };
 
-  } catch (error: any) {
-    console.error("Gagal memproses data tamu:", error.message || error);
+  } catch (error: unknown) {
+    console.error("Gagal memproses data tamu:", error instanceof Error ? error.message : error);
     return { success: false, error: "Terjadi kesalahan sistem saat menyimpan data." };
   }
 }

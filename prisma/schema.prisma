@@ -31,8 +31,9 @@ model VisitorLog {
   purpose     String    @db.Text          // Maksud dan Tujuan
   hostName    String?   @db.VarChar(100)  // Petugas yang dituju
   photoUrl    String?   @db.Text
-  status      VisitStatus @default(VISITING)
-  checkInTime DateTime  @default(now())
+  status      VisitStatus @default(PENDING)
+  createdAt   DateTime  @default(now())
+  checkInTime DateTime?
   checkOutTime DateTime?
   rating  Int?   // Tanda tanya (?) artinya opsional, karena tamu bisa saja pergi tanpa memberi rating
   
@@ -43,6 +44,8 @@ model VisitorLog {
 }
 
 enum VisitStatus {
+  PENDING
+  ON_PROGRESS
   VISITING
   COMPLETED
 }
