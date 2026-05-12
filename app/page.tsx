@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { motion, AnimatePresence, Variants } from "framer-motion";
 import Webcam from "react-webcam";
 import { Headset, Hash, Star, User, Building, Target, CheckCircle, ChevronRight, ChevronLeft, ChevronDown, Phone, MapPin, Tag, Contact, QrCode, Volume2, VolumeX, XCircle, AlertTriangle } from "lucide-react";
-import { submitVisitorData, performOCR, submitVisitorRating, uploadPhotoboothImage } from "./actions/kiosk";
+import { getVisitorByPinAction, submitVisitorData, performOCR, submitVisitorRating, uploadPhotoboothImage } from "./actions/kiosk";
 import dynamic from "next/dynamic";
 import { QRCodeCanvas } from "qrcode.react";
 import Keyboard from "react-simple-keyboard";
@@ -226,28 +226,33 @@ export default function KioskPage() {
     webcamImg.src = webcamImageSrc;
   };
 
-const checkVipPin = () => {
-    if (vipPin === "202611") { 
-      setValue('fullName', 'Tamu VIP Telkom');
-      setValue('institution', 'PT Telkom Indonesia (Persero) Tbk');
-      setValue('phoneNumber', '0811-0000-1234');
-      setStep(1); 
-      setShowPinInput(false);
-      setKeyboardOpen(false);
-      
-      // KUNCI PERBAIKAN: Hapus PIN di state dan di Virtual Keyboard saat SUKSES
-      setVipPin("");
-      if (keyboardRef.current) keyboardRef.current.setInput("");
-      
-      customAlert("success", "Akses VIP Diterima", "Selamat datang! Data Anda telah dimuat otomatis.");
-    } else {
-      customAlert("error", "Akses Ditolak", "PIN yang Anda masukkan salah atau tidak terdaftar.");
-      
-      // Hapus PIN di state dan di Virtual Keyboard saat GAGAL
-      setVipPin("");
-      if (keyboardRef.current) keyboardRef.current.setInput("");
-    }
-  };
+const checkVipPin = async () => {
+  if (!vipPin) return;
+
+  const result = await getVisitorByPinAction(vipPin);
+
+  if (result.success && result.data) {
+    // Auto-fill form dengan data dari database
+    setValue('fullName', result.data.fullName);
+    setValue('institution', result.data.institution || "");
+    setValue('phoneNumber', result.data.phoneNumber || "");
+    setValue('internetNumber', result.data.internetNumber || "");
+    setValue('address', result.data.address || "");
+
+    setStep(1); 
+    setShowPinInput(false);
+    setKeyboardOpen(false);
+    setVipPin("");
+    
+    if (keyboardRef.current) keyboardRef.current.setInput("");
+    
+    customAlert("success", "Data Ditemukan", `Selamat datang, ${result.data.fullName}!`);
+  } else {
+    customAlert("error", "Akses Ditolak", result.message || "PIN salah.");
+    setVipPin("");
+    if (keyboardRef.current) keyboardRef.current.setInput("");
+  }
+};
 
   const handleScanKTP = async () => {
     if (!webcamRef.current) return;

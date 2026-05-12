@@ -233,6 +233,34 @@ export async function submitVisitorData(formData: any, photoBase64: string | nul
   }
 }
 
+export async function getVisitorByPinAction(inputPin: string) {
+  try {
+    const visitor = await prisma.visitorLog.findUnique({
+      where: { pin: inputPin },
+      // Pastikan hanya mengambil data yang statusnya masih PENDING atau belum diproses
+      // atau buat logika khusus agar PIN hanya bisa dipakai sekali
+    });
+
+    if (!visitor) {
+      return { success: false, message: "Kode PIN tidak ditemukan atau sudah kadaluwarsa." };
+    }
+
+    return { 
+      success: true, 
+      data: {
+        fullName: visitor.fullName,
+        institution: visitor.institution,
+        phoneNumber: visitor.phoneNumber,
+        internetNumber: visitor.internetNumber,
+        address: visitor.address,
+      }
+    };
+  } catch (error) {
+    console.error("Error fetching visitor by PIN:", error);
+    return { success: false, message: "Terjadi kesalahan pada server." };
+  }
+}
+
 // ============================================================================
 // 5. FUNGSI ADMIN SELESAIKAN PELAYANAN (ESTAFET OTOMATIS)
 // ============================================================================

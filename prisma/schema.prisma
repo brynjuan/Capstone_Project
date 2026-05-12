@@ -31,6 +31,7 @@ model VisitorLog {
   purpose        String    @db.Text          // Maksud dan Tujuan
   hostName       String?   @db.VarChar(100)  // Petugas yang dituju
   photoUrl       String?   @db.Text
+  pin            String?   @unique @db.VarChar(10) // Tambahkan ini
   
   // ========================================================
   // SISTEM ANTREAN CERDAS (SMART QUEUE)
