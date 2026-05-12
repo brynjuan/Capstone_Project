@@ -26,16 +26,11 @@ model VisitorLog {
   phoneNumber    String?   @db.VarChar(20)   // Nope PIC
   institution    String?   @db.VarChar(100)  // Nama Customer / Instansi
   internetNumber String?   @db.VarChar(50)
-  address     String?   @db.Text          // Alamat
-  category    String?   @db.VarChar(100)  // Kategori Kunjungan
-  purpose     String    @db.Text          // Maksud dan Tujuan
-  hostName    String?   @db.VarChar(100)  // Petugas yang dituju
-  photoUrl    String?   @db.Text
-  status      VisitStatus @default(PENDING)
-  createdAt   DateTime  @default(now())
-  checkInTime DateTime?
-  checkOutTime DateTime?
-  rating  Int?   // Tanda tanya (?) artinya opsional, karena tamu bisa saja pergi tanpa memberi rating
+  address        String?   @db.Text          // Alamat
+  category       String?   @db.VarChar(100)  // Kategori Kunjungan
+  purpose        String    @db.Text          // Maksud dan Tujuan
+  hostName       String?   @db.VarChar(100)  // Petugas yang dituju
+  photoUrl       String?   @db.Text
   
   // ========================================================
   // SISTEM ANTREAN CERDAS (SMART QUEUE)

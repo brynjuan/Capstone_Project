@@ -227,8 +227,8 @@ export async function submitVisitorData(formData: any, photoBase64: string | nul
 
     return { success: true, visitorId: newVisitor.id };
 
-  } catch (error: unknown) {
-    console.error("Gagal memproses data tamu:", error instanceof Error ? error.message : error);
+  } catch (error: any) {
+    console.error("Gagal memproses data tamu:", error.message || error);
     return { success: false, error: "Terjadi kesalahan sistem saat menyimpan data." };
   }
 }
