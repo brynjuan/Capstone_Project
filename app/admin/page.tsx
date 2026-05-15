@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import AdminDashboard, { type AdminDashboardData } from "./AdminDashboard";
+import { VisitStatus } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
@@ -95,30 +96,30 @@ async function getDashboardData(): Promise<AdminDashboardData> {
       yearlySeries,
     ] = await Promise.all([
       prisma.visitorLog.findMany({
-        orderBy: [{ status: "asc" }, { createdAt: "desc" }],
+        orderBy: [{ status: "asc" }, { checkInTime: "desc" }],
         take: 200,
       }),
       prisma.visitorLog.count({
-        where: { createdAt: { gte: today } },
+        where: { checkInTime: { gte: today } },
       }),
       prisma.visitorLog.count({
-        where: { createdAt: { gte: month } },
+        where: { checkInTime: { gte: month } },
       }),
       prisma.visitorLog.count({
-        where: { createdAt: { gte: year } },
+        where: { checkInTime: { gte: year } },
       }),
       prisma.visitorLog.count({
-        where: { status: "PENDING" },
+        where: { status: VisitStatus.PENDING },
       }),
       prisma.visitorLog.count({
-        where: { status: { in: ["ON_PROGRESS", "VISITING"] } },
+        where: { status: VisitStatus.ON_PROGRESS },
       }),
       prisma.visitorLog.count({
-        where: { status: "COMPLETED" },
+        where: { status: VisitStatus.SUCCESS },
       }),
       prisma.visitorLog.count({
         where: {
-          status: "COMPLETED",
+          status: VisitStatus.SUCCESS,
           checkOutTime: { gte: today },
         },
       }),
@@ -136,7 +137,7 @@ async function getDashboardData(): Promise<AdminDashboardData> {
         dailyRanges.map(async (range) => ({
           label: range.label,
           value: await prisma.visitorLog.count({
-            where: { createdAt: { gte: range.start, lt: range.end } },
+            where: { checkInTime: { gte: range.start, lt: range.end } },
           }),
         })),
       ),
@@ -144,7 +145,7 @@ async function getDashboardData(): Promise<AdminDashboardData> {
         monthlyRanges.map(async (range) => ({
           label: range.label,
           value: await prisma.visitorLog.count({
-            where: { createdAt: { gte: range.start, lt: range.end } },
+            where: { checkInTime: { gte: range.start, lt: range.end } },
           }),
         })),
       ),
@@ -152,7 +153,7 @@ async function getDashboardData(): Promise<AdminDashboardData> {
         yearlyRanges.map(async (range) => ({
           label: range.label,
           value: await prisma.visitorLog.count({
-            where: { createdAt: { gte: range.start, lt: range.end } },
+            where: { checkInTime: { gte: range.start, lt: range.end } },
           }),
         })),
       ),
@@ -167,7 +168,7 @@ async function getDashboardData(): Promise<AdminDashboardData> {
             value: await prisma.visitorLog.count({
               where: {
                 category,
-                createdAt: { gte: range.start, lt: range.end },
+                checkInTime: { gte: range.start, lt: range.end },
               },
             }),
           })),
@@ -179,7 +180,7 @@ async function getDashboardData(): Promise<AdminDashboardData> {
       connectionOk: true,
       visitors: visitors.map((visitor) => ({
         id: visitor.id,
-        createdAt: toIso(visitor.createdAt),
+        createdAt: toIso(visitor.checkInTime),
         fullName: visitor.fullName,
         phoneNumber: visitor.phoneNumber,
         institution: visitor.institution,
@@ -191,6 +192,7 @@ async function getDashboardData(): Promise<AdminDashboardData> {
         photoUrl: visitor.photoUrl,
         status: visitor.status,
         checkInTime: toIso(visitor.checkInTime),
+        serviceStartTime: toIso(visitor.serviceStartTime),
         checkOutTime: toIso(visitor.checkOutTime),
         rating: visitor.rating,
       })),

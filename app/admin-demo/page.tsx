@@ -17,15 +17,15 @@ export default function AdminDemoPage() {
             <Headset className="w-8 h-8 text-white" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-white">Dashboard CS Telkom (Demo)</h1>
-            <p className="text-gray-400">Menunggu panggilan masuk dari Kiosk...</p>
+            <h1 className="text-3xl font-bold text-white">Dasbor CS Telkom (Demo)</h1>
+            <p className="text-gray-400">Menunggu panggilan masuk dari kios...</p>
           </div>
         </div>
 
         {/* Layar Video Admin */}
         <div className="w-full h-[75vh] bg-black rounded-3xl overflow-hidden border-2 border-gray-700 shadow-2xl">
           <ZegoCall 
-            roomID="ruang-bantuan-telkom" // Harus SAMA PERSIS dengan Kiosk
+            roomID="ruang-bantuan-telkom" // Harus sama persis dengan kios
             onClose={() => alert("Panggilan telah ditutup oleh tamu.")}
             userID="admin-cs-nita"        // ID KHUSUS ADMIN
             userName="CS: Nita Wulandari" // NAMA KHUSUS ADMIN
