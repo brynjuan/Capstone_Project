@@ -291,14 +291,17 @@ export default function AdminDashboard({ data, admin }: Props) {
   const viewCopy = {
     dashboard: {
       eyebrow: "Dasbor Resepsionis",
+      title: "Statistik Kunjungan",
       description: "Pantau antrean, sesi layanan, dan statistik penggunaan kios dalam satu tampilan.",
     },
     queue: {
       eyebrow: "Manajemen Antrean",
+      title: "Antrean Pengunjung",
       description: "Pengunjung pertama diproses sebagai sedang dilayani, sedangkan antrean berikutnya menunggu giliran.",
     },
     history: {
       eyebrow: "Riwayat Layanan",
+      title: "Riwayat Pengunjung",
       description: "Daftar pengunjung yang layanannya sudah diselesaikan oleh admin.",
     },
   }[activeView];
@@ -568,9 +571,9 @@ export default function AdminDashboard({ data, admin }: Props) {
                                   <Star
                                     key={i}
                                     className={`h-4 w-4 ${
-                                      i < Math.floor(visitor.rating)
+                                      i < Math.floor(visitor.rating ?? 0)
                                         ? "fill-[#e4a63a] text-[#e4a63a]"
-                                        : i - Math.floor(visitor.rating) < 1
+                                        : i - Math.floor(visitor.rating ?? 0) < 1
                                           ? "fill-[#e4a63a] text-[#e4a63a]"
                                           : "text-[#ddd]"
                                     }`}
