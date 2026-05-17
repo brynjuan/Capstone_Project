@@ -1,6 +1,7 @@
 "use server"
 
 import { prisma } from "@/lib/prisma";
+import { notifyRealtime } from "@/lib/realtime";
 import { VisitStatus } from "@prisma/client"; // <-- PENTING: Import Enum dari Prisma
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { v4 as uuidv4 } from "uuid";
@@ -95,6 +96,7 @@ export async function submitVisitorRating(visitorId: string, ratingScore: number
       where: { id: visitorId },
       data: { rating: ratingScore }
     });
+    await notifyRealtime();
     return { success: true };
   } catch (error) {
     console.error("Gagal menyimpan rating:", error);
@@ -225,6 +227,7 @@ export async function submitVisitorData(formData: any, photoBase64: string | nul
       }
     }
 
+    await notifyRealtime();
     return { success: true, visitorId: newVisitor.id };
 
   } catch (error: any) {
@@ -293,6 +296,7 @@ export async function completeAdminService(visitorId: string, finalStatus: Visit
       });
     }
 
+    await notifyRealtime();
     return { success: true };
   } catch (error) {
     console.error("Gagal update status admin:", error);

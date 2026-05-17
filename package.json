@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --webpack",
+    "dev": "node scripts/dev-with-ws.mjs",
+    "dev:next": "next dev --webpack",
+    "ws": "node scripts/ws-server.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
@@ -28,7 +30,8 @@
     "react-simple-keyboard": "^3.8.204",
     "react-webcam": "^7.2.0",
     "tesseract.js": "^7.0.0",
-    "uuid": "^14.0.0"
+    "uuid": "^14.0.0",
+    "ws": "^8.20.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

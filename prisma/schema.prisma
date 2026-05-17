@@ -21,10 +21,10 @@ model Admin {
 }
 
 model VisitorLog {
-  id             String    @id @default(uuid())
-  fullName       String    @db.VarChar(100)  // Nama PIC (Pengunjung)
-  phoneNumber    String?   @db.VarChar(20)   // Nope PIC
-  institution    String?   @db.VarChar(100)  // Nama Customer / Instansi
+  id             String      @id @default(uuid())
+  fullName       String      @db.VarChar(100)  // Nama PIC (Pengunjung)
+  phoneNumber    String?     @db.VarChar(20)   // Nope PIC
+  institution    String?     @db.VarChar(100)  // Nama Customer / Instansi
   internetNumber String?   @db.VarChar(50)
   address        String?   @db.Text          // Alamat
   category       String?   @db.VarChar(100)  // Kategori Kunjungan

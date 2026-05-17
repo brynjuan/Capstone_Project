@@ -1,0 +1,171 @@
+[browser] [ZegoCloudRTCCore]login error TypeError: Cannot read properties of undefined (reading '_expressConfig')
+    at Generator.next (<anonymous>) (<anonymous>)
+[browser] {"time":"2026/05/14 01:21:47.620","level":3,"action":"zn.nahr.sr2","content":"fail","appid":2110186158,"roomid":"ruang-bantuan-telkom","userid":"admin-cs","sessionid":"0"} 
+⨯ ./app/admin/AdminDashboard.tsx
+Error:   x Expected '</', got 'jsx text'
+     ,-[C:\Users\ASUS Zenbook\OneDrive - Universitas Tadulako\Semester 6\Capstone_Project\app\admin\AdminDashboard.tsx:367:1]
+ 364 |               <header className="flex flex-col gap-4 border-b border-[#f0dfdb] pb-5 xl:flex-row xl:items-center xl:justify-between">
+ 365 |                 <div>
+ 366 |                   <p className="text-sm font-semibold uppercase tracking-widest text-[#b3261e]">{viewCopy.eyebrow}</p>
+ 367 | ,->               <p className="mt-1 text-2xl font-bold tracking-tight text-[#98231d] sm:text-4xl">{viewCopy.title}</h2>
+ 368 | `->               <p className="mt-2 text-sm text-[#725b56]">
+ 369 |                     {viewCopy.description}
+ 370 |                   </p>
+ 371 |                 </div>
+     `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./app/admin/AdminDashboard.tsx
+./app/admin/page.tsx
+[browser] ./app/admin/AdminDashboard.tsx
+Error:   x Expected '</', got 'jsx text'
+     ,-[C:\Users\ASUS Zenbook\OneDrive - Universitas Tadulako\Semester 6\Capstone_Project\app\admin\AdminDashboard.tsx:367:1]
+ 364 |               <header className="flex flex-col gap-4 border-b border-[#f0dfdb] pb-5 xl:flex-row xl:items-center xl:justify-between">
+ 365 |                 <div>
+ 366 |                   <p className="text-sm font-semibold uppercase tracking-widest text-[#b3261e]">{viewCopy.eyebrow}</p>
+ 367 | ,->               <p className="mt-1 text-2xl font-bold tracking-tight text-[#98231d] sm:text-4xl">{viewCopy.title}</h2>
+ 368 | `->               <p className="mt-2 text-sm text-[#725b56]">
+ 369 |                     {viewCopy.description}
+ 370 |                   </p>
+ 371 |                 </div>
+     `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./app/admin/AdminDashboard.tsx
+./app/admin/page.tsx 
+[browser] ./app/admin/AdminDashboard.tsx
+Error:   x Expected '</', got 'jsx text'
+     ,-[C:\Users\ASUS Zenbook\OneDrive - Universitas Tadulako\Semester 6\Capstone_Project\app\admin\AdminDashboard.tsx:367:1]
+ 364 |               <header className="flex flex-col gap-4 border-b border-[#f0dfdb] pb-5 xl:flex-row xl:items-center xl:justify-between">
+ 365 |                 <div>
+ 366 |                   <p className="text-sm font-semibold uppercase tracking-widest text-[#b3261e]">{viewCopy.eyebrow}</p>
+ 367 | ,->               <p className="mt-1 text-2xl font-bold tracking-tight text-[#98231d] sm:text-4xl">{viewCopy.title}</h2>
+ 368 | `->               <p className="mt-2 text-sm text-[#725b56]">
+ 369 |                     {viewCopy.description}
+ 370 |                   </p>
+ 371 |                 </div>
+     `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./app/admin/AdminDashboard.tsx
+./app/admin/page.tsx 
+[browser] ./app/admin/AdminDashboard.tsx
+Error:   x Expected '</', got 'jsx text'
+     ,-[C:\Users\ASUS Zenbook\OneDrive - Universitas Tadulako\Semester 6\Capstone_Project\app\admin\AdminDashboard.tsx:367:1]
+ 364 |               <header className="flex flex-col gap-4 border-b border-[#f0dfdb] pb-5 xl:flex-row xl:items-center xl:justify-between">
+ 365 |                 <div>
+ 366 |                   <p className="text-sm font-semibold uppercase tracking-widest text-[#b3261e]">{viewCopy.eyebrow}</p>
+ 367 | ,->               <p className="mt-1 text-2xl font-bold tracking-tight text-[#98231d] sm:text-4xl">{viewCopy.title}</h2>
+ 368 | `->               <p className="mt-2 text-sm text-[#725b56]">
+ 369 |                     {viewCopy.description}
+ 370 |                   </p>
+ 371 |                 </div>
+     `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./app/admin/AdminDashboard.tsx
+./app/admin/page.tsx 
+⨯ ./app/admin/AdminDashboard.tsx
+Error:   x Expected '</', got 'jsx text'
+     ,-[C:\Users\ASUS Zenbook\OneDrive - Universitas Tadulako\Semester 6\Capstone_Project\app\admin\AdminDashboard.tsx:367:1]
+ 364 |               <header className="flex flex-col gap-4 border-b border-[#f0dfdb] pb-5 xl:flex-row xl:items-center xl:justify-between">
+ 365 |                 <div>
+ 366 |                   <p className="text-sm font-semibold uppercase tracking-widest text-[#b3261e]">{viewCopy.eyebrow}</p>
+ 367 | ,->               <p className="mt-1 text-2xl font-bold tracking-tight text-[#98231d] sm:text-4xl">{viewCopy.title}</h2>
+ 368 | `->               <p className="mt-2 text-sm text-[#725b56]">
+ 369 |                     {viewCopy.description}
+ 370 |                   </p>
+ 371 |                 </div>
+     `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./app/admin/AdminDashboard.tsx
+./app/admin/page.tsx
+[browser] Uncaught ModuleBuildError: Module build failed (from ./node_modules/next/dist/build/webpack/loaders/next-swc-loader.js):
+Error:   x Expected '</', got 'jsx text'
+     ,-[C:\Users\ASUS Zenbook\OneDrive - Universitas Tadulako\Semester 6\Capstone_Project\app\admin\AdminDashboard.tsx:367:1]
+ 364 |               <header className="flex flex-col gap-4 border-b border-[#f0dfdb] pb-5 xl:flex-row xl:items-center xl:justify-between">
+ 365 |                 <div>
+ 366 |                   <p className="text-sm font-semibold uppercase tracking-widest text-[#b3261e]">{viewCopy.eyebrow}</p>
+ 367 | ,->               <p className="mt-1 text-2xl font-bold tracking-tight text-[#98231d] sm:text-4xl">{viewCopy.title}</h2>
+ 368 | `->               <p className="mt-2 text-sm text-[#725b56]">
+ 369 |                     {viewCopy.description}
+ 370 |                   </p>
+ 371 |                 </div>
+     `----
+
+
+Caused by:
+    Syntax Error
+[browser] ./app/admin/AdminDashboard.tsx
+Error:   x Expected '</', got 'jsx text'
+     ,-[C:\Users\ASUS Zenbook\OneDrive - Universitas Tadulako\Semester 6\Capstone_Project\app\admin\AdminDashboard.tsx:367:1]
+ 364 |               <header className="flex flex-col gap-4 border-b border-[#f0dfdb] pb-5 xl:flex-row xl:items-center xl:justify-between">
+ 365 |                 <div>
+ 366 |                   <p className="text-sm font-semibold uppercase tracking-widest text-[#b3261e]">{viewCopy.eyebrow}</p>
+ 367 | ,->               <p className="mt-1 text-2xl font-bold tracking-tight text-[#98231d] sm:text-4xl">{viewCopy.title}</h2>
+ 368 | `->               <p className="mt-2 text-sm text-[#725b56]">
+ 369 |                     {viewCopy.description}
+ 370 |                   </p>
+ 371 |                 </div>
+     `----
+
+Caused by:
+    Syntax Error 
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⨯ ./app/admin/AdminDashboard.tsx
+Error:   x Expected '</', got '='
+     ,-[C:\Users\ASUS Zenbook\OneDrive - Universitas Tadulako\Semester 6\Capstone_Project\app\admin\AdminDashboard.tsx:367:1]
+ 364 |           <header className="flex flex-col gap-4 border-b border-[#f0dfdb] pb-5 xl:flex-row xl:items-center xl:justify-between">
+ 365 |             <div>
+ 366 |               <p className="text-sm font-semibold uppercase tracking-widest text-[#b3261e]">{viewCopy.eyebrow}</p>
+ 367 |               < className="mt-1 text-2xl font-bold tracking-tight text-[#98231d] sm:text-4xl">{viewCopy.title}</h2>
+     :                          ^
+ 368 |               <p className="mt-2 text-sm text-[#725b56]">
+ 369 |                 {viewCopy.description}
+ 370 |               </p>
+     `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./app/admin/AdminDashboard.tsx
+./app/admin/page.tsx
+[browser] Uncaught ModuleBuildError: Module build failed (from ./node_modules/next/dist/build/webpack/loaders/next-swc-loader.js):
+Error:   x Expected '</', got '='
+     ,-[C:\Users\ASUS Zenbook\OneDrive - Universitas Tadulako\Semester 6\Capstone_Project\app\admin\AdminDashboard.tsx:367:1]
+ 364 |           <header className="flex flex-col gap-4 border-b border-[#f0dfdb] pb-5 xl:flex-row xl:items-center xl:justify-between">
+ 365 |             <div>
+ 366 |               <p className="text-sm font-semibold uppercase tracking-widest text-[#b3261e]">{viewCopy.eyebrow}</p>
+ 367 |               < className="mt-1 text-2xl font-bold tracking-tight text-[#98231d] sm:text-4xl">{viewCopy.title}</h2>
+     :                          ^
+ 368 |               <p className="mt-2 text-sm text-[#725b56]">
+ 369 |                 {viewCopy.description}
+ 370 |               </p>
+     `----
+
+
+Caused by:
+    Syntax Error
+⚠ Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+⚠ Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+⚠ Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+[browser] error NotAllowedError: Permission denied

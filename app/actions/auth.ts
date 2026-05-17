@@ -28,7 +28,7 @@ export async function loginAdmin(
     });
   } catch (error) {
     console.error("Gagal login admin:", error);
-    return { error: "Database belum dapat diakses. Periksa koneksi internet atau konfigurasi Supabase." };
+    return { error: "Basis data belum dapat diakses. Periksa koneksi internet atau konfigurasi Supabase." };
   }
 
   if (!admin) {
