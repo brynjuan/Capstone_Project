@@ -363,7 +363,6 @@ export default function AdminDashboard({ data, admin }: Props) {
           <header className="flex flex-col gap-4 border-b border-[#f0dfdb] pb-5 xl:flex-row xl:items-center xl:justify-between">
             <div>
               <p className="text-sm text-xl font-semibold tracking-tight text-[#b3261e]">{viewCopy.eyebrow}</p>
-              <h2 className="mt-1 text-2xl font-bold tracking-tight text-[#98231d] sm:text-4xl">{viewCopy.title}</h2>
               <p className="mt-2 text-sm text-[#725b56]">
                 {viewCopy.description}
               </p>

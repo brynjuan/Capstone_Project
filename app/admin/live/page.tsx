@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   Headset,
   LayoutDashboard,
+  LucideIcon,
   Table2,
 } from "lucide-react";
 import { getAdminSession } from "@/lib/auth";
@@ -100,7 +101,7 @@ function SidebarLink({
   href,
   active,
 }: {
-  icon: typeof LayoutDashboard;
+  icon: LucideIcon;
   label: string;
   href: string;
   active?: boolean;
