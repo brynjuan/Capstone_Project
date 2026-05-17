@@ -565,7 +565,7 @@ useEffect(() => {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 z-[100] flex flex-col items-center justify-center bg-black/80 backdrop-blur-md">
             <div className="bg-white/10 p-8 rounded-[40px] border border-white/20 shadow-2xl flex flex-col items-center w-[400px]">
               <h2 className="text-2xl font-bold text-white mb-2">Pindai Kode QR</h2>
-              <p className="text-gray-400 text-center mb-8">Arahkan kode QR ke kamera kios.</p>
+              <p className="text-gray-400 text-center mb-8">Arahkan kode QR ke kamera kiosk.</p>
               <div className="w-full aspect-square rounded-3xl overflow-hidden border-4 border-red-500/50 relative">
                 <Scanner onScan={handleScan} components={{ finder: false }} />
                 <motion.div animate={{ top: ["0%", "100%", "0%"] }} transition={{ repeat: Infinity, duration: 3, ease: "linear" }} className="absolute left-0 w-full h-1 bg-red-500 shadow-[0_0_15px_rgba(220,38,38,1)] z-10" />
@@ -753,7 +753,7 @@ useEffect(() => {
               {!ratingSubmitted ? (
                 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="text-center w-full">
                   <h2 className="text-4xl font-bold text-white mb-4">Langkah Terakhir</h2>
-                  <h3 className="text-xl text-gray-300 mb-12">Bagaimana pengalaman Anda menggunakan layanan kios ini?</h3>
+                  <h3 className="text-xl text-gray-300 mb-12">Bagaimana pengalaman Anda menggunakan layanan kiosk ini?</h3>
                   <div className="flex justify-center gap-8">
                     {[ { score: 1, emoji: "😡", label: "Buruk" }, { score: 2, emoji: "🙁", label: "Kurang" }, { score: 3, emoji: "😐", label: "Cukup" }, { score: 4, emoji: "🙂", label: "Baik" }, { score: 5, emoji: "😍", label: "Sangat Baik" }].map((item) => (
                       <motion.button key={item.score} whileHover={{ scale: 1.2, y: -10 }} whileTap={{ scale: 0.9 }} onClick={async () => { setRatingSubmitted(true); playSuccessSound(); await submitVisitorRating(currentVisitorId, item.score); setTimeout(() => { setStep(0); setRatingSubmitted(false); setCurrentVisitorId(""); reset(); setPhotoBase64(null); setIsAgreed(false); setSelectedCategory(""); }, 3000); }} className="flex flex-col items-center gap-4 group">
@@ -769,7 +769,7 @@ useEffect(() => {
                     <div className="w-24 h-24 bg-green-500/20 border border-green-500/50 rounded-full flex items-center justify-center text-5xl mb-4">🎉</div>
                     <h2 className="text-3xl font-bold text-white">Terima Kasih!</h2>
                     <p className="text-xl text-gray-300">Penilaian Anda sangat berarti bagi pengembangan Telkom.</p>
-                    <p className="text-sm text-gray-500 mt-4">Kios akan kembali ke layar awal dalam beberapa detik...</p>
+                    <p className="text-sm text-gray-500 mt-4">Kiosk akan kembali ke layar awal dalam beberapa detik...</p>
                   </div>
                 </motion.div>
               )}

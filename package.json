@@ -29,7 +29,8 @@
     "react-simple-keyboard": "^3.8.204",
     "react-webcam": "^7.2.0",
     "tesseract.js": "^7.0.0",
-    "uuid": "^14.0.0"
+    "uuid": "^14.0.0",
+    "ws": "^8.20.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

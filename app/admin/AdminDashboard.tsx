@@ -291,17 +291,14 @@ export default function AdminDashboard({ data, admin }: Props) {
   const viewCopy = {
     dashboard: {
       eyebrow: "Dasbor Resepsionis",
-      title: "Statistik Kunjungan",
-      description: "Pantau antrean, sesi layanan, dan statistik penggunaan kios dalam satu tampilan.",
+      description: "Pantau antrean, sesi layanan, dan statistik penggunaan kiosk dalam satu tampilan.",
     },
     queue: {
       eyebrow: "Manajemen Antrean",
-      title: "Antrean Pengunjung",
       description: "Pengunjung pertama diproses sebagai sedang dilayani, sedangkan antrean berikutnya menunggu giliran.",
     },
     history: {
       eyebrow: "Riwayat Layanan",
-      title: "Riwayat Pengunjung",
       description: "Daftar pengunjung yang layanannya sudah diselesaikan oleh admin.",
     },
   }[activeView];
@@ -315,12 +312,8 @@ export default function AdminDashboard({ data, admin }: Props) {
 
       <div className="min-h-screen">
         <aside className="flex flex-col border-b border-[#f0dfdb] bg-[#fffaf8]/95 px-5 py-5 shadow-[10px_0_34px_rgba(70,31,25,0.06)] backdrop-blur-2xl lg:fixed lg:inset-y-0 lg:left-0 lg:z-40 lg:w-[280px] lg:border-b-0 lg:border-r">
-          <div className="flex items-center gap-3">
-            <Image src="/logo-telkom2.png" alt="Telkom" width={46} height={46} className="h-12 w-12 object-contain" />
-            <div>
-              <p className="text-xs font-bold uppercase tracking-widest text-[#b3261e]">Telkom</p>
-              <h1 className="text-lg font-bold leading-tight">Admin Kios</h1>
-            </div>
+          <div className="flex items-center justify-center">
+            <Image src="/logo-telkom2.png" alt="Telkom" width={46} height={46} className="h-16 w-18" />
           </div>
 
           <nav className="mt-8 grid gap-2">
@@ -354,10 +347,6 @@ export default function AdminDashboard({ data, admin }: Props) {
           </nav>
 
           <div className="mt-auto">
-            <div className="rounded-xl border border-[#f0dfdb] bg-white/80 p-3">
-              <p className="truncate text-sm font-bold text-[#2b211f]">{admin.name}</p>
-              <p className="mt-0.5 truncate text-xs font-semibold text-[#806762]">{admin.email}</p>
-            </div>
             <form action={logoutAdmin} className="mt-4">
               <button
                 type="submit"
@@ -372,7 +361,7 @@ export default function AdminDashboard({ data, admin }: Props) {
         <section className="min-w-0 px-4 py-5 sm:px-6 lg:ml-[280px] lg:px-8">
           <header className="flex flex-col gap-4 border-b border-[#f0dfdb] pb-5 xl:flex-row xl:items-center xl:justify-between">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-widest text-[#b3261e]">{viewCopy.eyebrow}</p>
+              <p className="text-sm text-xl font-semibold tracking-tight text-[#b3261e]">{viewCopy.eyebrow}</p>
               <h2 className="mt-1 text-2xl font-bold tracking-tight text-[#98231d] sm:text-4xl">{viewCopy.title}</h2>
               <p className="mt-2 text-sm text-[#725b56]">
                 {viewCopy.description}
@@ -474,7 +463,7 @@ export default function AdminDashboard({ data, admin }: Props) {
                 <section className="min-w-0 rounded-2xl border border-[#f0dfdb] bg-white shadow-[0_16px_42px_rgba(70,31,25,0.06)] backdrop-blur-2xl">
                   <div className="flex flex-col gap-4 border-b border-[#f3e3df] p-5 xl:flex-row xl:items-center xl:justify-between">
                     <div>
-                      <h3 className="text-xl font-bold">
+                      <h3 className="text-xl font-semibold">
                         {activeView === "history" ? "Daftar Riwayat" : "Daftar Antrean"}
                       </h3>
                     </div>
@@ -497,9 +486,9 @@ export default function AdminDashboard({ data, admin }: Props) {
                       setStatusFilter(event.target.value as typeof statusFilter);
                       setPage(1);
                     }}
-                    className="h-11 rounded-xl border border-[#f0dfdb] bg-[#fff7f5] px-3 text-sm font-semibold text-[#2b211f] outline-none focus:border-[#d23a2f]"
+                    className="h-11 rounded-xl border border-[#f0dfdb] bg-[#fff7f5] px-3 text-sm text-[#2b211f] outline-none focus:border-[#d23a2f]"
                   >
-                    <option value="ALL">Semua Status</option>
+                    <option value="ALL">Status</option>
                     {activeView === "history" ? (
                       <>
                         <option value="SUCCESS">Selesai</option>
@@ -519,13 +508,13 @@ export default function AdminDashboard({ data, admin }: Props) {
                 <table className="w-full min-w-[920px] text-left text-sm">
                   <thead className="border-b border-[#f0dfdb] bg-[#fff3f0] text-xs uppercase tracking-wide text-[#806762]">
                     <tr>
-                      <th className="px-5 py-3">Tamu</th>
-                      <th className="px-5 py-3">Kategori</th>
-                      <th className="px-5 py-3">Petugas</th>
-                      <th className="px-5 py-3">{activeView === "history" ? "Waktu Layanan" : "Waktu Kedatangan"}</th>
-                      <th className="px-5 py-3">Status</th>
-                      {activeView === "history" && <th className="px-5 py-3">Rating</th>}
-                      <th className="px-5 py-3 text-right">Aksi</th>
+                      <th className="px-5 py-3 text-center">Tamu</th>
+                      <th className="px-5 py-3 text-center">Kategori</th>
+                      <th className="px-5 py-3 text-center">Petugas</th>
+                      <th className="px-5 py-3 text-center">{activeView === "history" ? "Waktu Layanan" : "Waktu Kedatangan"}</th>
+                      <th className="px-5 py-3 text-center">Status</th>
+                      {activeView === "history" && <th className="px-5 py-3 text-center">Rating</th>}
+                      <th className="px-5 py-3 text-center">Aksi</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#f7ece9]">
@@ -544,41 +533,44 @@ export default function AdminDashboard({ data, admin }: Props) {
                             {visitor.institution || "Instansi belum diisi"}
                           </div>
                         </td>
-                        <td className="px-5 py-4">
-                          <span className="rounded-lg border border-[#e3e8fb] bg-[#eef2ff] px-2.5 py-1 text-xs font-bold text-[#56628f]">
+                        <td className="px-5 py-4 text-center">
+                          <span className="text-xs font-bold text-[#56628f]">
                             {visitor.category || "Umum"}
                           </span>
                         </td>
-                        <td className="px-5 py-4 text-[#725b56]">{visitor.hostName || "-"}</td>
+                        <td className="px-5 py-4 text-[#725b56] text-center">{visitor.hostName || "-"}</td>
                         <td className="px-5 py-4">
-                          <div className="font-bold text-[#2b211f]">
+                          <div className="font-bold text-[#2b211f] text-center">
                             {activeView === "history"
                               ? `${formatTime(visitor.serviceStartTime || visitor.checkInTime)} - ${formatTime(visitor.checkOutTime)}`
                               : formatTime(visitor.serviceStartTime || visitor.checkInTime)}
                           </div>
-                          <div className="text-xs text-[#806762]">
+                          <div className="text-xs text-[#806762] text-center">
                             {activeView === "history" ? formatDate(visitor.checkOutTime) : formatDate(visitor.checkInTime)}
                           </div>
                         </td>
-                        <td className="px-5 py-4">
+                        <td className="px-5 py-4 text-center">
                           <StatusBadge status={visitor.status} />
                         </td>
                         {activeView === "history" && (
-                          <td className="px-5 py-4">
+                          <td className="px-5 py-4 text-center">
                             {visitor.rating ? (
                               <div className="flex items-center gap-1">
-                                {[...Array(5)].map((_, i) => (
-                                  <Star
-                                    key={i}
-                                    className={`h-4 w-4 ${
-                                      i < Math.floor(visitor.rating ?? 0)
-                                        ? "fill-[#e4a63a] text-[#e4a63a]"
-                                        : i - Math.floor(visitor.rating ?? 0) < 1
+                                {(() => {
+                                  const ratingValue = Math.floor(visitor.rating);
+                                  return [...Array(5)].map((_, i) => (
+                                    <Star
+                                      key={i}
+                                      className={`h-4 w-4 ${
+                                        i < ratingValue
                                           ? "fill-[#e4a63a] text-[#e4a63a]"
-                                          : "text-[#ddd]"
-                                    }`}
-                                  />
-                                ))}
+                                          : i - ratingValue < 1
+                                            ? "fill-[#e4a63a] text-[#e4a63a]"
+                                            : "text-[#ddd]"
+                                      }`}
+                                    />
+                                  ));
+                                })()}
                               </div>
                             ) : (
                               <span className="text-[#806762]">-</span>
@@ -847,7 +839,7 @@ function QueueView({
       <section className="relative overflow-hidden rounded-2xl border border-[#f0dfdb] bg-white shadow-[0_18px_48px_rgba(70,31,25,0.07)]">
         <div className="flex flex-col gap-4 border-b border-[#f4e7e3] px-4 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h3 className="text-2xl font-black tracking-tight text-[#3b302d]">Daftar Antrean</h3>
+            <h3 className="text-xl font-semibold tracking-tight text-[#3b302d]">Daftar Antrean</h3>
           </div>
 
           <div className="flex flex-col gap-3 md:flex-row md:items-center">
@@ -893,12 +885,12 @@ function QueueView({
           <table className="w-full min-w-[900px] text-left text-sm">
             <thead className="border-b border-[#f4e7e3] bg-[#fffaf9] text-[11px] font-black uppercase tracking-[0.16em] text-[#9b8580]">
               <tr>
-                <th className="px-6 py-4">Informasi Pengunjung</th>
-                <th className="px-6 py-4">Instansi</th>
-                <th className="px-6 py-4">Kategori</th>
-                <th className="px-6 py-4">Waktu Kedatangan</th>
-                <th className="px-6 py-4">Status</th>
-                <th className="px-6 py-4 text-right">Aksi</th>
+                <th className="px-6 py-4 text-center">Tamu</th>
+                <th className="px-6 py-4 text-center">Instansi</th>
+                <th className="px-6 py-4 text-center">Kategori</th>
+                <th className="px-6 py-4 text-center">Waktu Kedatangan</th>
+                <th className="px-6 py-4 text-center">Status</th>
+                <th className="px-6 py-4 text-center">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#f8eeeb]">
@@ -924,14 +916,14 @@ function QueueView({
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 font-semibold text-[#7a625d]">
+                    <td className="px-6 py-4 font-semibold text-[#7a625d] text-center">
                       {visitor.institution || "Instansi belum diisi"}
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4 text-center">
                       <QueueCategoryLabel category={visitor.category} />
                     </td>
-                    <td className="px-6 py-4 font-bold text-[#7a625d]">{formatTime(visitor.checkInTime)}</td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4 font-bold text-[#7a625d] text-center">{formatTime(visitor.checkInTime)}</td>
+                    <td className="px-6 py-4 text-center">
                       <QueueStatusBadge status={visitor.status} />
                     </td>
                     <td className="px-6 py-4">
@@ -1028,7 +1020,7 @@ function QueueActiveSessionCard({
           <span className="inline-flex rounded-lg bg-[#fff0ed] px-3 py-1 text-xs font-black uppercase text-[#b3261e]">
             Sesi Aktif
           </span>
-          <h3 className="mt-3 text-2xl font-black tracking-tight text-[#332926]">
+          <h3 className="mt-3 text-2xl font-semibold tracking-tight text-[#332926]">
             Antrean {visitorCode(visitor, visitorIndex)}
           </h3>
         </div>
@@ -1060,7 +1052,7 @@ function QueueActiveSessionCard({
 
       <div className="my-6 h-px bg-[#f5e8e4]" />
 
-      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_150px_48px]">
+      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_150px]">
         <form action={completeVisit}>
           <input type="hidden" name="id" value={visitor.id} />
           <button
@@ -1070,18 +1062,6 @@ function QueueActiveSessionCard({
           >
             <CheckCircle2 className="h-5 w-5" />
             Tandai selesai
-          </button>
-        </form>
-
-        <form action={reopenVisit}>
-          <input type="hidden" name="id" value={visitor.id} />
-          <button
-            type="submit"
-            disabled={canComplete}
-            className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl border-2 border-[#d9b8b2] bg-white text-sm font-black text-[#7a625d] transition hover:border-[#b3261e] hover:bg-[#fff3f1] hover:text-[#b3261e] disabled:cursor-not-allowed disabled:opacity-55"
-          >
-            <RotateCcw className="h-4 w-4" />
-            Buka Kembali
           </button>
         </form>
 
@@ -1245,7 +1225,7 @@ function QueueRowActions({
         }}
         className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-[#b3261e] transition hover:bg-[#fff0ed]"
       >
-        <ArrowUpRight className="h-4 w-4" />
+        <Pencil className="h-4 w-4" />
       </button>
 
       {["PENDING", "ON_PROGRESS"].includes(visitor.status) && (
@@ -1256,9 +1236,9 @@ function QueueRowActions({
             title="Batalkan"
             aria-label="Batalkan"
             onClick={(event) => event.stopPropagation()}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-[#7a625d] transition hover:bg-[#fff0ed] hover:text-[#b3261e]"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-[#b3261e] transition hover:bg-[#fff0ed] hover:text-[#7a625e]"
           >
-            <MoreVertical className="h-4 w-4" />
+            <Ban className="h-4 w-4" />
           </button>
         </form>
       )}
@@ -1308,10 +1288,9 @@ function TrafficPanel({
 
   return (
     <section className="rounded-2xl border border-[#f0dfdb] bg-white p-5 shadow-[0_16px_42px_rgba(70,31,25,0.06)] backdrop-blur-2xl">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h3 className="text-2xl font-bold tracking-tight text-[#2b211f]">Statistik Kunjungan</h3>
-          <p className="mt-1 text-sm font-semibold text-[#725b56]">Pemantauan intensitas penggunaan kios secara langsung.</p>
+          <h3 className="text-lg font-bold">Statistik Kunjungan</h3>
         </div>
         <div className="grid h-12 grid-cols-3 rounded-xl bg-[#fdebe7] p-1 text-sm font-bold text-[#6f5752] sm:w-[340px]">
           {rangeOptions.map((option) => (

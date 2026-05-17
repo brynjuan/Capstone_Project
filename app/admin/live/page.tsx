@@ -29,12 +29,8 @@ export default async function AdminLivePage() {
 
       <div className="min-h-screen">
         <aside className="flex flex-col border-b border-[#f0dfdb] bg-[#fffaf8]/95 px-5 py-5 shadow-[10px_0_34px_rgba(70,31,25,0.06)] backdrop-blur-2xl lg:fixed lg:inset-y-0 lg:left-0 lg:z-40 lg:w-[280px] lg:border-b-0 lg:border-r">
-          <div className="flex items-center gap-3">
-            <Image src="/logo-telkom2.png" alt="Telkom" width={46} height={46} className="h-12 w-12 object-contain" />
-            <div>
-              <p className="text-xs font-bold uppercase tracking-widest text-[#b3261e]">Telkom</p>
-              <h1 className="text-lg font-bold leading-tight">Admin Kios</h1>
-            </div>
+          <div className="flex items-center justify-center">
+            <Image src="/logo-telkom2.png" alt="Telkom" width={46} height={46} className="h-16 w-19 object-contain" />
           </div>
 
           <nav className="mt-8 grid gap-2">
@@ -44,16 +40,7 @@ export default async function AdminLivePage() {
             <SidebarLink icon={Headset} label="Bantuan Langsung" href="/admin/live" active />
           </nav>
 
-          <div className="mt-auto rounded-xl border border-[#f2dfdc] bg-[#fff1ee] p-4 shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white text-sm font-bold text-[#b3261e]">
-                {admin.name.slice(0, 2).toUpperCase()}
-              </div>
-              <div className="min-w-0">
-                <p className="truncate text-sm font-bold">{admin.name}</p>
-                <p className="truncate text-xs text-[#7b625d]">{admin.email}</p>
-              </div>
-            </div>
+          <div className="mt-auto">
             <form action={logoutAdmin} className="mt-4">
               <button
                 type="submit"
@@ -68,8 +55,10 @@ export default async function AdminLivePage() {
         <section className="min-w-0 px-4 py-5 sm:px-6 lg:ml-[280px] lg:px-8">
           <header className="flex flex-col gap-4 border-b border-[#f0dfdb] pb-5 xl:flex-row xl:items-center xl:justify-between">
             <div>
-              <p className="text-3xl text-sm font-semibold uppercase tracking-widest text-[#b3261e]">Bantuan Langsung</p>
-              
+              <p className="text-xl font-semibold tracking-tight text-[#b3261e]">Bantuan Langsung</p>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-[#725b56]">
+                Pantau dan jawab panggilan langsung dari kiosk dengan cepat dan ramah.
+              </p>
             </div>
 
             <div className="inline-flex h-11 items-center gap-2 rounded-xl border border-[#cfe9dd] bg-[#eefbf4] px-4 text-sm font-bold text-[#4e9b70] shadow-sm">
@@ -85,7 +74,7 @@ export default async function AdminLivePage() {
               </div>
               <h3 className="mt-5 text-xl font-bold">Panel Bantuan Langsung</h3>
               <p className="mt-2 text-sm leading-6 text-[#725b56]">
-                Biarkan halaman ini tetap terbuka saat admin berjaga. Ketika pengunjung menekan tombol bantuan di kios,
+                Biarkan halaman ini tetap terbuka saat admin berjaga. Ketika pengunjung menekan tombol bantuan di kiosk,
                 panggilan akan masuk ke ruang yang sama.
               </p>
               <div className="mt-6 rounded-xl border border-[#f0dfdb] bg-[#fff8f6] p-4 text-sm">
