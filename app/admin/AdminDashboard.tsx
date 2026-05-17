@@ -187,7 +187,8 @@ export default function AdminDashboard({ data, admin }: Props) {
   const pageSize = 10;
 
   useEffect(() => {
-    const websocketUrl = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:3001";
+    const host = window.location.hostname || "localhost";
+    const websocketUrl = process.env.NEXT_PUBLIC_WS_URL || `ws://${host}:3001`;
     let socket: WebSocket | null = null;
     let reconnectTimer: number | undefined;
 

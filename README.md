@@ -2,16 +2,16 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
-First, run the development server:
+First, run the development server and the realtime WebSocket server together:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+```
+
+If you prefer to run only Next.js without the realtime socket server, use:
+
+```bash
+npm run dev:next
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
