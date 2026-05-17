@@ -660,7 +660,7 @@ useEffect(() => {
                 <div className="space-y-8">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="text-xl font-semibold text-gray-200 flex items-center gap-3 mb-3"><Phone className="w-6 h-6 text-red-400" /> Nomor Ponsel Penanggung Jawab <span className="text-red-500">*</span></label>
+                      <label className="text-xl font-semibold text-gray-200 flex items-center gap-3 mb-3"><Phone className="w-6 h-6 text-red-400" /> No. HP PIC <span className="text-red-500">*</span></label>
                       <motion.div animate={errors.phoneNumber ? { x: [-8, 8, -5, 5, 0], transition: { duration: 0.4 } } : {}}>
                         <input type="tel" {...register("phoneNumber", { required: true })} onFocus={() => { setActiveInput("phoneNumber"); setKeyboardOpen(true); }} onKeyDown={playBeep} onChange={(e) => { const formatted = formatPhone(e.target.value); setValue("phoneNumber", formatted, { shouldValidate: true }); if (keyboardRef.current && activeInput === "phoneNumber") keyboardRef.current.setInput(formatted); }} value={watch("phoneNumber") || ""} className={`w-full text-2xl p-5 bg-black/30 border rounded-xl outline-none text-white ${errors.phoneNumber ? 'border-red-500 bg-red-500/10' : 'border-white/20 focus:border-red-500'}`} placeholder="0812..." autoComplete="off" inputMode="none" />
                       </motion.div>
