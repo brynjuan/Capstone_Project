@@ -31,7 +31,7 @@ import {
   WifiOff,
   X,
 } from "lucide-react";
-import { cancelVisit, completeVisit, reopenVisit, updateVisitorInfo } from "../actions/admin";
+import { cancelVisit, completeVisit, reopenVisit, updateVisitorInfo, createVisitorWithPin } from "../actions/admin";
 import { logoutAdmin } from "../actions/auth";
 import { supabase } from "@/lib/supabase"; // Sesuaikan path jika berbeda
 
@@ -186,6 +186,10 @@ export default function AdminDashboard({ data, admin }: Props) {
   const [detailVisitor, setDetailVisitor] = useState<AdminVisitor | null>(null);
   const [isSavingVisitor, startSavingVisitor] = useTransition();
   const pageSize = 10;
+
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [generatedPin, setGeneratedPin] = useState<string | null>(null);
+  const [isCreating, startCreating] = useTransition();
 
   const [, setTick] = useState(0);
 
@@ -393,6 +397,32 @@ const viewCopy = {
                 {data.connectionOk ? "Basis Data Aktif" : "Basis Data Tidak Aktif"}
               </div>
               
+              <div className="flex flex-wrap items-center gap-3">
+              <div
+                className={`inline-flex h-11 items-center gap-2 rounded-xl border px-4 text-sm font-bold shadow-sm ${
+                  data.connectionOk
+                    ? "border-[#cfe9dd] bg-[#eefbf4] text-[#4e9b70]"
+                    : "border-[#f4ddb5] bg-[#fff8eb] text-[#b07926]"
+                }`}
+              >
+                <span
+                  className={`h-2.5 w-2.5 rounded-full ${
+                    data.connectionOk ? "bg-[#62c48a]" : "bg-[#f2ae3f]"
+                  }`}
+                />
+                {data.connectionOk ? "Basis Data Aktif" : "Basis Data Tidak Aktif"}
+              </div>
+              
+              {/* 👇 TOMBOL BARU DISINI 👇 */}
+              <button
+                type="button"
+                onClick={() => setIsCreateModalOpen(true)}
+                className="inline-flex h-11 items-center gap-2 rounded-xl bg-[#b3261e] px-4 text-sm font-bold text-white shadow-sm transition hover:bg-[#cf3429]"
+              >
+                <Plus className="h-4 w-4" />
+                Tambah Pengunjung
+              </button>
+            </div>
              
             </div>
           </header>
@@ -768,6 +798,109 @@ const viewCopy = {
             });
           }}
         />
+      )}
+
+      {/* ============================================================================
+          MODAL TAMBAH PENGUNJUNG + GENERATE PIN CERDAS
+          ============================================================================ */}
+      {isCreateModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#2b211f]/70 p-4 backdrop-blur-md">
+          <section className="max-h-[92vh] w-full max-w-3xl overflow-hidden rounded-2xl border border-[#f0dfdb] bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-[#f0dfdb] px-5 py-4">
+              <div>
+                <h2 className="text-lg font-bold text-[#2b211f]">Tambah Pengunjung Baru (Generate PIN)</h2>
+                <p className="text-sm text-[#806762]">Isi data tamu untuk otomatis masuk antrean lobi dan mencetak PIN.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsCreateModalOpen(false);
+                  setGeneratedPin(null);
+                }}
+                className="flex h-10 w-10 items-center justify-center rounded-lg border border-[#f0dfdb] text-[#806762] transition hover:bg-[#fff3f0] hover:text-[#2b211f]"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {generatedPin ? (
+              /* SCREEN LAYAR 2: TAMPILAN KETIKA PIN BERHASIL DICETAK */
+              <div className="p-8 text-center flex flex-col items-center justify-center min-h-[340px]">
+                <div className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-[#eefbf4] text-[#4e9b70] mb-4">
+                  <CheckCircle2 className="h-8 w-8" />
+                </div>
+                <h3 className="text-xl font-bold text-[#2b211f]">Pengunjung Berhasil Didaftarkan!</h3>
+                <p className="text-sm text-[#806762] mt-1">Berikan atau infokan kode unik PIN ini kepada pengunjung untuk masuk antrean:</p>
+                <div className="mt-6 bg-[#fff0ed] border-2 border-dashed border-[#efc6c0] px-10 py-5 rounded-2xl text-5xl font-black tracking-[0.2em] text-[#b3261e] select-all font-mono">
+                  {generatedPin}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsCreateModalOpen(false);
+                    setGeneratedPin(null);
+                  }}
+                  className="mt-8 h-11 rounded-xl bg-[#b3261e] px-8 text-sm font-bold text-white transition hover:bg-[#cf3429] shadow-md"
+                >
+                  Selesai & Tutup
+                </button>
+              </div>
+            ) : (
+              /* SCREEN LAYAR 1: INPUT FORM DATA TAMU */
+              <form
+                className="flex max-h-[calc(92vh-73px)] flex-col"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  const formData = new FormData(event.currentTarget);
+                  startCreating(() => {
+                    void createVisitorWithPin(formData).then((res) => {
+                      if (res?.success && res.pin) {
+                        setGeneratedPin(res.pin);
+                        router.refresh();
+                      } else {
+                        alert(res?.error || "Gagal membuat pengunjung.");
+                      }
+                    });
+                  });
+                }}
+              >
+                <div className="overflow-y-auto p-5">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <EditField label="Nama Pengunjung" name="fullName" defaultValue="" required />
+                    <EditField label="Nomor Telepon" name="phoneNumber" defaultValue="" />
+                    <EditField label="Pelanggan / Instansi" name="institution" defaultValue="" />
+                    <EditField label="Nomor Internet" name="internetNumber" defaultValue="" />
+                    <EditField label="Kategori" name="category" defaultValue="" />
+                    <EditField label="Petugas Dituju" name="hostName" defaultValue="" />
+                  </div>
+
+                  <div className="mt-4 grid gap-4">
+                    <EditTextarea label="Alamat" name="address" defaultValue="" rows={2} />
+                    <EditTextarea label="Keperluan" name="purpose" defaultValue="" rows={3} required />
+                  </div>
+                </div>
+
+                <div className="flex flex-col-reverse gap-3 border-t border-[#f0dfdb] bg-white px-5 py-4 sm:flex-row sm:justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setIsCreateModalOpen(false)}
+                    disabled={isCreating}
+                    className="h-11 rounded-xl border border-[#f0dfdb] px-5 text-sm font-bold text-[#6f5752] transition hover:bg-[#fff3f0]"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isCreating}
+                    className="h-11 rounded-xl bg-[#b3261e] px-5 text-sm font-bold text-white shadow-md transition hover:bg-[#cf3429] disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {isCreating ? "Memproses..." : "Generate PIN & Tambah"}
+                  </button>
+                </div>
+              </form>
+            )}
+          </section>
+        </div>
       )}
     </main>
   );
