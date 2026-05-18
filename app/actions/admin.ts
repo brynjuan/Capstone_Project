@@ -3,7 +3,6 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireAdminSession } from "@/lib/auth";
-import { notifyRealtime } from "@/lib/realtime";
 import { VisitStatus } from "@prisma/client";
 
 export async function completeVisit(formData: FormData) {
@@ -43,7 +42,6 @@ export async function completeVisit(formData: FormData) {
   });
 
   revalidatePath("/admin");
-  await notifyRealtime();
 }
 
 export async function reopenVisit(formData: FormData) {
@@ -72,7 +70,6 @@ export async function reopenVisit(formData: FormData) {
   });
 
   revalidatePath("/admin");
-  await notifyRealtime();
 }
 
 export async function cancelVisit(formData: FormData) {
@@ -123,7 +120,6 @@ export async function cancelVisit(formData: FormData) {
   });
 
   revalidatePath("/admin");
-  await notifyRealtime();
 }
 
 const nullableString = (value: FormDataEntryValue | null) => {
@@ -157,5 +153,4 @@ export async function updateVisitorInfo(formData: FormData) {
   });
 
   revalidatePath("/admin");
-  await notifyRealtime();
 }
