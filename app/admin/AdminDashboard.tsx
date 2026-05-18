@@ -186,6 +186,19 @@ export default function AdminDashboard({ data, admin }: Props) {
   const [isSavingVisitor, startSavingVisitor] = useTransition();
   const pageSize = 10;
 
+  const [, setTick] = useState(0);
+
+  useEffect(() => {
+    // Membuat timer yang mengubah state tick setiap 1000ms (1 detik)
+    const timer = setInterval(() => {
+      setTick((t) => t + 1);
+    }, 1000);
+
+    // Membersihkan timer saat komponen ditutup agar tidak bocor (memory leak)
+    return () => clearInterval(timer);
+  }, []);
+  // 👆 SAMPAI SINI 👆
+
   useEffect(() => {
     const host = window.location.hostname || "localhost";
     const websocketUrl = process.env.NEXT_PUBLIC_WS_URL || `ws://${host}:3001`;
@@ -289,17 +302,20 @@ export default function AdminDashboard({ data, admin }: Props) {
     queueVisitors.length > 0
       ? Math.round(queueVisitors.reduce((total, visitor) => total + waitSecondsFor(visitor), 0) / queueVisitors.length)
       : 0;
-  const viewCopy = {
+const viewCopy = {
     dashboard: {
       eyebrow: "Dasbor Resepsionis",
+      title: "Ringkasan Dasbor", // Tambahkan title di sini
       description: "Pantau antrean, sesi layanan, dan statistik penggunaan kiosk dalam satu tampilan.",
     },
     queue: {
       eyebrow: "Manajemen Antrean",
+      title: "Antrean Pengunjung", // Tambahkan title di sini
       description: "Pengunjung pertama diproses sebagai sedang dilayani, sedangkan antrean berikutnya menunggu giliran.",
     },
     history: {
       eyebrow: "Riwayat Layanan",
+      title: "Riwayat Kunjungan", // Tambahkan title di sini
       description: "Daftar pengunjung yang layanannya sudah diselesaikan oleh admin.",
     },
   }[activeView];

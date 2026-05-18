@@ -80,101 +80,103 @@ async function getDashboardData(): Promise<AdminDashboardData> {
   });
 
   try {
-    const [
-      visitors,
-      totalToday,
-      totalMonth,
-      totalYear,
-      pendingVisits,
-      onProgressVisits,
-      successVisits,
-      completedToday,
-      ratingAggregate,
-      categoryGroups,
-      dailySeries,
-      monthlySeries,
-      yearlySeries,
-    ] = await Promise.all([
-      prisma.visitorLog.findMany({
-        orderBy: [{ status: "asc" }, { checkInTime: "desc" }],
-        take: 200,
-      }),
-      prisma.visitorLog.count({
-        where: { checkInTime: { gte: today } },
-      }),
-      prisma.visitorLog.count({
-        where: { checkInTime: { gte: month } },
-      }),
-      prisma.visitorLog.count({
-        where: { checkInTime: { gte: year } },
-      }),
-      prisma.visitorLog.count({
-        where: { status: VisitStatus.PENDING },
-      }),
-      prisma.visitorLog.count({
-        where: { status: VisitStatus.ON_PROGRESS },
-      }),
-      prisma.visitorLog.count({
-        where: { status: VisitStatus.SUCCESS },
-      }),
-      prisma.visitorLog.count({
-        where: {
-          status: VisitStatus.SUCCESS,
-          checkOutTime: { gte: today },
-        },
-      }),
-      prisma.visitorLog.aggregate({
-        where: { rating: { not: null } },
-        _avg: { rating: true },
-      }),
-      prisma.visitorLog.groupBy({
-        by: ["category"],
-        _count: { category: true },
-        orderBy: { _count: { category: "desc" } },
-        take: 5,
-      }),
-      Promise.all(
-        dailyRanges.map(async (range) => ({
-          label: range.label,
-          value: await prisma.visitorLog.count({
-            where: { checkInTime: { gte: range.start, lt: range.end } },
-          }),
-        })),
-      ),
-      Promise.all(
-        monthlyRanges.map(async (range) => ({
-          label: range.label,
-          value: await prisma.visitorLog.count({
-            where: { checkInTime: { gte: range.start, lt: range.end } },
-          }),
-        })),
-      ),
-      Promise.all(
-        yearlyRanges.map(async (range) => ({
-          label: range.label,
-          value: await prisma.visitorLog.count({
-            where: { checkInTime: { gte: range.start, lt: range.end } },
-          }),
-        })),
-      ),
-    ]);
+    // 1. Eksekusi metrik utama secara berurutan (sekuensial)
+    // Menghindari error EMAXCONNSESSION (max clients pool_size: 15)
+    
+    const visitors = await prisma.visitorLog.findMany({
+      orderBy: [{ status: "asc" }, { checkInTime: "desc" }],
+      take: 200,
+    });
+
+    const totalToday = await prisma.visitorLog.count({
+      where: { checkInTime: { gte: today } },
+    });
+
+    const totalMonth = await prisma.visitorLog.count({
+      where: { checkInTime: { gte: month } },
+    });
+
+    const totalYear = await prisma.visitorLog.count({
+      where: { checkInTime: { gte: year } },
+    });
+
+    const pendingVisits = await prisma.visitorLog.count({
+      where: { status: VisitStatus.PENDING },
+    });
+
+    const onProgressVisits = await prisma.visitorLog.count({
+      where: { status: VisitStatus.ON_PROGRESS },
+    });
+
+    const successVisits = await prisma.visitorLog.count({
+      where: { status: VisitStatus.SUCCESS },
+    });
+
+    const completedToday = await prisma.visitorLog.count({
+      where: {
+        status: VisitStatus.SUCCESS,
+        checkOutTime: { gte: today },
+      },
+    });
+
+    const ratingAggregate = await prisma.visitorLog.aggregate({
+      where: { rating: { not: null } },
+      _avg: { rating: true },
+    });
+
+    const categoryGroups = await prisma.visitorLog.groupBy({
+      by: ["category"],
+      _count: { category: true },
+      orderBy: { _count: { category: "desc" } },
+      take: 5,
+    });
+
+    // 2. Eksekusi grafik/series secara berurutan
+    const dailySeries = [];
+    for (const range of dailyRanges) {
+      const count = await prisma.visitorLog.count({
+        where: { checkInTime: { gte: range.start, lt: range.end } },
+      });
+      dailySeries.push({ label: range.label, value: count });
+    }
+
+    const monthlySeries = [];
+    for (const range of monthlyRanges) {
+      const count = await prisma.visitorLog.count({
+        where: { checkInTime: { gte: range.start, lt: range.end } },
+      });
+      monthlySeries.push({ label: range.label, value: count });
+    }
+
+    const yearlySeries = [];
+    for (const range of yearlyRanges) {
+      const count = await prisma.visitorLog.count({
+        where: { checkInTime: { gte: range.start, lt: range.end } },
+      });
+      yearlySeries.push({ label: range.label, value: count });
+    }
+
+    // 3. Eksekusi grafik kategori bulanan secara berurutan
     const topCategories = categoryGroups.map((item) => item.category);
-    const categoryMonthlySeries = await Promise.all(
-      topCategories.map(async (category) => ({
+    const categoryMonthlySeries = [];
+    
+    for (const category of topCategories) {
+      const data = [];
+      for (const range of monthlyRanges) {
+        const count = await prisma.visitorLog.count({
+          where: {
+            category,
+            checkInTime: { gte: range.start, lt: range.end },
+          },
+        });
+        data.push({ label: range.label, value: count });
+      }
+      
+      categoryMonthlySeries.push({
         name: category || "Tanpa kategori",
-        data: await Promise.all(
-          monthlyRanges.map(async (range) => ({
-            label: range.label,
-            value: await prisma.visitorLog.count({
-              where: {
-                category,
-                checkInTime: { gte: range.start, lt: range.end },
-              },
-            }),
-          })),
-        ),
-      })),
-    );
+        data,
+      });
+    }
 
     return {
       connectionOk: true,
