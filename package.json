@@ -3,9 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "node scripts/dev-with-ws.mjs",
-    "dev:next": "next dev --webpack",
-    "ws": "node scripts/ws-server.mjs",
+    "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
@@ -16,6 +14,7 @@
     "@aws-sdk/client-s3": "^3.1045.0",
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
+    "@supabase/supabase-js": "^2.105.4",
     "@yudiel/react-qr-scanner": "^2.5.1",
     "@zegocloud/zego-uikit-prebuilt": "^2.17.3",
     "bcryptjs": "^3.0.3",
@@ -30,8 +29,7 @@
     "react-simple-keyboard": "^3.8.204",
     "react-webcam": "^7.2.0",
     "tesseract.js": "^7.0.0",
-    "uuid": "^14.0.0",
-    "ws": "^8.20.1"
+    "uuid": "^14.0.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import { cancelVisit, completeVisit, reopenVisit, updateVisitorInfo } from "../actions/admin";
 import { logoutAdmin } from "../actions/auth";
+import { supabase } from "@/lib/supabase"; // Sesuaikan path jika berbeda
 
 export type AdminVisitor = {
   id: string;
@@ -199,45 +200,36 @@ export default function AdminDashboard({ data, admin }: Props) {
   }, []);
   // 👆 SAMPAI SINI 👆
 
-  useEffect(() => {
-    const host = window.location.hostname || "localhost";
-    const websocketUrl = process.env.NEXT_PUBLIC_WS_URL || `ws://${host}:3001`;
-    let socket: WebSocket | null = null;
-    let reconnectTimer: number | undefined;
-
-    const connect = () => {
-      socket = new WebSocket(websocketUrl);
-
-      socket.addEventListener("message", (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          if (data.event === "visitor-updated") {
-            router.refresh();
-          }
-        } catch {
+useEffect(() => {
+    // Berlangganan ke semua perubahan (INSERT, UPDATE, DELETE) di tabel visitor_logs
+    const channel = supabase
+      .channel('visitor-queue-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*', 
+          schema: 'public',
+          table: 'visitor_logs', // Pastikan nama tabel persis seperti di database
+        },
+        (payload) => {
+          // Setiap kali ada data yang berubah di database, refresh halaman
           router.refresh();
+        }
+      )
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('Terkoneksi ke Supabase Realtime');
         }
       });
 
-      socket.addEventListener("close", () => {
-        reconnectTimer = window.setTimeout(connect, 3000);
-      });
-
-      socket.addEventListener("error", () => {
-        socket?.close();
-      });
-    };
-
-    connect();
-
+    // Cleanup koneksi agar tidak bocor saat komponen ditutup/pindah halaman
     const fallbackTimer = window.setInterval(() => {
       router.refresh();
     }, 60000);
 
     return () => {
-      if (reconnectTimer) window.clearTimeout(reconnectTimer);
       window.clearInterval(fallbackTimer);
-      socket?.close();
+      supabase.removeChannel(channel);
     };
   }, [router]);
 
