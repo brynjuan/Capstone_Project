@@ -111,8 +111,11 @@ export default function KioskPage() {
   const [isOcrLoading, setIsOcrLoading] = useState(false);
   const [showPinInput, setShowPinInput] = useState(false);
   const [vipPin, setVipPin] = useState("");
+  const [previewCameraKey, setPreviewCameraKey] = useState(0);
+  const [photoboothCameraKey, setPhotoboothCameraKey] = useState(0);
   
-  const webcamRef = useRef<Webcam>(null);
+  const previewWebcamRef = useRef<Webcam>(null);
+  const photoboothWebcamRef = useRef<Webcam>(null);
   const audioRef = useRef<HTMLAudioElement>(null); 
   const voiceRef = useRef<HTMLAudioElement>(null);
   const successVoiceRef = useRef<HTMLAudioElement>(null);
@@ -198,6 +201,26 @@ export default function KioskPage() {
     if (successAudioRef.current) successAudioRef.current.muted = isMuted; // Sync Mute
   }, [isMuted]);
 
+  const retryPreviewCamera = () => {
+    setPreviewCameraKey((value) => value + 1);
+  };
+
+  const retryPhotoboothCamera = () => {
+    setPhotoboothCameraKey((value) => value + 1);
+  };
+
+  useEffect(() => {
+    if (step > 0) {
+      retryPreviewCamera();
+    }
+  }, [step]);
+
+  useEffect(() => {
+    if (showPhotobooth) {
+      retryPhotoboothCamera();
+    }
+  }, [showPhotobooth]);
+
   const currentHour = new Date().getHours();
   let greeting = "Selamat Malam";
   if (currentHour >= 5 && currentHour < 11) greeting = "Selamat Pagi";
@@ -205,8 +228,8 @@ export default function KioskPage() {
   else if (currentHour >= 15 && currentHour < 18) greeting = "Selamat Sore";
 
   const handleCapturePhotobooth = () => {
-    if (!webcamRef.current) return;
-    const webcamImageSrc = webcamRef.current.getScreenshot();
+    if (!photoboothWebcamRef.current) return;
+    const webcamImageSrc = photoboothWebcamRef.current.getScreenshot();
     if (!webcamImageSrc) return;
 
     const canvas = document.createElement("canvas");
@@ -273,9 +296,9 @@ const checkVipPin = async () => {
 };
 
   const handleScanKTP = async () => {
-    if (!webcamRef.current) return;
+    if (!previewWebcamRef.current) return;
     setIsOcrLoading(true);
-    const imageSrc = webcamRef.current.getScreenshot();
+    const imageSrc = previewWebcamRef.current.getScreenshot();
     
     if (imageSrc) {
       try {
@@ -377,11 +400,11 @@ useEffect(() => {
   }, [startIdleTimer, step]);
 
   const capturePhoto = useCallback(() => {
-    if (webcamRef.current) {
-      const imageSrc = webcamRef.current.getScreenshot();
+    if (previewWebcamRef.current) {
+      const imageSrc = previewWebcamRef.current.getScreenshot();
       setPhotoBase64(imageSrc);
     }
-  }, [webcamRef]);
+  }, [previewWebcamRef]);
 
   // LOGIKA ALERT KETIKA FORM KOSONG
   const handleNext = async () => {
@@ -527,7 +550,22 @@ useEffect(() => {
       <audio ref={successVoiceRef} src="/success-voice.mp3" />
       <audio ref={scanVoiceRef} src="/scan-instruction.mp3" />
       
-      {/* 3 AUDIO PLAYER BARU */}
+      {/* Hidden webcam untuk capture foto/form OCR, tanpa menampilkan preview aktif ke pengguna */}
+      {step > 0 && !isScanning && !showIntercom && !showPhotobooth && (
+        <div className="absolute left-[-9999px] top-[-9999px] w-0 h-0 overflow-hidden">
+          <Webcam
+            key={previewCameraKey}
+            audio={false}
+            muted
+            mirrored
+            playsInline
+            ref={previewWebcamRef}
+            screenshotFormat="image/jpeg"
+            videoConstraints={{ width: 640, height: 480, facingMode: "user" }}
+            className="w-0 h-0"
+          />
+        </div>
+      )}
       <audio ref={beepAudioRef} src="/sounds/beep.mp3" preload="auto" />
       <audio ref={errorAudioRef} src="/sounds/error.mp3" preload="auto" />
       <audio ref={successAudioRef} src="/sounds/success.mp3" preload="auto" />
@@ -553,12 +591,6 @@ useEffect(() => {
       <AnimatePresence>
         {step > 0 && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-black/60 z-10 pointer-events-none" />}
       </AnimatePresence>
-
-      {!isScanning && !showIntercom && (
-        <div className="absolute top-0 left-0 opacity-0 pointer-events-none z-0">
-          <Webcam audio={false} ref={webcamRef} screenshotFormat="image/jpeg" videoConstraints={{ facingMode: "user" }} />
-        </div>
-      )}
 
       <AnimatePresence>
         {isScanning && (
@@ -785,7 +817,17 @@ useEffect(() => {
               <div className="flex-1 relative overflow-hidden rounded-3xl bg-black border-4 border-red-500/50">
                 {!photoboothResult ? (
                   <>
-                    <Webcam audio={false} ref={webcamRef} screenshotFormat="image/jpeg" videoConstraints={{ facingMode: "user" }} className="w-full h-full object-cover scale-x-[-1]" />
+                    <Webcam
+                      key={photoboothCameraKey}
+                      audio={false}
+                      muted
+                      mirrored
+                      playsInline
+                      ref={photoboothWebcamRef}
+                      screenshotFormat="image/jpeg"
+                      videoConstraints={{ width: 640, height: 480, facingMode: "user" }}
+                      className="w-full h-full object-cover scale-x-[-1]"
+                    />
                     <img src="/frame-telkom.png" alt="frame" className="absolute inset-0 w-full h-full object-cover pointer-events-none z-10" />
                   </>
                 ) : (<img src={photoboothResult} alt="Hasil foto kenangan" className="w-full h-full object-cover" />)}

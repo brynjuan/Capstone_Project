@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   Headset,
   LayoutDashboard,
+  LucideIcon,
   Table2,
 } from "lucide-react";
 import { getAdminSession } from "@/lib/auth";
@@ -34,7 +35,7 @@ export default async function AdminLivePage() {
           </div>
 
           <nav className="mt-8 grid gap-2">
-            <SidebarLink icon={LayoutDashboard} label="Dasbor" href="/admin" />
+            <SidebarLink icon={LayoutDashboard} label="Dashboard" href="/admin" />
             <SidebarLink icon={Table2} label="Antrean" href="/admin" />
             <SidebarLink icon={CheckCircle2} label="Riwayat" href="/admin" />
             <SidebarLink icon={Headset} label="Bantuan Langsung" href="/admin/live" active />
@@ -100,7 +101,7 @@ function SidebarLink({
   href,
   active,
 }: {
-  icon: typeof LayoutDashboard;
+  icon: LucideIcon;
   label: string;
   href: string;
   active?: boolean;
