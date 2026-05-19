@@ -291,7 +291,7 @@ export default function AdminDashboard({ data, admin }: Props) {
       : 0;
   const viewCopy = {
     dashboard: {
-      eyebrow: "Dasbor Resepsionis",
+      eyebrow: "Dashboard Resepsionis",
       description: "Pantau antrean, sesi layanan, dan statistik penggunaan kiosk dalam satu tampilan.",
     },
     queue: {
@@ -320,7 +320,7 @@ export default function AdminDashboard({ data, admin }: Props) {
           <nav className="mt-8 grid gap-2">
             <SidebarItem
               icon={LayoutDashboard}
-              label="Dasbor"
+              label="Dashboard"
               active={activeView === "dashboard"}
               onClick={() => setActiveView("dashboard")}
             />

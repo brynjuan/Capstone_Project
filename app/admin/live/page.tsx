@@ -35,7 +35,7 @@ export default async function AdminLivePage() {
           </div>
 
           <nav className="mt-8 grid gap-2">
-            <SidebarLink icon={LayoutDashboard} label="Dasbor" href="/admin" />
+            <SidebarLink icon={LayoutDashboard} label="Dashboard" href="/admin" />
             <SidebarLink icon={Table2} label="Antrean" href="/admin" />
             <SidebarLink icon={CheckCircle2} label="Riwayat" href="/admin" />
             <SidebarLink icon={Headset} label="Bantuan Langsung" href="/admin/live" active />
