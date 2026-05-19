@@ -31,8 +31,9 @@ import {
   WifiOff,
   X,
 } from "lucide-react";
-import { cancelVisit, completeVisit, reopenVisit, updateVisitorInfo } from "../actions/admin";
+import { cancelVisit, completeVisit, reopenVisit, updateVisitorInfo, createVisitorWithPin } from "../actions/admin";
 import { logoutAdmin } from "../actions/auth";
+import { supabase } from "@/lib/supabase"; // Sesuaikan path jika berbeda
 
 export type AdminVisitor = {
   id: string;
@@ -186,45 +187,53 @@ export default function AdminDashboard({ data, admin }: Props) {
   const [isSavingVisitor, startSavingVisitor] = useTransition();
   const pageSize = 10;
 
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [generatedPin, setGeneratedPin] = useState<string | null>(null);
+  const [isCreating, startCreating] = useTransition();
+
+  const [, setTick] = useState(0);
+
   useEffect(() => {
-    const host = window.location.hostname || "localhost";
-    const websocketUrl = process.env.NEXT_PUBLIC_WS_URL || `ws://${host}:3001`;
-    let socket: WebSocket | null = null;
-    let reconnectTimer: number | undefined;
+    // Membuat timer yang mengubah state tick setiap 1000ms (1 detik)
+    const timer = setInterval(() => {
+      setTick((t) => t + 1);
+    }, 1000);
 
-    const connect = () => {
-      socket = new WebSocket(websocketUrl);
+    // Membersihkan timer saat komponen ditutup agar tidak bocor (memory leak)
+    return () => clearInterval(timer);
+  }, []);
+  // 👆 SAMPAI SINI 👆
 
-      socket.addEventListener("message", (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          if (data.event === "visitor-updated") {
-            router.refresh();
-          }
-        } catch {
+useEffect(() => {
+    // Berlangganan ke semua perubahan (INSERT, UPDATE, DELETE) di tabel visitor_logs
+    const channel = supabase
+      .channel('visitor-queue-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*', 
+          schema: 'public',
+          table: 'visitor_logs', // Pastikan nama tabel persis seperti di database
+        },
+        (payload) => {
+          // Setiap kali ada data yang berubah di database, refresh halaman
           router.refresh();
+        }
+      )
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('Terkoneksi ke Supabase Realtime');
         }
       });
 
-      socket.addEventListener("close", () => {
-        reconnectTimer = window.setTimeout(connect, 3000);
-      });
-
-      socket.addEventListener("error", () => {
-        socket?.close();
-      });
-    };
-
-    connect();
-
+    // Cleanup koneksi agar tidak bocor saat komponen ditutup/pindah halaman
     const fallbackTimer = window.setInterval(() => {
       router.refresh();
     }, 60000);
 
     return () => {
-      if (reconnectTimer) window.clearTimeout(reconnectTimer);
       window.clearInterval(fallbackTimer);
-      socket?.close();
+      supabase.removeChannel(channel);
     };
   }, [router]);
 
@@ -289,17 +298,20 @@ export default function AdminDashboard({ data, admin }: Props) {
     queueVisitors.length > 0
       ? Math.round(queueVisitors.reduce((total, visitor) => total + waitSecondsFor(visitor), 0) / queueVisitors.length)
       : 0;
-  const viewCopy = {
+const viewCopy = {
     dashboard: {
-      eyebrow: "Dashboard Resepsionis",
+      eyebrow: "Dasbor Resepsionis",
+      title: "Ringkasan Dasbor", // Tambahkan title di sini
       description: "Pantau antrean, sesi layanan, dan statistik penggunaan kiosk dalam satu tampilan.",
     },
     queue: {
       eyebrow: "Manajemen Antrean",
+      title: "Antrean Pengunjung", // Tambahkan title di sini
       description: "Pengunjung pertama diproses sebagai sedang dilayani, sedangkan antrean berikutnya menunggu giliran.",
     },
     history: {
       eyebrow: "Riwayat Layanan",
+      title: "Riwayat Kunjungan", // Tambahkan title di sini
       description: "Daftar pengunjung yang layanannya sudah diselesaikan oleh admin.",
     },
   }[activeView];
@@ -320,7 +332,7 @@ export default function AdminDashboard({ data, admin }: Props) {
           <nav className="mt-8 grid gap-2">
             <SidebarItem
               icon={LayoutDashboard}
-              label="Dashboard"
+              label="Dasbor"
               active={activeView === "dashboard"}
               onClick={() => setActiveView("dashboard")}
             />
@@ -363,6 +375,7 @@ export default function AdminDashboard({ data, admin }: Props) {
           <header className="flex flex-col gap-4 border-b border-[#f0dfdb] pb-5 xl:flex-row xl:items-center xl:justify-between">
             <div>
               <p className="text-sm text-xl font-semibold tracking-tight text-[#b3261e]">{viewCopy.eyebrow}</p>
+              <h2 className="mt-1 text-2xl font-bold tracking-tight text-[#98231d] sm:text-4xl">{viewCopy.title}</h2>
               <p className="mt-2 text-sm text-[#725b56]">
                 {viewCopy.description}
               </p>
@@ -384,6 +397,32 @@ export default function AdminDashboard({ data, admin }: Props) {
                 {data.connectionOk ? "Basis Data Aktif" : "Basis Data Tidak Aktif"}
               </div>
               
+              <div className="flex flex-wrap items-center gap-3">
+              <div
+                className={`inline-flex h-11 items-center gap-2 rounded-xl border px-4 text-sm font-bold shadow-sm ${
+                  data.connectionOk
+                    ? "border-[#cfe9dd] bg-[#eefbf4] text-[#4e9b70]"
+                    : "border-[#f4ddb5] bg-[#fff8eb] text-[#b07926]"
+                }`}
+              >
+                <span
+                  className={`h-2.5 w-2.5 rounded-full ${
+                    data.connectionOk ? "bg-[#62c48a]" : "bg-[#f2ae3f]"
+                  }`}
+                />
+                {data.connectionOk ? "Basis Data Aktif" : "Basis Data Tidak Aktif"}
+              </div>
+              
+              {/* 👇 TOMBOL BARU DISINI 👇 */}
+              <button
+                type="button"
+                onClick={() => setIsCreateModalOpen(true)}
+                className="inline-flex h-11 items-center gap-2 rounded-xl bg-[#b3261e] px-4 text-sm font-bold text-white shadow-sm transition hover:bg-[#cf3429]"
+              >
+                <Plus className="h-4 w-4" />
+                Tambah Pengunjung
+              </button>
+            </div>
              
             </div>
           </header>
@@ -759,6 +798,109 @@ export default function AdminDashboard({ data, admin }: Props) {
             });
           }}
         />
+      )}
+
+      {/* ============================================================================
+          MODAL TAMBAH PENGUNJUNG + GENERATE PIN CERDAS
+          ============================================================================ */}
+      {isCreateModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#2b211f]/70 p-4 backdrop-blur-md">
+          <section className="max-h-[92vh] w-full max-w-3xl overflow-hidden rounded-2xl border border-[#f0dfdb] bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-[#f0dfdb] px-5 py-4">
+              <div>
+                <h2 className="text-lg font-bold text-[#2b211f]">Tambah Pengunjung Baru (Generate PIN)</h2>
+                <p className="text-sm text-[#806762]">Isi data tamu untuk otomatis masuk antrean lobi dan mencetak PIN.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsCreateModalOpen(false);
+                  setGeneratedPin(null);
+                }}
+                className="flex h-10 w-10 items-center justify-center rounded-lg border border-[#f0dfdb] text-[#806762] transition hover:bg-[#fff3f0] hover:text-[#2b211f]"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {generatedPin ? (
+              /* SCREEN LAYAR 2: TAMPILAN KETIKA PIN BERHASIL DICETAK */
+              <div className="p-8 text-center flex flex-col items-center justify-center min-h-[340px]">
+                <div className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-[#eefbf4] text-[#4e9b70] mb-4">
+                  <CheckCircle2 className="h-8 w-8" />
+                </div>
+                <h3 className="text-xl font-bold text-[#2b211f]">Pengunjung Berhasil Didaftarkan!</h3>
+                <p className="text-sm text-[#806762] mt-1">Berikan atau infokan kode unik PIN ini kepada pengunjung untuk masuk antrean:</p>
+                <div className="mt-6 bg-[#fff0ed] border-2 border-dashed border-[#efc6c0] px-10 py-5 rounded-2xl text-5xl font-black tracking-[0.2em] text-[#b3261e] select-all font-mono">
+                  {generatedPin}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsCreateModalOpen(false);
+                    setGeneratedPin(null);
+                  }}
+                  className="mt-8 h-11 rounded-xl bg-[#b3261e] px-8 text-sm font-bold text-white transition hover:bg-[#cf3429] shadow-md"
+                >
+                  Selesai & Tutup
+                </button>
+              </div>
+            ) : (
+              /* SCREEN LAYAR 1: INPUT FORM DATA TAMU */
+              <form
+                className="flex max-h-[calc(92vh-73px)] flex-col"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  const formData = new FormData(event.currentTarget);
+                  startCreating(() => {
+                    void createVisitorWithPin(formData).then((res) => {
+                      if (res?.success && res.pin) {
+                        setGeneratedPin(res.pin);
+                        router.refresh();
+                      } else {
+                        alert(res?.error || "Gagal membuat pengunjung.");
+                      }
+                    });
+                  });
+                }}
+              >
+                <div className="overflow-y-auto p-5">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <EditField label="Nama Pengunjung" name="fullName" defaultValue="" required />
+                    <EditField label="Nomor Telepon" name="phoneNumber" defaultValue="" />
+                    <EditField label="Pelanggan / Instansi" name="institution" defaultValue="" />
+                    <EditField label="Nomor Internet" name="internetNumber" defaultValue="" />
+                    <EditField label="Kategori" name="category" defaultValue="" />
+                    <EditField label="Petugas Dituju" name="hostName" defaultValue="" />
+                  </div>
+
+                  <div className="mt-4 grid gap-4">
+                    <EditTextarea label="Alamat" name="address" defaultValue="" rows={2} />
+                    <EditTextarea label="Keperluan" name="purpose" defaultValue="" rows={3} required />
+                  </div>
+                </div>
+
+                <div className="flex flex-col-reverse gap-3 border-t border-[#f0dfdb] bg-white px-5 py-4 sm:flex-row sm:justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setIsCreateModalOpen(false)}
+                    disabled={isCreating}
+                    className="h-11 rounded-xl border border-[#f0dfdb] px-5 text-sm font-bold text-[#6f5752] transition hover:bg-[#fff3f0]"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isCreating}
+                    className="h-11 rounded-xl bg-[#b3261e] px-5 text-sm font-bold text-white shadow-md transition hover:bg-[#cf3429] disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {isCreating ? "Memproses..." : "Generate PIN & Tambah"}
+                  </button>
+                </div>
+              </form>
+            )}
+          </section>
+        </div>
       )}
     </main>
   );
