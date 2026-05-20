@@ -515,12 +515,19 @@ const onSubmit = async (data: KioskFormValues) => {
   const isNumericInput = ["phoneNumber", "internetNumber", "vipPin"].includes(activeInput);
   const currentLayoutName = isNumericInput ? "numeric" : keyboardLayoutName;
 
-  let shiftY = 0;
+let shiftY = 0;
   if (keyboardOpen) {
-    if (activeInput === "address") shiftY = -180; 
-    if (activeInput === "internetNumber" || activeInput === "phoneNumber") shiftY = -120;
-    if (activeInput === "purpose") shiftY = -150; 
-    if (activeInput === "fullName") shiftY = -180; 
+    // Menambahkan institution dan memperbesar angka minus agar form naik lebih tinggi
+    if (activeInput === "institution") shiftY = -80;
+    if (activeInput === "fullName") shiftY = -220; 
+    
+    // Perbesar dari -120 menjadi -160 agar No HP & Internet lebih naik
+    if (activeInput === "internetNumber" || activeInput === "phoneNumber") shiftY = -160; 
+    if (activeInput === "address") shiftY = -220; 
+    
+    // Penyesuaian sekalian untuk Step 2 agar tidak terhalang
+    if (activeInput === "hostName") shiftY = -120;
+    if (activeInput === "purpose") shiftY = -180; 
   }
 
   return (
