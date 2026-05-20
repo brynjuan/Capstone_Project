@@ -108,6 +108,7 @@ export default function KioskPage() {
   const [photoboothUrl, setPhotoboothUrl] = useState<string | null>(null);
   const [ratingSubmitted, setRatingSubmitted] = useState(false);
   const [currentVisitorId, setCurrentVisitorId] = useState<string>("");
+  const [queueNumber, setQueueNumber] = useState<number | null>(null);
   const [isOcrLoading, setIsOcrLoading] = useState(false);
   const [showPinInput, setShowPinInput] = useState(false);
   const [vipPin, setVipPin] = useState("");
@@ -368,6 +369,7 @@ const startIdleTimer = useCallback(() => {
               setShowTimeoutWarning(false);
               isWarningRef.current = false;
               setVipPin("");
+              setQueueNumber(null);
               return 0;
             }
             return prev - 1;
@@ -431,6 +433,7 @@ const onSubmit = async (data: KioskFormValues) => {
     
     if (result.success) {
       if (result.visitorId) setCurrentVisitorId(result.visitorId);
+      if (result.queueNumber) setQueueNumber(result.queueNumber);
       if (audioRef.current) audioRef.current.volume = 0.1;
       if (successVoiceRef.current && !isMuted) {
         successVoiceRef.current.currentTime = 0;
@@ -779,6 +782,23 @@ let shiftY = 0;
               <div className="flex-1 p-16 flex flex-col items-center justify-center text-center border-r border-white/10">
                 <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring" }} className="bg-green-500/20 rounded-full p-4 mb-8"><CheckCircle className="w-32 h-32 text-green-400" /></motion.div>
                 <h2 className="text-5xl font-bold text-white mb-4">Pendaftaran Berhasil!</h2>
+
+                {/* 👇 KOTAK NOMOR ANTREAN BARU 👇 */}
+                {queueNumber && (
+<motion.div 
+  initial={{ scale: 0.8, opacity: 0 }} 
+  animate={{ scale: 1, opacity: 1 }} 
+  transition={{ delay: 0.3 }} 
+  className="my-4 px-6 py-4 bg-black/40 border border-amber-500/30 rounded-2xl shadow-[0_0_20px_rgba(245,158,11,0.15)] inline-block"
+>
+  <p className="text-amber-400 font-semibold uppercase tracking-widest mb-1 text-xs">
+    Nomor Antrean Anda
+  </p>
+  <p className="text-5xl font-black text-white">{queueNumber}</p>
+</motion.div>
+
+                )}
+
                 <p className="text-2xl text-gray-300">Mohon tunggu sebentar, petugas kami akan menemui Anda.</p>
                 <div className="mt-12 flex flex-row gap-6 justify-center">
                   <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => setShowPhotobooth(true)} className="px-8 py-5 bg-blue-600 text-white text-xl font-bold rounded-2xl shadow-lg shadow-blue-900/20 hover:bg-blue-500 transition-all flex items-center gap-3"><span className="text-2xl">📸</span> Buka Foto Kenangan</motion.button>
@@ -811,7 +831,7 @@ let shiftY = 0;
                       </motion.button>
                     ))}
                   </div>
-                  <div className="mt-16"><button onClick={() => { setStep(0); setRatingSubmitted(false); setCurrentVisitorId(""); reset(); setPhotoBase64(null); setIsAgreed(false); setSelectedCategory(""); setVipPin(""); }} className="text-gray-400 hover:text-white transition-colors">Lewati (Tutup)</button></div>
+                  <div className="mt-16"><button onClick={() => { setStep(0); setRatingSubmitted(false); setCurrentVisitorId(""); setQueueNumber(null); reset(); setPhotoBase64(null); setIsAgreed(false); setSelectedCategory(""); setVipPin(""); }} className="text-gray-400 hover:text-white transition-colors">Lewati (Tutup)</button></div>
                 </motion.div>
               ) : (
                 <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="py-6 text-center">

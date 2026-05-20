@@ -290,8 +290,19 @@ export async function submitVisitorData(formData: any, photoBase64: string | nul
       }
     })();
 
-    // 6. RESPONSE INSTAN KE KIOSK
-    return { success: true, visitorId: newVisitor.id };
+// 6. HITUNG NOMOR ANTREAN & RESPONSE INSTAN KE KIOSK
+    // Menghitung total pengunjung yang sedang dilayani dan yang sedang menunggu
+    const currentQueueCount = await prisma.visitorLog.count({
+      where: {
+        status: { in: [VisitStatus.ON_PROGRESS, VisitStatus.PENDING] }
+      }
+    });
+
+    return { 
+      success: true, 
+      visitorId: newVisitor.id, 
+      queueNumber: currentQueueCount // Mengirimkan nomor antrean ke layar Kiosk
+    };
 
   } catch (error: any) {
     console.error("Gagal memproses data tamu:", error.message || error);
