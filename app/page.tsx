@@ -402,10 +402,17 @@ useEffect(() => {
     };
   }, [startIdleTimer, step]);
 
-  const capturePhoto = useCallback(() => {
+const capturePhoto = useCallback(() => {
     if (previewWebcamRef.current) {
       const imageSrc = previewWebcamRef.current.getScreenshot();
-      setPhotoBase64(imageSrc);
+      
+      // Pastikan hasil jepretan benar-benar ada isinya (bukan sekadar "data:,")
+      if (imageSrc && imageSrc.length > 100) {
+        setPhotoBase64(imageSrc);
+      } else {
+        setPhotoBase64(null);
+        console.log("Kamera gagal mengambil frame yang valid.");
+      }
     }
   }, [previewWebcamRef]);
 
@@ -864,7 +871,8 @@ let shiftY = 0;
                       ref={photoboothWebcamRef}
                       screenshotFormat="image/jpeg"
                       videoConstraints={{ width: 640, height: 480, facingMode: "user" }}
-                      className="w-full h-full object-cover scale-x-[-1]"
+                      className="w-[640px] h-[480px]"
+                      
                     />
                     <img src="/frame-telkom.png" alt="frame" className="absolute inset-0 w-full h-full object-cover pointer-events-none z-10" />
                   </>
