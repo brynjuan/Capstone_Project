@@ -51,6 +51,7 @@ model VisitorLog {
 
 // Enum baru untuk mengakomodasi alur kerja CS
 enum VisitStatus {
+  PRE_REGISTER
   PENDING      // Sedang menunggu antrean
   ON_PROGRESS  // Sedang dilayani CS di meja
   SUCCESS      // Pelayanan selesai dengan sukses

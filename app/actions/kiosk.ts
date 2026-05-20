@@ -109,29 +109,23 @@ export async function submitVisitorData(formData: any, photoBase64: string | nul
   try {
     let photoUrl = null;
     let imageBuffer: Buffer | null = null; 
+    let fileName = ""; // Pindahkan deklarasi fileName ke sini agar bisa diakses di bawah
 
+    // 1. SIAPKAN URL DAN BUFFER FOTO (TAPI JANGAN DI-UPLOAD DULU)
     if (photoBase64) {
       const base64Data = photoBase64.replace(/^data:image\/\w+;base64,/, "");
       imageBuffer = Buffer.from(base64Data, "base64");
-      const fileName = `visitors/${uuidv4()}.jpg`;
-
-      await s3.send(new PutObjectCommand({
-        Bucket: process.env.R2_BUCKET_NAME,
-        Key: fileName,
-        Body: imageBuffer,
-        ContentType: "image/jpeg",
-      }));
+      fileName = `visitors/${uuidv4()}.jpg`;
 
       const rawDomain = process.env.R2_PUBLIC_DOMAIN || "https://assets.telkomsulbagteng.my.id";
       const baseUrl = rawDomain.replace(/['"]/g, '').replace(/\/+$/, '');
       photoUrl = `${baseUrl}/${fileName}`;
     }
 
-    // 1. BERSIHKAN DATA NOMOR HP
+    // 2. BERSIHKAN DATA NOMOR HP
     const cleanPhoneNumber = formData.phoneNumber ? formData.phoneNumber.replace(/\D/g, '') : "";
 
-    // 2. CEK ANTREAN (SMART QUEUE)
-    // Cek apakah ada tamu yang sedang dilayani saat ini
+    // 3. CEK ANTREAN (SMART QUEUE)
     const activeVisitor = await prisma.visitorLog.findFirst({
       where: { status: VisitStatus.ON_PROGRESS }
     });
@@ -140,36 +134,68 @@ export async function submitVisitorData(formData: any, photoBase64: string | nul
     let startTime = null;
 
     if (!activeVisitor) {
-      // Jika CS sedang kosong, tamu ini langsung dilayani tanpa menunggu!
       initialStatus = VisitStatus.ON_PROGRESS;
       startTime = new Date(); 
     }
 
-    // 3. SIMPAN KE DATABASE
-    const newVisitor = await prisma.visitorLog.create({
-      data: {
-        fullName: `${formData.salutation} ${formData.fullName}`,
-        phoneNumber: cleanPhoneNumber, 
-        institution: formData.institution,
-        internetNumber: formData.internetNumber,
-        address: formData.address,
-        category: formData.category,
-        hostName: formData.hostName || "Nita Wulandari", 
-        purpose: formData.purpose || "Kunjungan Umum",
-        photoUrl: photoUrl,
-        
-        // Simpan status antrean & waktu mulai pelayanan
-        status: initialStatus,
-        serviceStartTime: startTime, 
-      }
-    });
+    // 4. SIMPAN KE DATABASE SECARA INSTAN! (Dashboard Admin akan langsung ter-trigger)
+    let newVisitor;
 
-    // 4. --- NOTIFIKASI TELEGRAM OTOMATIS ---
+    if (formData.pin) {
+      newVisitor = await prisma.visitorLog.update({
+        where: { pin: formData.pin },
+        data: {
+          fullName: `${formData.salutation} ${formData.fullName}`,
+          phoneNumber: cleanPhoneNumber,
+          institution: formData.institution,
+          internetNumber: formData.internetNumber,
+          address: formData.address,
+          category: formData.category,
+          hostName: formData.hostName || "Nita Wulandari",
+          purpose: formData.purpose || "Kunjungan Umum",
+          photoUrl: photoUrl, // URL foto yang digenerate di atas dimasukkan ke sini
+          status: initialStatus,
+          serviceStartTime: startTime,
+          checkInTime: new Date(), 
+        }
+      });
+    } else {
+      newVisitor = await prisma.visitorLog.create({
+        data: {
+          fullName: `${formData.salutation} ${formData.fullName}`,
+          phoneNumber: cleanPhoneNumber, 
+          institution: formData.institution,
+          internetNumber: formData.internetNumber,
+          address: formData.address,
+          category: formData.category,
+          hostName: formData.hostName || "Nita Wulandari", 
+          purpose: formData.purpose || "Kunjungan Umum",
+          photoUrl: photoUrl, 
+          status: initialStatus,
+          serviceStartTime: startTime, 
+        }
+      });
+    }
+
+    // 5. JALANKAN UPLOAD KE CLOUDFLARE R2 DI BACKGROUND
+    if (imageBuffer) {
+      // PERHATIKAN: Tidak ada kata "await" di sini! 
+      // Sistem akan mengunggah sambil lalu tanpa menahan proses Kiosk.
+      s3.send(new PutObjectCommand({
+        Bucket: process.env.R2_BUCKET_NAME,
+        Key: fileName,
+        Body: imageBuffer,
+        ContentType: "image/jpeg",
+      })).catch(err => console.error("Gagal background upload R2:", err));
+    }
+
+  // 6. --- NOTIFIKASI TELEGRAM OTOMATIS ---
     const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN; 
     const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 
+    console.log("CEK ENV CS - Token:", TELEGRAM_BOT_TOKEN ? "Ada" : "Kosong", "| Chat ID:", TELEGRAM_CHAT_ID);
+
     if (TELEGRAM_BOT_TOKEN && TELEGRAM_CHAT_ID) {
-      
       const now = new Date();
       const waktuDaftar = new Intl.DateTimeFormat('id-ID', {
         timeZone: 'Asia/Makassar',
@@ -177,7 +203,6 @@ export async function submitVisitorData(formData: any, photoBase64: string | nul
         hour: '2-digit', minute: '2-digit', second: '2-digit', timeZoneName: 'short'
       }).format(now);
 
-      // Status Antrean untuk pesan Telegram
       const statusAntreanTG = initialStatus === VisitStatus.PENDING 
         ? "⏳ <i>Berada di antrean (Menunggu)</i>" 
         : "✅ <i>Langsung dilayani di meja CS</i>";
@@ -207,21 +232,47 @@ export async function submitVisitorData(formData: any, photoBase64: string | nul
         tgFormData.append("caption", tgMessage);
         tgFormData.append("parse_mode", "HTML");
 
-        fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendPhoto`, {
-          method: "POST",
-          body: tgFormData,
-        }).catch((err) => console.error("Gagal mengirim Telegram:", err));
+        // KODE BARU UNTUK MELIHAT ERROR ASLI DARI TELEGRAM
+        try {
+          const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendPhoto`, {
+            method: "POST",
+            body: tgFormData,
+          });
+          
+          const tgResponse = await res.json(); 
+          
+          if (!res.ok) {
+             console.error("❌ ERROR TELEGRAM CS (Foto):", JSON.stringify(tgResponse, null, 2));
+          } else {
+             console.log("✅ Pesan Telegram CS (Foto) Berhasil!");
+          }
+        } catch (err) {
+          console.error("❌ Gagal total menghubungi server Telegram:", err);
+        }
 
       } else {
-        fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            chat_id: TELEGRAM_CHAT_ID,
-            text: tgMessage,
-            parse_mode: "HTML"
-          }),
-        }).catch((err) => console.error("Gagal mengirim Telegram:", err));
+        // KODE BARU UNTUK MELIHAT ERROR ASLI DARI TELEGRAM
+        try {
+          const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              chat_id: TELEGRAM_CHAT_ID,
+              text: tgMessage,
+              parse_mode: "HTML"
+            }),
+          });
+          
+          const tgResponse = await res.json(); 
+          
+          if (!res.ok) {
+             console.error("❌ ERROR TELEGRAM CS (Teks):", JSON.stringify(tgResponse, null, 2));
+          } else {
+             console.log("✅ Pesan Telegram CS (Teks) Berhasil!");
+          }
+        } catch (err) {
+          console.error("❌ Gagal total menghubungi server Telegram:", err);
+        }
       }
     }
 
@@ -237,12 +288,11 @@ export async function getVisitorByPinAction(inputPin: string) {
   try {
     const visitor = await prisma.visitorLog.findUnique({
       where: { pin: inputPin },
-      // Pastikan hanya mengambil data yang statusnya masih PENDING atau belum diproses
-      // atau buat logika khusus agar PIN hanya bisa dipakai sekali
     });
 
-    if (!visitor) {
-      return { success: false, message: "Kode PIN tidak ditemukan atau sudah kadaluwarsa." };
+    // Validasi: Tolak jika PIN tidak ada atau statusnya BUKAN PRE_REGISTER
+    if (!visitor || visitor.status !== VisitStatus.PRE_REGISTER) {
+      return { success: false, message: "Kode PIN tidak ditemukan atau sudah digunakan." };
     }
 
     return { 

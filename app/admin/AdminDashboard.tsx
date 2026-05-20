@@ -14,6 +14,7 @@ import {
   Clock3,
   Eye,
   Headset,
+  Key,
   LayoutDashboard,
   MapPin,
   MoreVertical,
@@ -31,7 +32,7 @@ import {
   WifiOff,
   X,
 } from "lucide-react";
-import { cancelVisit, completeVisit, reopenVisit, updateVisitorInfo } from "../actions/admin";
+import { cancelVisit, completeVisit, reopenVisit, updateVisitorInfo, generateVisitorPin } from "../actions/admin";
 import { logoutAdmin } from "../actions/auth";
 import { supabase } from "@/lib/supabase"; // Sesuaikan path jika berbeda
 
@@ -47,7 +48,7 @@ export type AdminVisitor = {
   purpose: string;
   hostName: string | null;
   photoUrl: string | null;
-  status: "PENDING" | "ON_PROGRESS" | "SUCCESS" | "CANCELLED";
+  status: "PENDING" | "ON_PROGRESS" | "SUCCESS" | "CANCELLED" | "PRE_REGISTER";
   checkInTime: string | null;
   serviceStartTime: string | null;
   checkOutTime: string | null;
@@ -175,7 +176,7 @@ const visitorCode = (visitor: AdminVisitor, index = 0) => {
 
 export default function AdminDashboard({ data, admin }: Props) {
   const router = useRouter();
-  const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history">("dashboard");
+const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" | "pin">("dashboard");
   const [trafficRange, setTrafficRange] = useState<"daily" | "monthly" | "yearly">("daily");
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"ALL" | AdminVisitor["status"]>("ALL");
@@ -185,6 +186,8 @@ export default function AdminDashboard({ data, admin }: Props) {
   const [editingVisitor, setEditingVisitor] = useState<AdminVisitor | null>(null);
   const [detailVisitor, setDetailVisitor] = useState<AdminVisitor | null>(null);
   const [isSavingVisitor, startSavingVisitor] = useTransition();
+  const [generatedPin, setGeneratedPin] = useState<string | null>(null);
+  const [isGeneratingPin, startGeneratingPin] = useTransition();
   const pageSize = 10;
 
   const [, setTick] = useState(0);
@@ -310,6 +313,11 @@ const viewCopy = {
       title: "Riwayat Kunjungan", // Tambahkan title di sini
       description: "Daftar pengunjung yang layanannya sudah diselesaikan oleh admin.",
     },
+    pin: {
+      eyebrow: "Akses & Keamanan",
+      title: "Buat Token / PIN",
+      description: "Manajemen pembuatan token atau PIN akses untuk aplikasi.",
+    },
   }[activeView];
 
   return (
@@ -340,6 +348,14 @@ const viewCopy = {
                 setActiveView("queue");
                 setStatusFilter("ALL");
                 setPage(1);
+              }}
+            />
+            <SidebarItem
+              icon={Key}
+              label="Buat Pin"
+              active={activeView === "pin"}
+              onClick={() => {
+                setActiveView("pin");
               }}
             />
             <SidebarItem
@@ -458,6 +474,89 @@ const viewCopy = {
               totalPages={totalPages}
               visibleVisitors={visibleVisitors}
             />
+          )}
+
+          {activeView === "pin" && (
+            <div className="mt-6">
+              <section className="min-w-0 rounded-2xl border border-[#f0dfdb] bg-white p-6 shadow-[0_16px_42px_rgba(70,31,25,0.06)] backdrop-blur-2xl">
+                <div className="mb-6">
+                  <h3 className="text-xl font-bold text-[#2b211f]">Form Pembuatan Token / PIN</h3>
+                  <p className="mt-1 text-sm text-[#7a625d]">
+                    Isi data pelanggan untuk menghasilkan PIN. Pengunjung dapat memasukkan PIN ini di layar Kiosk untuk mempercepat proses pendaftaran tanpa harus mengetik ulang.
+                  </p>
+                </div>
+
+                <div className="grid gap-8 lg:grid-cols-[1fr_300px]">
+                  {/* Form Pembuatan PIN */}
+                  <form
+                    action={(formData) => {
+                      startGeneratingPin(async () => {
+                        const res = await generateVisitorPin(formData);
+                        if (res.success && res.pin) {
+                          setGeneratedPin(res.pin);
+                          // Reset form setelah berhasil
+                          (document.getElementById("form-buat-pin") as HTMLFormElement)?.reset();
+                        } else {
+                          alert(res.error || "Gagal membuat PIN");
+                        }
+                      });
+                    }}
+                    id="form-buat-pin"
+                    className="flex flex-col space-y-4"
+                  >
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <EditField label="Nama Pengunjung *" name="fullName" defaultValue="" required />
+                      <EditField label="Nomor Telepon" name="phoneNumber" defaultValue="" />
+                      <EditField label="Instansi / Perusahaan" name="institution" defaultValue="" />
+                      <EditField label="Nomor Internet (IndiHome/Astinet)" name="internetNumber" defaultValue="" />
+                    </div>
+                    
+                    <EditTextarea label="Alamat / Keterangan Tambahan" name="address" defaultValue="" rows={3} />
+
+                    <div className="flex pt-2">
+                      <button
+                        type="submit"
+                        disabled={isGeneratingPin}
+                        className="inline-flex h-12 items-center justify-center rounded-xl bg-[#b3261e] px-8 text-sm font-bold text-white shadow-[0_18px_30px_rgba(179,38,30,0.22)] transition hover:bg-[#cf3429] disabled:cursor-not-allowed disabled:opacity-70"
+                      >
+                        <Key className="mr-2 h-4 w-4" />
+                        {isGeneratingPin ? "Memproses..." : "Buat PIN Akses"}
+                      </button>
+                    </div>
+                  </form>
+
+                  {/* Area Hasil PIN */}
+                  <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-[#f0dfdb] bg-[#fffaf9] p-6 text-center">
+                    {generatedPin ? (
+                      <div className="animate-in fade-in zoom-in w-full duration-300">
+                        <p className="text-xs font-black uppercase tracking-widest text-[#62b47d]">PIN BERHASIL DIBUAT</p>
+                        <div className="my-4 rounded-xl bg-[#eefbf4] py-4 text-5xl font-black tracking-[0.15em] text-[#2b211f] shadow-inner">
+                          {generatedPin}
+                        </div>
+                        <p className="text-xs font-semibold text-[#8b7671]">
+                          Berikan 6 digit angka di atas kepada pelanggan.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(generatedPin);
+                            alert("PIN disalin ke clipboard!");
+                          }}
+                          className="mt-4 text-xs font-bold text-[#b3261e] hover:underline"
+                        >
+                          Salin PIN
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="text-[#bba5a0]">
+                        <Key className="mx-auto mb-3 h-10 w-10 opacity-50" />
+                        <p className="text-sm font-bold">PIN akan muncul di sini</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </section>
+            </div>
           )}
 
           {activeView === "history" && (

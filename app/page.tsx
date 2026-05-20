@@ -283,7 +283,7 @@ const checkVipPin = async () => {
     setStep(1); 
     setShowPinInput(false);
     setKeyboardOpen(false);
-    setVipPin("");
+
     
     if (keyboardRef.current) keyboardRef.current.setInput("");
     
@@ -367,6 +367,7 @@ const startIdleTimer = useCallback(() => {
               setIsScanning(false); 
               setShowTimeoutWarning(false);
               isWarningRef.current = false;
+              setVipPin("");
               return 0;
             }
             return prev - 1;
@@ -416,9 +417,18 @@ useEffect(() => {
     }
   };
 
-  const onSubmit = async (data: KioskFormValues) => {
+const onSubmit = async (data: KioskFormValues) => {
     setIsSubmitting(true); setKeyboardOpen(false);
-    const result = await submitVisitorData(data, photoBase64);
+    
+    // 1. TAMBAHKAN PROPERTI "pin" KE DALAM OBJEK DATA
+    const finalData = {
+      ...data,
+      pin: vipPin || null 
+    };
+
+    // 2. KIRIM FINAL DATA (BUKAN DATA BAWAAN FORM)
+    const result = await submitVisitorData(finalData, photoBase64);
+    
     if (result.success) {
       if (result.visitorId) setCurrentVisitorId(result.visitorId);
       if (audioRef.current) audioRef.current.volume = 0.1;
@@ -793,7 +803,7 @@ useEffect(() => {
                       </motion.button>
                     ))}
                   </div>
-                  <div className="mt-16"><button onClick={() => { setStep(0); setRatingSubmitted(false); setCurrentVisitorId(""); reset(); setPhotoBase64(null); setIsAgreed(false); setSelectedCategory(""); }} className="text-gray-400 hover:text-white transition-colors">Lewati (Tutup)</button></div>
+                  <div className="mt-16"><button onClick={() => { setStep(0); setRatingSubmitted(false); setCurrentVisitorId(""); reset(); setPhotoBase64(null); setIsAgreed(false); setSelectedCategory(""); setVipPin(""); }} className="text-gray-400 hover:text-white transition-colors">Lewati (Tutup)</button></div>
                 </motion.div>
               ) : (
                 <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="py-6 text-center">
