@@ -578,8 +578,10 @@ let shiftY = 0;
       <audio ref={scanVoiceRef} src="/scan-instruction.mp3" />
       
       {/* Hidden webcam untuk capture foto/form OCR, tanpa menampilkan preview aktif ke pengguna */}
+{/* Kamera Tersembunyi: Diletakkan tepat di belakang background video Telkom (z-[-1]) agar 
+          browser mengira kamera tampil penuh di layar dan tidak mem-pause videonya. */}
       {step > 0 && !isScanning && !showIntercom && !showPhotobooth && (
-        <div className="absolute left-[-9999px] top-[-9999px] w-0 h-0 overflow-hidden">
+        <div className="absolute inset-0 z-[-1] flex items-center justify-center overflow-hidden">
           <Webcam
             key={previewCameraKey}
             audio={false}
@@ -589,7 +591,7 @@ let shiftY = 0;
             ref={previewWebcamRef}
             screenshotFormat="image/jpeg"
             videoConstraints={{ width: 640, height: 480, facingMode: "user" }}
-            className="w-0 h-0"
+            className="w-full h-full object-cover"
           />
         </div>
       )}

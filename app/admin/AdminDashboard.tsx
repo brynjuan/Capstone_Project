@@ -336,7 +336,7 @@ const viewCopy = {
           <nav className="mt-8 grid gap-2">
             <SidebarItem
               icon={LayoutDashboard}
-              label="Dasbor"
+              label="Dashboard"
               active={activeView === "dashboard"}
               onClick={() => setActiveView("dashboard")}
             />
