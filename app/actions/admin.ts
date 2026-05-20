@@ -94,33 +94,54 @@ export async function completeVisit(formData: FormData) {
 <i>${updatedVisitor.purpose || "-"}</i>
 `;
 
-    if (updatedVisitor.photoUrl) {
-      // Jika ada foto pelanggan, kirim via sendPhoto menggunakan URL publik R2 langsung
+if (updatedVisitor.photoUrl) {
       try {
-        const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendPhoto`, {
+        // 1. Server lokal Anda mengunduh foto dari Cloudflare terlebih dahulu (Bypass blokir Telegram)
+        const imgFetch = await fetch(updatedVisitor.photoUrl);
+        
+        if (imgFetch.ok) {
+          const arrayBuffer = await imgFetch.arrayBuffer();
+          const blob = new Blob([arrayBuffer], { type: "image/jpeg" });
+          
+          // 2. Kirim foto ke Telegram dalam bentuk File Mentah (Sama seperti metode CS)
+          const tgFormData = new FormData();
+          tgFormData.append("chat_id", TELEGRAM_CHAT_ID_ATASAN);
+          tgFormData.append("photo", blob, "visitor.jpg");
+          tgFormData.append("caption", tgMessage);
+          tgFormData.append("parse_mode", "HTML");
+
+          const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendPhoto`, {
+            method: "POST",
+            body: tgFormData,
+          });
+
+          const tgResponse = await res.json();
+          
+          if (!res.ok) {
+             console.error("❌ ERROR TELEGRAM ATASAN (Foto):", JSON.stringify(tgResponse, null, 2));
+             throw new Error("Gagal upload foto via FormData"); // Lempar ke blok catch untuk fallback teks
+          } else {
+             console.log("✅ Pesan Telegram Atasan (Foto) Berhasil!");
+          }
+        } else {
+          throw new Error("Server gagal mengambil foto dari R2");
+        }
+      } catch (err) {
+        console.error("❌ Terjadi kendala foto, mengalihkan ke Fallback Teks:", err);
+        // SISTEM FALLBACK: Jika foto benar-benar bermasalah, kirim teks saja agar laporan atasan tidak hilang!
+        await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             chat_id: TELEGRAM_CHAT_ID_ATASAN,
-            photo: updatedVisitor.photoUrl,
-            caption: tgMessage,
+            text: tgMessage,
             parse_mode: "HTML"
           })
         });
-        
-        const tgResponse = await res.json();
-        
-        if (!res.ok) {
-           console.error("❌ ERROR TELEGRAM ATASAN (Foto):", JSON.stringify(tgResponse, null, 2));
-        } else {
-           console.log("✅ Pesan Telegram Atasan (Foto) Berhasil!");
-        }
-      } catch (err) {
-        console.error("❌ Gagal total menghubungi server Telegram Atasan:", err);
       }
 
     } else {
-      // Jika tidak ada foto, kirim sebagai pesan teks biasa
+      // Jika pelanggan dari awal mendaftar tanpa foto
       try {
         const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
           method: "POST",

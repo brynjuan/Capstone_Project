@@ -526,8 +526,8 @@ let shiftY = 0;
     if (activeInput === "address") shiftY = -220; 
     
     // Penyesuaian sekalian untuk Step 2 agar tidak terhalang
-    if (activeInput === "hostName") shiftY = -120;
-    if (activeInput === "purpose") shiftY = -180; 
+    if (activeInput === "hostName") shiftY = -10;
+    if (activeInput === "purpose") shiftY = -150; 
   }
 
   return (
@@ -652,7 +652,8 @@ let shiftY = 0;
             <AnimatePresence>
               {showPinInput && (
                 <motion.div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/90 backdrop-blur-md">
-                   <motion.div animate={{ y: keyboardOpen && activeInput === "vipPin" ? -180 : 0 }} transition={{ type: "spring", stiffness: 300, damping: 30 }} className="bg-white/10 p-10 rounded-[40px] border border-white/20 text-center w-[400px]">
+                  
+<motion.div animate={{ y: keyboardOpen && activeInput === "vipPin" ? -220 : 0 }} transition={{ type: "spring", stiffness: 300, damping: 30 }} className="bg-white/10 p-10 rounded-[40px] border border-white/20 text-center w-[400px]">
                       <h2 className="text-2xl font-bold text-white mb-6">Masukkan PIN VIP</h2>
                       <input type="password" value={vipPin} onFocus={() => { setActiveInput("vipPin"); setKeyboardOpen(true); }} onKeyDown={playBeep} onChange={(e) => { setVipPin(e.target.value); if (keyboardRef.current && activeInput === "vipPin") keyboardRef.current.setInput(e.target.value); }} className="w-full bg-white/5 border border-white/20 rounded-2xl p-4 text-white text-3xl text-center mb-6 focus:border-amber-500 outline-none transition-all" placeholder="******" inputMode="none" />
                       <div className="flex gap-4">

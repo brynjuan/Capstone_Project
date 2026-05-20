@@ -177,37 +177,38 @@ export async function submitVisitorData(formData: any, photoBase64: string | nul
       });
     }
 
-    // 5. JALANKAN UPLOAD KE CLOUDFLARE R2 DI BACKGROUND
-    if (imageBuffer) {
-      // PERHATIKAN: Tidak ada kata "await" di sini! 
-      // Sistem akan mengunggah sambil lalu tanpa menahan proses Kiosk.
-      s3.send(new PutObjectCommand({
-        Bucket: process.env.R2_BUCKET_NAME,
-        Key: fileName,
-        Body: imageBuffer,
-        ContentType: "image/jpeg",
-      })).catch(err => console.error("Gagal background upload R2:", err));
-    }
-
-  // 6. --- NOTIFIKASI TELEGRAM OTOMATIS ---
+// 5. PROSES UPLOAD R2 & TELEGRAM DI BACKGROUND (Berjalan tanpa menahan Kiosk)
     const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN; 
     const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 
-    console.log("CEK ENV CS - Token:", TELEGRAM_BOT_TOKEN ? "Ada" : "Kosong", "| Chat ID:", TELEGRAM_CHAT_ID);
+ // Fungsi IIFE: Berjalan di latar belakang sehingga pelanggan Kiosk tidak perlu menunggu proses loading
+    (async () => {
+      try {
+        // A. Tunggu foto masuk ke Cloudflare R2 terlebih dahulu agar link-nya aktif
+        if (imageBuffer && fileName) {
+          await s3.send(new PutObjectCommand({
+            Bucket: process.env.R2_BUCKET_NAME,
+            Key: fileName,
+            Body: imageBuffer,
+            ContentType: "image/jpeg",
+          }));
+          console.log("✅ Upload foto Kiosk ke R2 Berhasil");
+        }
 
-    if (TELEGRAM_BOT_TOKEN && TELEGRAM_CHAT_ID) {
-      const now = new Date();
-      const waktuDaftar = new Intl.DateTimeFormat('id-ID', {
-        timeZone: 'Asia/Makassar',
-        weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
-        hour: '2-digit', minute: '2-digit', second: '2-digit', timeZoneName: 'short'
-      }).format(now);
+        // B. Kirim Notifikasi Telegram
+        if (TELEGRAM_BOT_TOKEN && TELEGRAM_CHAT_ID) {
+          const now = new Date();
+          const waktuDaftar = new Intl.DateTimeFormat('id-ID', {
+            timeZone: 'Asia/Makassar',
+            weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+            hour: '2-digit', minute: '2-digit', second: '2-digit', timeZoneName: 'short'
+          }).format(now);
 
-      const statusAntreanTG = initialStatus === VisitStatus.PENDING 
-        ? "⏳ <i>Berada di antrean (Menunggu)</i>" 
-        : "✅ <i>Langsung dilayani di meja CS</i>";
+          const statusAntreanTG = initialStatus === VisitStatus.PENDING 
+            ? "⏳ <i>Berada di antrean (Menunggu)</i>" 
+            : "✅ <i>Langsung dilayani di meja CS</i>";
 
-      const tgMessage = `
+          const tgMessage = `
 🚨 <b>Pelanggan TELKOM</b> 🚨
 
 🗓 <b>Waktu:</b> ${waktuDaftar}
@@ -224,58 +225,72 @@ export async function submitVisitorData(formData: any, photoBase64: string | nul
 <i>${formData.purpose || "-"}</i>
 `;
 
-      if (imageBuffer) {
-        const blob = new Blob([new Uint8Array(imageBuffer)], { type: "image/jpeg" });
-        const tgFormData = new FormData();
-        tgFormData.append("chat_id", TELEGRAM_CHAT_ID);
-        tgFormData.append("photo", blob, "visitor.jpg");
-        tgFormData.append("caption", tgMessage);
-        tgFormData.append("parse_mode", "HTML");
+          // FUNGSI JEDA (DELAY)
+          const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-        // KODE BARU UNTUK MELIHAT ERROR ASLI DARI TELEGRAM
-        try {
-          const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendPhoto`, {
-            method: "POST",
-            body: tgFormData,
-          });
-          
-          const tgResponse = await res.json(); 
-          
-          if (!res.ok) {
-             console.error("❌ ERROR TELEGRAM CS (Foto):", JSON.stringify(tgResponse, null, 2));
-          } else {
-             console.log("✅ Pesan Telegram CS (Foto) Berhasil!");
-          }
-        } catch (err) {
-          console.error("❌ Gagal total menghubungi server Telegram:", err);
-        }
+          if (imageBuffer && photoUrl) {
+            
+            // Tunggu 3 detik agar Cloudflare CDN mendistribusikan link R2 Anda secara global
+            console.log("⏳ Menunggu propagasi Cloudflare R2 (3 detik)...");
+            await delay(3000); 
 
-      } else {
-        // KODE BARU UNTUK MELIHAT ERROR ASLI DARI TELEGRAM
-        try {
-          const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              chat_id: TELEGRAM_CHAT_ID,
-              text: tgMessage,
-              parse_mode: "HTML"
-            }),
-          });
-          
-          const tgResponse = await res.json(); 
-          
-          if (!res.ok) {
-             console.error("❌ ERROR TELEGRAM CS (Teks):", JSON.stringify(tgResponse, null, 2));
+            try {
+              const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendPhoto`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  chat_id: TELEGRAM_CHAT_ID,
+                  photo: photoUrl, 
+                  caption: tgMessage,
+                  parse_mode: "HTML"
+                })
+              });
+              
+              const tgResponse = await res.json();
+              if (!res.ok) {
+                console.error("❌ ERROR TELEGRAM CS (Foto):", JSON.stringify(tgResponse, null, 2));
+                
+                // SISTEM FALLBACK: Jika Telegram masih gagal ambil foto, KIRIM TEKS SAJA
+                console.log("🔄 Mencoba mengirim ulang tanpa foto (Fallback)...");
+                await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text: tgMessage, parse_mode: "HTML" })
+                });
+              } else {
+                console.log("✅ Pesan Telegram CS (Foto) Berhasil Terkirim!");
+              }
+            } catch (err) {
+              console.error("❌ Gagal mengirim foto Telegram CS:", err);
+            }
+
           } else {
-             console.log("✅ Pesan Telegram CS (Teks) Berhasil!");
+            // Jika pengunjung mendaftar tanpa foto wajah
+            try {
+              const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  chat_id: TELEGRAM_CHAT_ID,
+                  text: tgMessage,
+                  parse_mode: "HTML"
+                })
+              });
+              
+              const tgResponse = await res.json();
+              if (!res.ok) console.error("❌ ERROR TELEGRAM CS (Teks):", JSON.stringify(tgResponse, null, 2));
+              else console.log("✅ Pesan Telegram CS (Teks) Berhasil Terkirim!");
+            } catch (err) {
+              console.error("❌ Gagal mengirim teks Telegram CS:", err);
+            }
           }
-        } catch (err) {
-          console.error("❌ Gagal total menghubungi server Telegram:", err);
         }
+      } catch (err) {
+        console.error("❌ Gagal memproses background task Telegram Kiosk:", err);
       }
-    }
+    })();
 
+    // 6. RESPONSE INSTAN KE KIOSK
     return { success: true, visitorId: newVisitor.id };
 
   } catch (error: any) {
