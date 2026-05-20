@@ -177,38 +177,39 @@ export async function submitVisitorData(formData: any, photoBase64: string | nul
       });
     }
 
-// 5. PROSES UPLOAD R2 & TELEGRAM DI BACKGROUND (Berjalan tanpa menahan Kiosk)
+// 5. PROSES UPLOAD R2 & TELEGRAM SECARA PARALEL (Bersamaan)
     const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN; 
     const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 
- // Fungsi IIFE: Berjalan di latar belakang sehingga pelanggan Kiosk tidak perlu menunggu proses loading
-    (async () => {
-      try {
-        // A. Tunggu foto masuk ke Cloudflare R2 terlebih dahulu agar link-nya aktif
-        if (imageBuffer && fileName) {
-          await s3.send(new PutObjectCommand({
-            Bucket: process.env.R2_BUCKET_NAME,
-            Key: fileName,
-            Body: imageBuffer,
-            ContentType: "image/jpeg",
-          }));
-          console.log("✅ Upload foto Kiosk ke R2 Berhasil");
-        }
+    // Siapkan dua wadah tugas kosong
+    let r2Task: Promise<any> = Promise.resolve();
+    let telegramTask: Promise<any> = Promise.resolve();
 
-        // B. Kirim Notifikasi Telegram
-        if (TELEGRAM_BOT_TOKEN && TELEGRAM_CHAT_ID) {
-          const now = new Date();
-          const waktuDaftar = new Intl.DateTimeFormat('id-ID', {
-            timeZone: 'Asia/Makassar',
-            weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
-            hour: '2-digit', minute: '2-digit', second: '2-digit', timeZoneName: 'short'
-          }).format(now);
+    // TUGAS A: Upload ke Cloudflare R2
+    if (imageBuffer && fileName) {
+      r2Task = s3.send(new PutObjectCommand({
+        Bucket: process.env.R2_BUCKET_NAME,
+        Key: fileName,
+        Body: imageBuffer,
+        ContentType: "image/jpeg",
+      })).then(() => console.log("✅ Upload foto R2 Berhasil"))
+         .catch(err => console.error("❌ R2 Error:", err));
+    }
 
-          const statusAntreanTG = initialStatus === VisitStatus.PENDING 
-            ? "⏳ <i>Berada di antrean (Menunggu)</i>" 
-            : "✅ <i>Langsung dilayani di meja CS</i>";
+    // TUGAS B: Kirim Notifikasi Telegram CS
+    if (TELEGRAM_BOT_TOKEN && TELEGRAM_CHAT_ID) {
+      const now = new Date();
+      const waktuDaftar = new Intl.DateTimeFormat('id-ID', {
+        timeZone: 'Asia/Makassar',
+        weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+        hour: '2-digit', minute: '2-digit', second: '2-digit', timeZoneName: 'short'
+      }).format(now);
 
-          const tgMessage = `
+      const statusAntreanTG = initialStatus === VisitStatus.PENDING 
+        ? "⏳ <i>Berada di antrean (Menunggu)</i>" 
+        : "✅ <i>Langsung dilayani di meja CS</i>";
+
+      const tgMessage = `
 🚨 <b>Pelanggan TELKOM</b> 🚨
 
 🗓 <b>Waktu:</b> ${waktuDaftar}
@@ -225,73 +226,44 @@ export async function submitVisitorData(formData: any, photoBase64: string | nul
 <i>${formData.purpose || "-"}</i>
 `;
 
-          // FUNGSI JEDA (DELAY)
-          const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+      if (imageBuffer) {
+        // Kirim file mentah langsung (Tidak perlu tunggu R2 atau Delay!)
+        const file = new File([new Uint8Array(imageBuffer)], "visitor.jpg", { type: "image/jpeg" });
+        const tgFormData = new FormData();
+        tgFormData.append("chat_id", TELEGRAM_CHAT_ID);
+        tgFormData.append("photo", file);
+        tgFormData.append("caption", tgMessage);
+        tgFormData.append("parse_mode", "HTML");
 
-          if (imageBuffer && photoUrl) {
-            
-            // Tunggu 3 detik agar Cloudflare CDN mendistribusikan link R2 Anda secara global
-            console.log("⏳ Menunggu propagasi Cloudflare R2 (3 detik)...");
-            await delay(3000); 
-
-            try {
-              const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendPhoto`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  chat_id: TELEGRAM_CHAT_ID,
-                  photo: photoUrl, 
-                  caption: tgMessage,
-                  parse_mode: "HTML"
-                })
-              });
-              
-              const tgResponse = await res.json();
-              if (!res.ok) {
-                console.error("❌ ERROR TELEGRAM CS (Foto):", JSON.stringify(tgResponse, null, 2));
-                
-                // SISTEM FALLBACK: Jika Telegram masih gagal ambil foto, KIRIM TEKS SAJA
-                console.log("🔄 Mencoba mengirim ulang tanpa foto (Fallback)...");
-                await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text: tgMessage, parse_mode: "HTML" })
-                });
-              } else {
-                console.log("✅ Pesan Telegram CS (Foto) Berhasil Terkirim!");
-              }
-            } catch (err) {
-              console.error("❌ Gagal mengirim foto Telegram CS:", err);
-            }
-
-          } else {
-            // Jika pengunjung mendaftar tanpa foto wajah
-            try {
-              const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  chat_id: TELEGRAM_CHAT_ID,
-                  text: tgMessage,
-                  parse_mode: "HTML"
-                })
-              });
-              
-              const tgResponse = await res.json();
-              if (!res.ok) console.error("❌ ERROR TELEGRAM CS (Teks):", JSON.stringify(tgResponse, null, 2));
-              else console.log("✅ Pesan Telegram CS (Teks) Berhasil Terkirim!");
-            } catch (err) {
-              console.error("❌ Gagal mengirim teks Telegram CS:", err);
-            }
-          }
-        }
-      } catch (err) {
-        console.error("❌ Gagal memproses background task Telegram Kiosk:", err);
+        telegramTask = fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendPhoto`, {
+          method: "POST",
+          body: tgFormData,
+        }).then(async (res) => {
+          if (!res.ok) throw new Error("Gagal kirim foto TG");
+          console.log("✅ Pesan Telegram CS (Foto) Berhasil!");
+        }).catch(() => {
+          // Fallback Teks jika foto gagal
+          console.log("🔄 Mengalihkan ke Fallback Teks CS...");
+          return fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text: tgMessage, parse_mode: "HTML" })
+          });
+        });
+      } else {
+        // Teks biasa jika tidak ada foto
+        telegramTask = fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text: tgMessage, parse_mode: "HTML" })
+        });
       }
-    })();
+    }
 
-// 6. HITUNG NOMOR ANTREAN & RESPONSE INSTAN KE KIOSK
-    // Menghitung total pengunjung yang sedang dilayani dan yang sedang menunggu
+    // 👇 KUNCI UTAMA: Paksa Kiosk mengeksekusi kedua tugas BERSAMAAN dan menunggu hingga keduanya selesai 👇
+    await Promise.all([r2Task, telegramTask]);
+
+    // 6. HITUNG NOMOR ANTREAN & RESPONSE INSTAN KE KIOSK
     const currentQueueCount = await prisma.visitorLog.count({
       where: {
         status: { in: [VisitStatus.ON_PROGRESS, VisitStatus.PENDING] }
@@ -301,7 +273,7 @@ export async function submitVisitorData(formData: any, photoBase64: string | nul
     return { 
       success: true, 
       visitorId: newVisitor.id, 
-      queueNumber: currentQueueCount // Mengirimkan nomor antrean ke layar Kiosk
+      queueNumber: currentQueueCount 
     };
 
   } catch (error: any) {
@@ -309,7 +281,6 @@ export async function submitVisitorData(formData: any, photoBase64: string | nul
     return { success: false, error: "Terjadi kesalahan sistem saat menyimpan data." };
   }
 }
-
 export async function getVisitorByPinAction(inputPin: string) {
   try {
     const visitor = await prisma.visitorLog.findUnique({
