@@ -299,8 +299,8 @@ useEffect(() => {
       : 0;
 const viewCopy = {
     dashboard: {
-      eyebrow: "Dasbor Resepsionis",
-      title: "Ringkasan Dasbor", // Tambahkan title di sini
+      eyebrow: "Dashboard Resepsionis",
+      title: "Ringkasan Dashboard", // Tambahkan title di sini
       description: "Pantau antrean, sesi layanan, dan statistik penggunaan kiosk dalam satu tampilan.",
     },
     queue: {
