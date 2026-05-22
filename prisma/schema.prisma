@@ -57,3 +57,12 @@ enum VisitStatus {
   SUCCESS      // Pelayanan selesai dengan sukses
   CANCELLED    // Pelayanan dibatalkan/tamu pulang duluan
 }
+
+model KioskSetting {
+  id        String   @id @default("global")
+  isBusy    Boolean  @default(false)
+  message   String   @db.Text
+  updatedAt DateTime @updatedAt
+
+  @@map("kiosk_settings")
+}npx prisma db pus

@@ -79,6 +79,10 @@ export type AdminDashboardData = {
     name: string;
     data: Array<{ label: string; value: number }>;
   }>;
+  kioskStatus?: {
+    isBusy: boolean;
+    message: string;
+  };
 };
 
 type Props = {
@@ -176,7 +180,7 @@ const visitorCode = (visitor: AdminVisitor, index = 0) => {
 
 export default function AdminDashboard({ data, admin }: Props) {
   const router = useRouter();
-const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" | "pin">("dashboard");
+const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" | "pin" | "status">("dashboard");
   const [trafficRange, setTrafficRange] = useState<"daily" | "monthly" | "yearly">("daily");
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"ALL" | AdminVisitor["status"]>("ALL");
@@ -188,6 +192,13 @@ const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" |
   const [isSavingVisitor, startSavingVisitor] = useTransition();
   const [generatedPin, setGeneratedPin] = useState<string | null>(null);
   const [isGeneratingPin, startGeneratingPin] = useTransition();
+  const [notification, setNotification] = useState<{ show: boolean; message: string; type: "success" | "error" } | null>(null);
+
+  // Fungsi pintar untuk memanggil notifikasi yang hilang otomatis dalam 3 detik
+  const showNotification = (message: string, type: "success" | "error" = "success") => {
+    setNotification({ show: true, message, type });
+    setTimeout(() => setNotification(null), 3000); 
+  };
   const pageSize = 10;
 
   const [, setTick] = useState(0);
@@ -318,6 +329,11 @@ const viewCopy = {
       title: "Buat Token / PIN",
       description: "Manajemen pembuatan token atau PIN akses untuk aplikasi.",
     },
+    status: {
+      eyebrow: "Kontrol Operasional",
+      title: "Status Layanan CS",
+      description: "Ubah status menjadi Sibuk/Istirahat dan berikan alasan spesifik untuk mengunci layar.",
+    },
   }[activeView];
 
   return (
@@ -339,6 +355,12 @@ const viewCopy = {
               label="Dashboard"
               active={activeView === "dashboard"}
               onClick={() => setActiveView("dashboard")}
+            />
+            <SidebarItem
+              icon={SlidersHorizontal}
+              label="Status CS"
+              active={activeView === "status"}
+              onClick={() => setActiveView("status")}
             />
             <SidebarItem
               icon={Table2}
@@ -406,7 +428,7 @@ const viewCopy = {
                     data.connectionOk ? "bg-[#62c48a]" : "bg-[#f2ae3f]"
                   }`}
                 />
-                {data.connectionOk ? "Basis Data Aktif" : "Basis Data Tidak Aktif"}
+                {data.connectionOk ? "Database Aktif" : "Database Tidak Aktif"}
               </div>
               
              
@@ -558,6 +580,69 @@ const viewCopy = {
               </section>
             </div>
           )}
+
+{activeView === "status" && (
+            <div className="mt-6">
+              <section className="min-w-0 rounded-2xl border border-[#f0dfdb] bg-white p-6 shadow-[0_16px_42px_rgba(70,31,25,0.06)]">
+                <div className="mb-6">
+                  <h3 className="text-xl font-bold text-[#2b211f]">Pengaturan Status Meja CS</h3>
+                  <p className="mt-1 text-sm text-[#7a625d]">
+                    Ketikkan alasan spesifik Anda (misal: "Sedang Sholat"). Pelanggan tidak akan bisa mendaftar sampai status dikembalikan ke READY.
+                  </p>
+                </div>
+
+                <form
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    const formData = new FormData(e.currentTarget);
+                    const isBusy = formData.get("isBusy") === "true";
+                    const message = formData.get("message") as string;
+                    
+                    const { updateKioskStatus } = await import("../actions/admin");
+                    const res = await updateKioskStatus(isBusy, message);
+if (res.success) {
+                      showNotification("Status Kiosk Berhasil Diperbarui!", "success");
+                    } else {
+                      showNotification("Gagal mengubah status.", "error");
+                    }
+                  }}
+                  className="space-y-6"
+                >
+                  <label className="grid gap-2">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-[#806762]">Status Operasional CS</span>
+                    <select
+                      name="isBusy"
+                      defaultValue={data.kioskStatus?.isBusy ? "true" : "false"}
+                      className="h-11 w-full max-w-md rounded-xl border border-[#f0dfdb] bg-[#fff8f6] px-3 text-sm font-semibold text-[#2b211f] outline-none focus:border-[#d23a2f]"
+                    >
+                      <option value="false">🟢 READY</option>
+                      <option value="true">🔴 BUSSY</option>
+                    </select>
+                  </label>
+
+                  <label className="grid gap-2">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-[#806762]">Pesan Khusus ke Pelanggan</span>
+                    <textarea 
+                      name="message" 
+                      defaultValue={data.kioskStatus?.message || ""} 
+                      placeholder="Contoh: Petugas CS sedang istirahat sholat hingga pukul 13:00 WITA."
+                      rows={4} 
+                      required
+                      className="resize-none rounded-xl border border-[#f0dfdb] bg-[#fff8f6] px-4 py-3 text-sm font-semibold text-[#2b211f] outline-none transition placeholder:text-[#a8918c] focus:border-[#d23a2f] focus:bg-white shadow-inner"
+                    />
+                  </label>
+
+                  <button
+                    type="submit"
+                    className="inline-flex h-12 items-center justify-center rounded-xl bg-[#b3261e] px-8 text-sm font-bold text-white shadow-md transition hover:bg-[#cf3429]"
+                  >
+                    Simpan Perubahan
+                  </button>
+                </form>
+              </section>
+            </div>
+            )}
+          
 
           {activeView === "history" && (
             <>
@@ -852,8 +937,9 @@ const viewCopy = {
           </div>
         </div>
       )}
+      
 
-      {editingVisitor && (
+{editingVisitor && (
         <EditVisitorDialog
           visitor={editingVisitor}
           isSaving={isSavingVisitor}
@@ -868,6 +954,23 @@ const viewCopy = {
           }}
         />
       )}
+
+{/* ===== TOAST NOTIFICATION MODERN ===== */}
+      {notification && (
+        <div className={`fixed top-8 left-1/2 -translate-x-1/2 z-[999] flex items-center gap-3 rounded-2xl px-6 py-4 text-white shadow-[0_15px_40px_rgba(0,0,0,0.2)] transition-all animate-in slide-in-from-top-8 fade-in duration-300 ${
+          notification.type === "success" 
+            ? "bg-[#4e9b70] border border-[#3e7c59]" 
+            : "bg-[#b3261e] border border-[#921e17]"
+        }`}>
+          {notification.type === "success" ? (
+            <CheckCircle2 className="h-6 w-6 text-[#a7dfc0]" />
+          ) : (
+            <X className="h-6 w-6 text-[#f3a8a5]" />
+          )}
+          <span className="text-sm font-bold tracking-wide">{notification.message}</span>
+        </div>
+      )}
+      
     </main>
   );
 }

@@ -292,6 +292,36 @@ export async function generateVisitorPin(formData: FormData) {
   }
 }
 
+export async function updateKioskStatus(isBusy: boolean, message: string) {
+  try {
+    await prisma.kioskSetting.upsert({
+      where: { id: "global" },
+      update: { isBusy, message },
+      create: { id: "global", isBusy, message },
+    });
+    
+    // Refresh halaman agar data terbaru langsung tampil
+    revalidatePath("/admin");
+    revalidatePath("/");
+    return { success: true };
+  } catch (error: any) {
+    console.error("Gagal mengubah status kiosk:", error);
+    return { success: false, error: "Gagal menyimpan status." };
+  }
+}
+
+export async function getKioskStatus() {
+  try {
+    const setting = await prisma.kioskSetting.findUnique({
+      where: { id: "global" },
+    });
+    // Mengembalikan string kosong jika belum ada data
+    return setting || { isBusy: false, message: "" };
+  } catch (error) {
+    return { isBusy: false, message: "" };
+  }
+}
+
 export async function updateVisitorInfo(formData: FormData) {
   await requireAdminSession();
 
@@ -315,6 +345,8 @@ export async function updateVisitorInfo(formData: FormData) {
       category: nullableString(formData.get("category")),
       hostName: nullableString(formData.get("hostName")),
     },
+
+    
   });
 
   revalidatePath("/admin");

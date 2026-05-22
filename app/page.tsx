@@ -180,6 +180,25 @@ export default function KioskPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [isAgreed, setIsAgreed] = useState(false); 
   const [isScanning, setIsScanning] = useState(false);
+  const [isCsBusy, setIsCsBusy] = useState<boolean>(false);
+  const [busyMessage, setBusyMessage] = useState<string>("");
+
+  const checkKioskLock = async () => {
+    const { getKioskStatus } = await import("./actions/admin");
+    const status = await getKioskStatus();
+    
+    if (status.isBusy) {
+      setBusyMessage(status.message);
+      setIsCsBusy(true);
+      // Mainkan suara error agar Kiosk memberi sinyal penolakan
+      if (errorAudioRef.current && !isMuted) {
+        errorAudioRef.current.currentTime = 0;
+        errorAudioRef.current.play().catch(() => {});
+      }
+      return true; // Terkunci
+    }
+    return false; // Aman
+  };
 
   const [countdown, setCountdown] = useState(10);
   const [showTimeoutWarning, setShowTimeoutWarning] = useState(false);
@@ -460,7 +479,10 @@ const onSubmit = async (data: KioskFormValues) => {
     customAlert("error", "Tujuan Belum Jelas", "Mohon pilih kategori kunjungan Anda terlebih dahulu.");
   };
 
-  const handleStartKiosk = () => {
+const handleStartKiosk = async () => {
+    const locked = await checkKioskLock();
+    if (locked) return; // Hentikan fungsi jika terkunci!
+
     setStep(1); 
     if (audioRef.current) audioRef.current.volume = 0.1;
     if (voiceRef.current && !isMuted) {
@@ -677,9 +699,19 @@ let shiftY = 0;
               )}
             </AnimatePresence>
 
-            <motion.button onClick={(e) => { e.stopPropagation(); setIsScanning(true); if (scanVoiceRef.current && !isMuted) scanVoiceRef.current.play(); }} className="mt-6 px-6 py-3 bg-black/40 backdrop-blur-md border border-white/20 text-white rounded-full text-lg font-semibold flex items-center gap-3 hover:bg-black/60 transition-all cursor-pointer">
-              <QrCode className="w-6 h-6 text-red-400" /> Punya kode QR? Pindai di sini
-            </motion.button>
+<motion.button 
+  onClick={async (e) => { 
+    e.stopPropagation(); 
+    const locked = await checkKioskLock();
+    if (locked) return; // Hentikan fungsi jika terkunci!
+    
+    setIsScanning(true); 
+    if (scanVoiceRef.current && !isMuted) scanVoiceRef.current.play(); 
+  }} 
+  className="mt-6 px-6 py-3 bg-black/40 backdrop-blur-md border border-white/20 text-white rounded-full text-lg font-semibold flex items-center gap-3 hover:bg-black/60 transition-all cursor-pointer"
+>
+  <QrCode className="w-6 h-6 text-red-400" /> Punya kode QR? Pindai di sini
+</motion.button>
           </motion.div>
         )}
 
@@ -980,6 +1012,40 @@ let shiftY = 0;
         .numpad-style .hg-button { height: 80px !important; font-size: 2rem !important; font-weight: bold !important; }
         .numpad-style .hg-button-bksp, .numpad-style .hg-button-enter { font-size: 1.2rem !important; background: rgba(239, 68, 68, 0.3) !important; color: white !important; }
       `}</style>
+
+      {/* MODAL PENOLAKAN KARENA CS SIBUK */}
+      {isCsBusy && (
+        <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/80 p-6 backdrop-blur-xl">
+          <motion.div 
+            initial={{ scale: 0.9, opacity: 0, y: 20 }} 
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            className="bg-gradient-to-b from-red-950 to-black p-12 rounded-[40px] border border-red-500/50 text-center max-w-3xl shadow-[0_0_50px_rgba(220,38,38,0.3)] flex flex-col items-center"
+          >
+            <div className="w-24 h-24 bg-red-500/20 rounded-full flex items-center justify-center mb-6">
+              <span className="text-6xl">⏳</span>
+            </div>
+            <h2 className="text-4xl font-black text-white mb-2 uppercase tracking-wide">Pendaftaran Dijeda</h2>
+            <p className="text-lg text-red-300 mb-8 font-semibold">Petugas Customer Service sedang tidak berada di meja.</p>
+            
+            {/* INI ADALAH PESAN ASLI KETIKAN CS */}
+            <div className="bg-white/10 p-8 rounded-3xl border border-white/20 mb-10 w-full relative">
+              <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-red-600 px-4 py-1 rounded-full text-xs font-bold text-white uppercase tracking-wider">
+                Pesan dari Petugas
+              </div>
+              <p className="text-2xl text-white leading-relaxed italic bold">
+                {busyMessage}
+              </p>
+            </div>
+
+            <button 
+              onClick={() => setIsCsBusy(false)}
+              className="px-10 py-5 bg-white/10 hover:bg-white/20 text-white font-bold rounded-2xl transition-all border border-white/20 shadow-lg active:scale-95"
+            >
+              Tutup & Coba Lagi Nanti
+            </button>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }

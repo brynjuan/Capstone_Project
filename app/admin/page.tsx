@@ -80,9 +80,6 @@ async function getDashboardData(): Promise<AdminDashboardData> {
   });
 
   try {
-    // 1. Eksekusi metrik utama secara berurutan (sekuensial)
-    // Menghindari error EMAXCONNSESSION (max clients pool_size: 15)
-    
     const visitors = await prisma.visitorLog.findMany({
       orderBy: [{ status: "asc" }, { checkInTime: "desc" }],
       take: 200,
@@ -131,7 +128,6 @@ async function getDashboardData(): Promise<AdminDashboardData> {
       take: 5,
     });
 
-    // 2. Eksekusi grafik/series secara berurutan
     const dailySeries = [];
     for (const range of dailyRanges) {
       const count = await prisma.visitorLog.count({
@@ -156,7 +152,6 @@ async function getDashboardData(): Promise<AdminDashboardData> {
       yearlySeries.push({ label: range.label, value: count });
     }
 
-    // 3. Eksekusi grafik kategori bulanan secara berurutan
     const topCategories = categoryGroups.map((item) => item.category);
     const categoryMonthlySeries = [];
     
@@ -177,6 +172,11 @@ async function getDashboardData(): Promise<AdminDashboardData> {
         data,
       });
     }
+
+    // 👇 PENGAMBILAN DATA KIOSK STATUS DIPINDAHKAN KE SINI 👇
+    const kioskSetting = await prisma.kioskSetting.findUnique({
+      where: { id: "global" }
+    });
 
     return {
       connectionOk: true,
@@ -216,6 +216,11 @@ async function getDashboardData(): Promise<AdminDashboardData> {
       monthlySeries,
       yearlySeries,
       categoryMonthlySeries,
+      // 👇 DISELIPKAN KE DALAM RETURN DATA 👇
+      kioskStatus: {
+        isBusy: kioskSetting?.isBusy ?? false,
+        message: kioskSetting?.message ?? "",
+      }
     };
   } catch (error) {
     console.error("Gagal mengambil data admin:", error);
@@ -238,6 +243,11 @@ async function getDashboardData(): Promise<AdminDashboardData> {
       monthlySeries: [],
       yearlySeries: [],
       categoryMonthlySeries: [],
+      // 👇 PASTIKAN ADA DEFAULT JIKA ERROR 👇
+      kioskStatus: {
+        isBusy: false,
+        message: ""
+      }
     };
   }
 }
@@ -249,6 +259,7 @@ export default async function AdminPage() {
     redirect("/admin/login");
   }
 
+  // Sekarang 'data' sudah secara otomatis membawa 'kioskStatus'
   const data = await getDashboardData();
 
   return <AdminDashboard data={data} admin={admin} />;
