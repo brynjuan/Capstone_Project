@@ -193,6 +193,8 @@ const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" |
   const [generatedPin, setGeneratedPin] = useState<string | null>(null);
   const [isGeneratingPin, startGeneratingPin] = useTransition();
   const [notification, setNotification] = useState<{ show: boolean; message: string; type: "success" | "error" } | null>(null);
+  const [historyRange, setHistoryRange] = useState<"today" | "month" | "year" | "all">("today"); // 👈 TAMBAHKAN INI
+
 
   // Fungsi pintar untuk memanggil notifikasi yang hilang otomatis dalam 3 detik
   const showNotification = (message: string, type: "success" | "error" = "success") => {
@@ -262,13 +264,37 @@ useEffect(() => {
         }),
     [data.visitors],
   );
-  const historyVisitors = useMemo(
-    () =>
-      data.visitors
-        .filter((visitor) => ["SUCCESS", "CANCELLED"].includes(visitor.status))
-        .sort((a, b) => new Date(b.checkOutTime || 0).getTime() - new Date(a.checkOutTime || 0).getTime()),
-    [data.visitors],
-  );
+const historyVisitors = useMemo(() => {
+    const now = new Date();
+    return data.visitors
+      .filter((visitor) => {
+        // 1. Pastikan hanya mengambil status SUCCESS atau CANCELLED
+        if (!["SUCCESS", "CANCELLED"].includes(visitor.status)) return false;
+        
+        // 2. Jika filter "Semua Waktu" dipilih, langsung loloskan
+        if (historyRange === "all") return true;
+
+        // 3. Tentukan tanggal yang akan dibandingkan (Pakai checkOutTime jika ada, jika tidak pakai checkInTime)
+        const compareDate = visitor.checkOutTime ? new Date(visitor.checkOutTime) : new Date(visitor.checkInTime || 0);
+
+        // 4. Logika Filter Berdasarkan Rentang Waktu
+        if (historyRange === "today") {
+          return compareDate.toDateString() === now.toDateString();
+        }
+        if (historyRange === "month") {
+          return compareDate.getMonth() === now.getMonth() && compareDate.getFullYear() === now.getFullYear();
+        }
+        if (historyRange === "year") {
+          return compareDate.getFullYear() === now.getFullYear();
+        }
+        
+        return true;
+      })
+      // 5. Urutkan dari yang paling baru selesai
+      .sort((a, b) => new Date(b.checkOutTime || 0).getTime() - new Date(a.checkOutTime || 0).getTime());
+  }, [data.visitors, historyRange]); // 👈 Pastikan historyRange masuk ke dalam array dependency ini
+
+  // 👇 Bagian di bawah ini BIAKARKAN SAMA SEPERTI MILIK ANDA 👇
   const tableSource = activeView === "history" ? historyVisitors : queueVisitors;
 
   const filteredVisitors = useMemo(() => {
@@ -304,10 +330,31 @@ useEffect(() => {
   const queueCapacity = 40;
   const queueOccupancy = Math.min(queueVisitors.length, queueCapacity);
   const queueOccupancyPercent = Math.min(100, Math.round((queueOccupancy / queueCapacity) * 100));
-  const averageQueueWaitSeconds =
-    queueVisitors.length > 0
-      ? Math.round(queueVisitors.reduce((total, visitor) => total + waitSecondsFor(visitor), 0) / queueVisitors.length)
-      : 0;
+// 1. Waktu Tunggu Pelanggan Aktif (yang sedang dilayani saat ini)
+  const activeVisitorWaitSeconds = activeQueueVisitor && activeQueueVisitor.serviceStartTime
+    ? Math.max(0, durationSeconds(activeQueueVisitor.checkInTime, activeQueueVisitor.serviceStartTime))
+    : 0;
+
+  // 2. Metrik Dinamis Riwayat (Mengikuti filter Hari/Bulan/Tahun, hanya hitung yang SUCCESS)
+  const historyMetrics = useMemo(() => {
+    const successOnly = historyVisitors.filter(v => v.status === "SUCCESS");
+    
+    // Rata-rata Rating
+    const rated = successOnly.filter(v => v.rating && v.rating > 0);
+    const avgRating = rated.length > 0 
+      ? (rated.reduce((acc, v) => acc + (v.rating || 0), 0) / rated.length).toFixed(1) 
+      : null;
+
+    // Rata-rata Waktu Tunggu (dari Check In sampai mulai dilayani / Check Out)
+    const waitSum = successOnly.reduce((acc, v) => {
+      const waitTime = durationSeconds(v.checkInTime, v.serviceStartTime || v.checkOutTime);
+      return acc + Math.max(0, waitTime);
+    }, 0);
+    
+    const avgWait = successOnly.length > 0 ? Math.round(waitSum / successOnly.length) : 0;
+
+    return { successCount: successOnly.length, avgRating, avgWait };
+  }, [historyVisitors]);
 const viewCopy = {
     dashboard: {
       eyebrow: "Dashboard Resepsionis",
@@ -469,7 +516,7 @@ const viewCopy = {
             <QueueView
               activeVisitor={activeQueueVisitor}
               activeVisitorIndex={activeQueueIndex}
-              averageWaitSeconds={averageQueueWaitSeconds}
+              averageWaitSeconds={activeVisitorWaitSeconds}
               connectionOk={data.connectionOk}
               filteredVisitors={filteredVisitors}
               onEdit={setEditingVisitor}
@@ -562,7 +609,7 @@ const viewCopy = {
                           type="button"
                           onClick={() => {
                             navigator.clipboard.writeText(generatedPin);
-                            alert("PIN disalin ke clipboard!");
+                            showNotification("PIN berhasil disalin ke clipboard!", "success"); // 👈 DI SINI
                           }}
                           className="mt-4 text-xs font-bold text-[#b3261e] hover:underline"
                         >
@@ -644,12 +691,24 @@ if (res.success) {
             )}
           
 
-          {activeView === "history" && (
+{activeView === "history" && (
             <>
               <div className="mt-6 grid grid-cols-3 gap-4">
-                <Metric title="Total Selesai Hari Ini" value={data.metrics.completedToday} icon={CheckCircle2} tone="green" />
-                <Metric title="Rating Rata-rata" value={data.metrics.averageRating ? `${data.metrics.averageRating.toFixed(1)}` : "-"} icon={Star} tone="amber" />
-                <Metric title="Waktu Tunggu Rata-rata" value={averageQueueWaitSeconds ? formatCompactDuration(averageQueueWaitSeconds) : "-"} icon={Clock3} tone="blue" />
+                <Metric 
+                  title={historyRange === "today" ? "Selesai Hari Ini" : historyRange === "month" ? "Selesai Bulan Ini" : historyRange === "year" ? "Selesai Tahun Ini" : "Total Selesai"} 
+                  value={historyMetrics.successCount} 
+                  icon={CheckCircle2} tone="green" 
+                />
+                <Metric 
+                  title="Rating Rata-rata" 
+                  value={historyMetrics.avgRating ? `⭐ ${historyMetrics.avgRating} / 5` : "-"} 
+                  icon={Star} tone="amber" 
+                />
+                <Metric 
+                  title="Waktu Tunggu Rata-rata" 
+                  value={historyMetrics.avgWait ? formatCompactDuration(historyMetrics.avgWait) : "-"} 
+                  icon={Clock3} tone="blue" 
+                />
               </div>
 
               <div className="mt-6">
@@ -660,43 +719,59 @@ if (res.success) {
                         {activeView === "history" ? "Daftar Riwayat" : "Daftar Antrean"}
                       </h3>
                     </div>
-                <div className="flex flex-col gap-3 sm:flex-row">
-                  <label className="relative block">
-                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#a8918c]" />
-                    <input
-                      value={query}
-                      onChange={(event) => {
-                        setQuery(event.target.value);
-                        setPage(1);
-                      }}
-                      placeholder="Cari nama, instansi, nomor..."
-                      className="h-11 w-full rounded-xl border border-[#f0dfdb] bg-[#fff7f5] pl-9 pr-3 text-sm text-[#2b211f] outline-none placeholder:text-[#a8918c] focus:border-[#d23a2f] sm:w-72"
-                    />
-                  </label>
-                  <select
-                    value={statusFilter}
-                    onChange={(event) => {
-                      setStatusFilter(event.target.value as typeof statusFilter);
-                      setPage(1);
-                    }}
-                    className="h-11 rounded-xl border border-[#f0dfdb] bg-[#fff7f5] px-3 text-sm text-[#2b211f] outline-none focus:border-[#d23a2f]"
-                  >
-                    <option value="ALL">Status</option>
-                    {activeView === "history" ? (
-                      <>
-                        <option value="SUCCESS">Selesai</option>
-                        <option value="CANCELLED">Dibatalkan</option>
-                      </>
-                    ) : (
-                      <>
-                        <option value="ON_PROGRESS">Sedang Dilayani</option>
-                        <option value="PENDING">Menunggu</option>
-                      </>
-                    )}
-                  </select>
-                </div>
-              </div>
+                    <div className="flex flex-col gap-3 sm:flex-row">
+                      
+                      {/* 👇 INI ADALAH DROPDOWN FILTER WAKTU BARU 👇 */}
+                      <select
+                        value={historyRange}
+                        onChange={(event) => {
+                          setHistoryRange(event.target.value as "today" | "month" | "year" | "all");
+                          setPage(1); // Reset halaman ke 1 saat filter berubah
+                        }}
+                        className="h-11 rounded-xl border border-[#f0dfdb] bg-[#fff7f5] px-3 text-sm font-bold text-[#b3261e] outline-none focus:border-[#d23a2f]"
+                      >
+                        <option value="today">📅 Hari Ini</option>
+                        <option value="month">📅 Bulan Ini</option>
+                        <option value="year">📅 Tahun Ini</option>
+                        <option value="all">📅 Semua Waktu</option>
+                      </select>
 
+                      <label className="relative block">
+                        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#a8918c]" />
+                        <input
+                          value={query}
+                          onChange={(event) => {
+                            setQuery(event.target.value);
+                            setPage(1);
+                          }}
+                          placeholder="Cari nama, instansi, nomor..."
+                          className="h-11 w-full rounded-xl border border-[#f0dfdb] bg-[#fff7f5] pl-9 pr-3 text-sm text-[#2b211f] outline-none placeholder:text-[#a8918c] focus:border-[#d23a2f] sm:w-72"
+                        />
+                      </label>
+                      
+                      <select
+                        value={statusFilter}
+                        onChange={(event) => {
+                          setStatusFilter(event.target.value as typeof statusFilter);
+                          setPage(1);
+                        }}
+                        className="h-11 rounded-xl border border-[#f0dfdb] bg-[#fff7f5] px-3 text-sm text-[#2b211f] outline-none focus:border-[#d23a2f]"
+                      >
+                        <option value="ALL">Status</option>
+                        {activeView === "history" ? (
+                          <>
+                            <option value="SUCCESS">Selesai</option>
+                            <option value="CANCELLED">Dibatalkan</option>
+                          </>
+                        ) : (
+                          <>
+                            <option value="ON_PROGRESS">Sedang Dilayani</option>
+                            <option value="PENDING">Menunggu</option>
+                          </>
+                        )}
+                      </select>
+                    </div>
+                  </div>
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[920px] text-left text-sm">
                   <thead className="border-b border-[#f0dfdb] bg-[#fff3f0] text-xs uppercase tracking-wide text-[#806762]">
@@ -1310,10 +1385,14 @@ function QueueStatsCard({
         <div className="rounded-xl bg-[#fff0ed] p-4">
           <div className="flex items-end justify-between gap-3">
             <div>
-              <p className="text-xs font-black text-[#7a625d]">Rata-rata Waktu Tunggu</p>
+              <p className="text-xs font-black text-[#7a625d]">Waktu Tunggu (Pelanggan Aktif)</p>
               <p className="mt-1 text-2xl font-black text-[#3f6fb5]">{formatCompactDuration(averageWaitSeconds)}</p>
             </div>
-            <span className="text-xs font-black text-[#62b47d]">Langsung</span>
+            {averageWaitSeconds < 5 ? (
+              <span className="text-xs font-black text-[#62b47d]">Langsung</span>
+            ) : (
+              <span className="text-xs font-black text-[#b07926]">Menunggu</span>
+            )}
           </div>
         </div>
 
