@@ -662,8 +662,8 @@ if (res.success) {
                       defaultValue={data.kioskStatus?.isBusy ? "true" : "false"}
                       className="h-11 w-full max-w-md rounded-xl border border-[#f0dfdb] bg-[#fff8f6] px-3 text-sm font-semibold text-[#2b211f] outline-none focus:border-[#d23a2f]"
                     >
-                      <option value="false">🟢 READY</option>
-                      <option value="true">🔴 BUSSY</option>
+                      <option value="false">🟢 SIAP</option>
+                      <option value="true">🔴 SIBUK</option>
                     </select>
                   </label>
 
