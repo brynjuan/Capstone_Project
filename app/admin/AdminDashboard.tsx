@@ -241,7 +241,7 @@ useEffect(() => {
     // Cleanup koneksi agar tidak bocor saat komponen ditutup/pindah halaman
     const fallbackTimer = window.setInterval(() => {
       router.refresh();
-    }, 60000);
+    }, 12000);
 
     return () => {
       window.clearInterval(fallbackTimer);
