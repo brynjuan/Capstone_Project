@@ -78,7 +78,7 @@ export default async function AdminLivePage() {
                 <Headset className="h-6 w-6" />
               </div>
               <p className="mt-5 text-sm font-semibold text-[#725b56]">
-                Biarkan halaman ini tetap terbuka saat admin berjaga. Ketika pengunjung menekan tombol bantuan di kiosk,
+                Biarkan halaman ini tetap terbuka saat admin berjaga. Ketika kostumer menekan tombol bantuan di kiosk,
                 panggilan akan masuk ke ruang yang sama.
               </p>
               <div className="mt-6 rounded-xl border border-[#f0dfdb] bg-[#fff8f6] p-4 text-sm">
