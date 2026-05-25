@@ -394,7 +394,7 @@ const startIdleTimer = useCallback(() => {
             return prev - 1;
           });
         }, 1000);
-      }, 10000); // <-- SETTINGAN WAKTU TUNGGU TAHAP 1 (2 DETIK)
+      }, 60000); // <-- SETTINGAN WAKTU TUNGGU TAHAP 1 (2 DETIK)
     }
   }, [step, reset]);
 
