@@ -51,7 +51,6 @@ export default function LoginForm() {
           {/* Header */}
           <header className="flex flex-col gap-2 mb-8">
             <span className="text-xs font-bold text-red-600 uppercase tracking-widest">Masuk Admin</span>
-            <h1 className="text-2xl font-bold text-gray-900">Masuk ke Dashboard</h1>
             <p className="text-sm text-gray-600">Gunakan email dan kata sandi admin yang terdaftar</p>
           </header>
 
