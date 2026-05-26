@@ -363,13 +363,13 @@ const viewCopy = {
     },
     queue: {
       eyebrow: "Manajemen Antrean",
-      title: "Antrean Pengunjung", // Tambahkan title di sini
-      description: "Pengunjung pertama diproses sebagai sedang dilayani, sedangkan antrean berikutnya menunggu giliran.",
+      title: "Antrean Kostumer", // Tambahkan title di sini
+      description: "Kostumer pertama diproses sebagai sedang dilayani, sedangkan antrean berikutnya menunggu giliran.",
     },
     history: {
       eyebrow: "Riwayat Layanan",
       title: "Riwayat Kunjungan", // Tambahkan title di sini
-      description: "Daftar pengunjung yang layanannya sudah diselesaikan oleh admin.",
+      description: "Daftar kostumer yang layanannya sudah diselesaikan oleh admin.",
     },
     pin: {
       eyebrow: "Akses & Keamanan",
@@ -456,8 +456,7 @@ const viewCopy = {
           <header className="flex flex-col gap-4 border-b border-[#f0dfdb] pb-5 xl:flex-row xl:items-center xl:justify-between">
             <div>
               <p className="text-sm text-xl font-semibold tracking-tight text-[#b3261e]">{viewCopy.eyebrow}</p>
-              <h2 className="mt-1 text-2xl font-bold tracking-tight text-[#98231d] sm:text-4xl">{viewCopy.title}</h2>
-              <p className="mt-2 text-sm text-[#725b56]">
+              <p className="mt-2 max-w-2xl text-sm text-[#725b56]">
                 {viewCopy.description}
               </p>
             </div>
@@ -551,7 +550,7 @@ const viewCopy = {
                 <div className="mb-6">
                   <h3 className="text-xl font-bold text-[#2b211f]">Form Pembuatan Token / PIN</h3>
                   <p className="mt-1 text-sm text-[#7a625d]">
-                    Isi data pelanggan untuk menghasilkan PIN. Pengunjung dapat memasukkan PIN ini di layar Kiosk untuk mempercepat proses pendaftaran tanpa harus mengetik ulang.
+                    Isi data pelanggan untuk menghasilkan PIN. Kostumer dapat memasukkan PIN ini di layar Kiosk untuk mempercepat proses pendaftaran tanpa harus mengetik ulang.
                   </p>
                 </div>
 
@@ -574,7 +573,7 @@ const viewCopy = {
                     className="flex flex-col space-y-4"
                   >
                     <div className="grid gap-4 md:grid-cols-2">
-                      <EditField label="Nama Pengunjung *" name="fullName" defaultValue="" required />
+                      <EditField label="Nama Kostumer *" name="fullName" defaultValue="" required />
                       <EditField label="Nomor Telepon" name="phoneNumber" defaultValue="" />
                       <EditField label="Instansi / Perusahaan" name="institution" defaultValue="" />
                       <EditField label="Nomor Internet (IndiHome/Astinet)" name="internetNumber" defaultValue="" />
@@ -959,7 +958,7 @@ if (res.success) {
           <section className="w-full max-w-3xl overflow-hidden rounded-2xl border border-[#f0dfdb] bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b border-[#f0dfdb] px-5 py-4">
               <div>
-                <h2 className="text-lg font-bold text-[#2b211f]">Pratinjau Foto Pengunjung</h2>
+                <h2 className="text-lg font-bold text-[#2b211f]">Pratinjau Foto Kostumer</h2>
                 <p className="text-sm text-[#806762]">{previewPhoto.fullName}</p>
               </div>
               <button
@@ -995,7 +994,7 @@ if (res.success) {
                 type="button"
                 onClick={() => setDetailVisitor(null)}
                 className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-[#806762] shadow-sm transition hover:bg-[#f3f3f3]"
-                aria-label="Tutup detail pengunjung"
+                aria-label="Tutup detail kostumer"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -1134,7 +1133,7 @@ function QueueView({
               <input
                 value={query}
                 onChange={(event) => onQueryChange(event.target.value)}
-                placeholder="Cari pengunjung..."
+                placeholder="Cari kostumer..."
                 className="h-11 w-full rounded-xl border border-[#fae1dc] bg-[#fff3f1] pl-10 pr-3 text-sm font-semibold text-[#3b302d] outline-none transition placeholder:text-[#b29d98] focus:border-[#d23a2f] focus:bg-white"
               />
             </label>
@@ -1261,8 +1260,8 @@ function QueueView({
 
         <Link
           href="/"
-          title="Tambah pengunjung"
-          aria-label="Tambah pengunjung"
+          title="Tambah kostumer"
+          aria-label="Tambah kostumer"
           className="absolute bottom-5 right-5 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-[#b3261e] text-white shadow-[0_18px_32px_rgba(179,38,30,0.3)] transition hover:bg-[#cf3429]"
         >
           <Plus className="h-7 w-7" />
@@ -1290,7 +1289,7 @@ function QueueActiveSessionCard({
         <div className="mt-8 flex min-h-48 flex-col items-center justify-center rounded-xl border border-dashed border-[#f0dfdb] bg-[#fffaf9] text-center">
           <Headset className="h-10 w-10 text-[#bba5a0]" />
           <p className="mt-3 text-lg font-black text-[#3b302d]">Tidak ada sesi aktif</p>
-          <p className="mt-1 text-sm font-semibold text-[#8b7671]">Pengunjung berikutnya akan tampil setelah mulai dilayani.</p>
+          <p className="mt-1 text-sm font-semibold text-[#8b7671]">Kostumer berikutnya akan tampil setelah mulai dilayani.</p>
         </div>
       </section>
     );
@@ -1507,8 +1506,8 @@ function QueueRowActions({
     <div className="flex items-center justify-end gap-2">
       <button
         type="button"
-        title="Edit pengunjung"
-        aria-label="Edit pengunjung"
+        title="Edit kostumer"
+        aria-label="Edit kostumer"
         onClick={(event) => {
           event.stopPropagation();
           onEdit(visitor);
@@ -2000,7 +1999,7 @@ function VisitorDetail({
     <section className="w-full rounded-3xl bg-white p-6 shadow-lg">
       <div className="mb-6 flex items-center justify-between gap-4">
         <div>
-          <h3 className="text-xl font-bold text-[#2b211f]">{isHistory ? "Detail Pengunjung" : "Sesi Aktif"}</h3>
+          <h3 className="text-xl font-bold text-[#2b211f]">{isHistory ? "Detail Kostumer" : "Sesi Aktif"}</h3>
           <p className="mt-1 text-sm text-[#7a625d]">Informasi lengkap yang hanya muncul setelah menekan tombol View.</p>
         </div>
         <span className={`rounded-full px-3 py-1 text-xs font-bold uppercase text-white ${isHistory ? "bg-[#5865d9]" : "bg-[#b3261e]"}`}>
@@ -2142,7 +2141,7 @@ function EditVisitorDialog({
             <input type="hidden" name="id" value={visitor.id} />
 
             <div className="grid gap-4 md:grid-cols-2">
-              <EditField label="Nama Pengunjung" name="fullName" defaultValue={visitor.fullName} required />
+              <EditField label="Nama Kostumer" name="fullName" defaultValue={visitor.fullName} required />
               <EditField label="Nomor Telepon" name="phoneNumber" defaultValue={visitor.phoneNumber || ""} />
               <EditField label="Pelanggan / Instansi" name="institution" defaultValue={visitor.institution || ""} />
               <EditField label="Nomor Internet" name="internetNumber" defaultValue={visitor.internetNumber || ""} />

@@ -4,8 +4,10 @@ import { redirect } from "next/navigation";
 import {
   CheckCircle2,
   Headset,
+  Key,
   LayoutDashboard,
   LucideIcon,
+  SlidersHorizontal,
   Table2,
 } from "lucide-react";
 import { getAdminSession } from "@/lib/auth";
@@ -36,7 +38,9 @@ export default async function AdminLivePage() {
 
           <nav className="mt-8 grid gap-2">
             <SidebarLink icon={LayoutDashboard} label="Dashboard" href="/admin" />
+            <SidebarLink icon={SlidersHorizontal} label="Status CS" href="/admin" />
             <SidebarLink icon={Table2} label="Antrean" href="/admin" />
+            <SidebarLink icon={Key} label="Buat Pin" href="/admin" />
             <SidebarLink icon={CheckCircle2} label="Riwayat" href="/admin" />
             <SidebarLink icon={Headset} label="Bantuan Langsung" href="/admin/live" active />
           </nav>
@@ -56,7 +60,7 @@ export default async function AdminLivePage() {
         <section className="min-w-0 px-4 py-5 sm:px-6 lg:ml-[280px] lg:px-8">
           <header className="flex flex-col gap-4 border-b border-[#f0dfdb] pb-5 xl:flex-row xl:items-center xl:justify-between">
             <div>
-              <p className="text-xl font-semibold tracking-tight text-[#b3261e]">Bantuan Langsung</p>
+              <p className="text-sm text-xl font-semibold tracking-tight text-[#b3261e]">Bantuan Langsung</p>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-[#725b56]">
                 Pantau dan jawab panggilan langsung dari kiosk dengan cepat dan ramah.
               </p>
@@ -73,9 +77,8 @@ export default async function AdminLivePage() {
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#fff0ed] text-[#b3261e]">
                 <Headset className="h-6 w-6" />
               </div>
-              <h3 className="mt-5 text-xl font-bold">Panel Bantuan Langsung</h3>
-              <p className="mt-2 text-sm leading-6 text-[#725b56]">
-                Biarkan halaman ini tetap terbuka saat admin berjaga. Ketika pengunjung menekan tombol bantuan di kiosk,
+              <p className="mt-5 text-sm font-semibold text-[#725b56]">
+                Biarkan halaman ini tetap terbuka saat admin berjaga. Ketika kostumer menekan tombol bantuan di kiosk,
                 panggilan akan masuk ke ruang yang sama.
               </p>
               <div className="mt-6 rounded-xl border border-[#f0dfdb] bg-[#fff8f6] p-4 text-sm">
