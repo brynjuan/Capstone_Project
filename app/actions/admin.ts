@@ -14,7 +14,7 @@ export async function completeVisit(formData: FormData) {
     return;
   }
 
-  // 1. Jalankan update status dan tampung data kostumer terbaru hasil return transaction
+  // 1. Jalankan update status dan tampung data pengunjung terbaru hasil return transaction
   const updatedVisitor = await prisma.$transaction(async (tx) => {
     const visitor = await tx.visitorLog.update({
       where: { id },
@@ -84,7 +84,7 @@ export async function completeVisit(formData: FormData) {
 👤 <b>Petugas CS:</b> ${admin.name}
 
 🏢 <b>Instansi:</b> ${updatedVisitor.institution || '-'}
-👤 <b>Nama Pelanggan:</b> ${updatedVisitor.fullName}
+👤 <b>Nama Pengunjung:</b> ${updatedVisitor.fullName}
 📞 <b>No. HP:</b> ${updatedVisitor.phoneNumber || '-'}
 🌐 <b>No. Internet:</b> ${updatedVisitor.internetNumber || '-'}
 
@@ -141,7 +141,7 @@ if (updatedVisitor.photoUrl) {
       }
 
     } else {
-      // Jika pelanggan dari awal mendaftar tanpa foto
+      // Jika pengunjung dari awal mendaftar tanpa foto
       try {
         const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
           method: "POST",

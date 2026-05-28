@@ -87,7 +87,7 @@ export async function uploadPhotoboothImage(photoBase64: string) {
 }
 
 // ============================================================================
-// 3. FUNGSI SIMPAN RATING PELANGGAN
+// 3. FUNGSI SIMPAN RATING PENGUNJUNG
 // ============================================================================
 export async function submitVisitorRating(visitorId: string, ratingScore: number) {
   try {
@@ -210,7 +210,7 @@ export async function submitVisitorData(formData: any, photoBase64: string | nul
         : "✅ <i>Langsung dilayani di meja CS</i>";
 
       const tgMessage = `
-🚨 <b>Pelanggan TELKOM</b> 🚨
+🚨 <b>Pengunjung TELKOM</b> 🚨
 
 🗓 <b>Waktu:</b> ${waktuDaftar}
 📊 <b>Status:</b> ${statusAntreanTG}

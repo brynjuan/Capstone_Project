@@ -65,6 +65,63 @@ const toTitleCase = (str: string) => {
   return str.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.substring(1).toLowerCase());
 };
 
+const KTP_ADDRESS_LABEL = /\bA\s*L\s*A\s*M\s*A\s*T\b/;
+const KTP_ADDRESS_DETAIL_LABEL = /^(RT\s*\/?\s*RW|R\s*T\s*\/?\s*R\s*W|KEL\s*\/?\s*DESA|KELURAHAN|KEL\b|DESA\b|KEC(?:AMATAN)?\b)/;
+const KTP_ADDRESS_STOP_LABEL = /^(AGAMA|STATUS|PERKAWINAN|PEKERJAAN|KEWARGANEGARAAN|BERLAKU|GOL\.?\s*DARAH|PROVINSI|KABUPATEN|KOTA|NIK|NAMA|TEMPAT|TGL|JENIS\s*KELAMIN)\b/;
+
+const normalizeKtpLine = (line: string) => line.replace(/\s+/g, " ").trim().toUpperCase();
+
+const cleanKtpValue = (value: string) =>
+  value
+    .replace(/^[\s:;|./\\-]+/, "")
+    .replace(/\s*[:;|]\s*/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const isKtpAddressDetailLine = (line: string) => KTP_ADDRESS_DETAIL_LABEL.test(line);
+
+const isKtpAddressStopLine = (line: string) =>
+  KTP_ADDRESS_STOP_LABEL.test(line) && !isKtpAddressDetailLine(line);
+
+const cleanKtpAddressLine = (line: string) => {
+  const readableLine = line
+    .replace(KTP_ADDRESS_LABEL, "")
+    .replace(/^RT\s*\/?\s*RW\s*[:;|.-]?\s*/, "RT/RW ")
+    .replace(/^R\s*T\s*\/?\s*R\s*W\s*[:;|.-]?\s*/, "RT/RW ")
+    .replace(/^(KEL\s*\/?\s*DESA|KELURAHAN|KEL|DESA)\s*[:;|.-]?\s*/, "KEL/DESA ")
+    .replace(/^KEC(?:AMATAN)?\s*[:;|.-]?\s*/, "KECAMATAN ");
+
+  return cleanKtpValue(readableLine);
+};
+
+const extractKtpAddress = (lines: string[]) => {
+  const addressIdx = lines.findIndex((line) => KTP_ADDRESS_LABEL.test(line));
+  const detailIdx = lines.findIndex(isKtpAddressDetailLine);
+
+  if (addressIdx === -1 && detailIdx === -1) return "";
+
+  const startIdx = addressIdx !== -1
+    ? addressIdx
+    : Math.max(0, detailIdx - 1);
+
+  const addressParts: string[] = [];
+
+  for (let i = startIdx; i < lines.length; i++) {
+    const line = lines[i];
+
+    if (i > startIdx && isKtpAddressStopLine(line)) break;
+
+    const cleanLine = cleanKtpAddressLine(line);
+    if (cleanLine && !addressParts.includes(cleanLine)) {
+      addressParts.push(cleanLine);
+    }
+
+    if (cleanLine.startsWith("KECAMATAN ") || addressParts.length >= 4) break;
+  }
+
+  return addressParts.join(", ");
+};
+
 const ClockWidget = () => {
   const [time, setTime] = useState<Date | null>(null);
 
@@ -325,7 +382,7 @@ const checkVipPin = async () => {
         const result = await performOCR(imageSrc);
         if (result.success && result.text) {
           const text = result.text;
-          const lines = text.split('\n').map((l: string) => l.trim().toUpperCase()).filter((l: string) => l.length > 0);
+          const lines = text.split('\n').map((l: string) => normalizeKtpLine(l)).filter((l: string) => l.length > 0);
           let extractedName = ""; let extractedAddress = "";
 
           const nikIdx = lines.findIndex((l: string) => /\d{16}/.test(l));
@@ -335,11 +392,7 @@ const checkVipPin = async () => {
             if (nameIdx !== -1 && lines[nameIdx + 1]) extractedName = lines[nameIdx + 1].replace(/[:;|]/g, "").trim();
           }
 
-          const addrIdx = lines.findIndex((l: string) => l.includes("ALAMAT") || l.includes("RT") || l.includes("RW"));
-          if (addrIdx !== -1) {
-            extractedAddress = lines[addrIdx].replace(/A L A M A T|ALAMAT|[:;|]/g, "").trim();
-            if (!extractedAddress && lines[addrIdx + 1]) extractedAddress = lines[addrIdx + 1].replace(/[:;|]/g, "").trim();
-          }
+          extractedAddress = extractKtpAddress(lines);
 
           if (extractedName) setValue("fullName", extractedName, { shouldValidate: true, shouldDirty: true });
           if (extractedAddress) setValue("address", extractedAddress, { shouldValidate: true, shouldDirty: true });
@@ -502,6 +555,7 @@ const handleStartKiosk = async () => {
           setValue("fullName", data.nama || "", { shouldValidate: true });
           setValue("phoneNumber", data.hp || "", { shouldValidate: true });
           setValue("internetNumber", data.inet || "", { shouldValidate: true });
+          setValue("address", data.addr || data.address || "", { shouldValidate: true });
           setIsScanning(false); setStep(1);
           if (voiceRef.current && !isMuted) { voiceRef.current.currentTime = 0; voiceRef.current.play(); }
           customAlert("success", "QR Berhasil Dipindai", `Selamat datang kembali, ${data.nama}!`);
@@ -736,7 +790,7 @@ let shiftY = 0;
                     </motion.div>
                   </div>
                   <div>
-                    <label className="text-xl font-semibold text-gray-200 flex items-center gap-3 mb-3"><User className="w-6 h-6 text-red-400" /> Nama Kostumer <span className="text-red-500">*</span></label>
+                    <label className="text-xl font-semibold text-gray-200 flex items-center gap-3 mb-3"><User className="w-6 h-6 text-red-400" /> Nama Pengunjung <span className="text-red-500">*</span></label>
                     <div className="flex gap-4">
                       <div className="relative w-40">
                         <select {...register("salutation")} className="w-full text-2xl p-5 bg-black/30 backdrop-blur-sm border border-white/20 rounded-xl outline-none text-white appearance-none cursor-pointer focus:border-red-500 transition-all">
@@ -767,7 +821,7 @@ let shiftY = 0;
                     </div>
                   </div>
                   <div>
-                    <label className="text-xl font-semibold text-gray-200 flex items-center gap-3 mb-3"><MapPin className="w-6 h-6 text-red-400" /> Alamat Pelanggan</label>
+                    <label className="text-xl font-semibold text-gray-200 flex items-center gap-3 mb-3"><MapPin className="w-6 h-6 text-red-400" /> Alamat Pengunjung</label>
                     <input type="text" {...register("address")} onFocus={() => { setActiveInput("address"); setKeyboardOpen(true); }} onKeyDown={playBeep} value={watch("address") || ""} className="w-full text-2xl p-5 bg-black/30 backdrop-blur-sm border border-white/20 rounded-xl outline-none text-white focus:border-red-500 transition-all" placeholder="Jl. Cik Ditiro" autoComplete="off" inputMode="none"/>
                   </div>
                 </div>
@@ -851,7 +905,7 @@ let shiftY = 0;
                 <h3 className="text-2xl font-bold text-white mb-2">Sering Berkunjung?</h3>
                 <p className="text-sm text-gray-400 mb-8">Pindai dan simpan kode QR ini untuk pendaftaran instan pada kunjungan berikutnya.</p>
                 <div className="p-4 bg-white rounded-2xl shadow-[0_0_30px_rgba(255,255,255,0.2)]">
-                  <QRCodeCanvas value={JSON.stringify({ inst: getValues("institution"), nama: getValues("fullName"), hp: getValues("phoneNumber"), inet: getValues("internetNumber") })} size={180} level="H" />
+                  <QRCodeCanvas value={JSON.stringify({ inst: getValues("institution"), nama: getValues("fullName"), hp: getValues("phoneNumber"), inet: getValues("internetNumber"), addr: getValues("address") })} size={180} level="H" />
                 </div>
               </div>
             </div>
