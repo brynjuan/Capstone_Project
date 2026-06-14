@@ -502,6 +502,7 @@ const handleStartKiosk = async () => {
           setValue("fullName", data.nama || "", { shouldValidate: true });
           setValue("phoneNumber", data.hp || "", { shouldValidate: true });
           setValue("internetNumber", data.inet || "", { shouldValidate: true });
+          setValue("address", data.alamat || "", { shouldValidate: true });
           setIsScanning(false); setStep(1);
           if (voiceRef.current && !isMuted) { voiceRef.current.currentTime = 0; voiceRef.current.play(); }
           customAlert("success", "QR Berhasil Dipindai", `Selamat datang kembali, ${data.nama}!`);
@@ -851,7 +852,7 @@ let shiftY = 0;
                 <h3 className="text-2xl font-bold text-white mb-2">Sering Berkunjung?</h3>
                 <p className="text-sm text-gray-400 mb-8">Pindai dan simpan kode QR ini untuk pendaftaran instan pada kunjungan berikutnya.</p>
                 <div className="p-4 bg-white rounded-2xl shadow-[0_0_30px_rgba(255,255,255,0.2)]">
-                  <QRCodeCanvas value={JSON.stringify({ inst: getValues("institution"), nama: getValues("fullName"), hp: getValues("phoneNumber"), inet: getValues("internetNumber") })} size={180} level="H" />
+                <QRCodeCanvas value={JSON.stringify({ inst: getValues("institution"), nama: getValues("fullName"), hp: getValues("phoneNumber"), inet: getValues("internetNumber"), alamat: getValues("address") })} size={180} level="H" />
                 </div>
               </div>
             </div>
