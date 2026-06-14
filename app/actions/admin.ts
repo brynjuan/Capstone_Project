@@ -14,7 +14,7 @@ export async function completeVisit(formData: FormData) {
     return;
   }
 
-  // 1. Jalankan update status dan tampung data pengunjung terbaru hasil return transaction
+  // 1. Jalankan update status dan tampung data kostumer terbaru hasil return transaction
   const updatedVisitor = await prisma.$transaction(async (tx) => {
     const visitor = await tx.visitorLog.update({
       where: { id },

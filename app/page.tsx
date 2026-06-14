@@ -737,7 +737,7 @@ let shiftY = 0;
                     </motion.div>
                   </div>
                   <div>
-                    <label className="text-xl font-semibold text-gray-200 flex items-center gap-3 mb-3"><User className="w-6 h-6 text-red-400" /> Nama Pengunjung <span className="text-red-500">*</span></label>
+                    <label className="text-xl font-semibold text-gray-200 flex items-center gap-3 mb-3"><User className="w-6 h-6 text-red-400" /> Nama Kostumer <span className="text-red-500">*</span></label>
                     <div className="flex gap-4">
                       <div className="relative w-40">
                         <select {...register("salutation")} className="w-full text-2xl p-5 bg-black/30 backdrop-blur-sm border border-white/20 rounded-xl outline-none text-white appearance-none cursor-pointer focus:border-red-500 transition-all">
