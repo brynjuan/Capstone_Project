@@ -322,50 +322,37 @@ export async function confirmMobileArrivalAction(inputPin: string) {
       return { success: false, message: "Kode PIN tidak ditemukan." };
     }
 
-    // 👇 LOGIKA BENAR: Tamu dari HP harus berstatus PRE_REGISTER, bukan PENDING 👇
     if (visitor.status !== VisitStatus.PRE_REGISTER) {
       return { success: false, message: "Kode PIN ini sudah digunakan atau tiket tidak valid." };
     }
 
     // 2. CEK ANTREAN (SMART QUEUE)
-    // Apakah ada tamu lain yang sedang dilayani CS?
     const activeVisitor = await prisma.visitorLog.findFirst({
       where: { status: VisitStatus.ON_PROGRESS }
     });
 
-    // Jika CS kosong, langsung layani (ON_PROGRESS). Jika CS sibuk, suruh antre (PENDING)
     const newStatus = activeVisitor ? VisitStatus.PENDING : VisitStatus.ON_PROGRESS;
     const startTime = activeVisitor ? null : new Date();
 
-    // 3. GENERATE NOMOR ANTREAN (Angka Murni)
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); 
-
-    // Hitung antrean HANYA dari mereka yang sudah benar-benar datang (Bukan PRE_REGISTER)
-    const queueCount = await prisma.visitorLog.count({
-      where: { 
-        checkInTime: { gte: today },
-        status: { not: VisitStatus.PRE_REGISTER } 
-      }
-    });
-    
-    const generatedQueueNumber = queueCount + 1; 
-
-    // 4. UPDATE DATABASE: Ubah wujud mereka dari "Gaib" menjadi "Nyata" di Kiosk
+    // 3. UPDATE DATABASE DULUAN (Agar status mereka "Nyata" di Kiosk & Admin)
     const updatedVisitor = await prisma.visitorLog.update({
       where: { id: visitor.id },
       data: {
-        status: newStatus,          // Ubah ke PENDING / ON_PROGRESS
+        status: newStatus,
         serviceStartTime: startTime,
-        checkInTime: new Date(),    // Argo waktu tunggu baru dimulai SEKARANG
-        pin: null,                  // Hanguskan PIN
+        checkInTime: new Date(),
+        pin: null, 
       }
     });
 
-    // (Opsional) Jika Anda ingin mengirim notifikasi Telegram saat tamu VIP tiba,
-    // Anda bisa menambahkan logika fetch ke API Telegram di baris ini.
+    // 👇 4. HITUNG NOMOR ANTREAN (RUMUS DISAMAKAN DENGAN JALUR MANUAL) 👇
+    const currentQueueCount = await prisma.visitorLog.count({
+      where: {
+        status: { in: [VisitStatus.ON_PROGRESS, VisitStatus.PENDING] }
+      }
+    });
 
-    return { success: true, data: updatedVisitor, queueNumber: generatedQueueNumber };
+    return { success: true, data: updatedVisitor, queueNumber: currentQueueCount };
   } catch (error: any) {
     console.error("CRASH saat verifikasi PIN Mobile:", error);
     return { success: false, message: "Terjadi kesalahan database." };
