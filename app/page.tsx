@@ -291,43 +291,46 @@ export default function KioskPage() {
 const checkVipPin = async () => {
     if (!vipPin) return;
     
-    // Ambil foto diam-diam untuk bukti kedatangan
-    capturePhoto(); 
+    // Asumsi Anda memiliki state loading (sesuaikan dengan nama state di kode Anda)
+    // setIsLoading(true); 
 
-    // Panggil fungsi verifikasi Prapendaftaran Mobile
-    const result = await confirmMobileArrivalAction(vipPin);
+    try {
+      capturePhoto(); 
 
-    if (result.success && result.data) {
-      // SUNTIKAN GAIB: Isi form Kiosk di latar belakang 
-      // agar Step 3 (Layar Nomor Antrean) bisa menampilkan nama mereka!
-      setValue("fullName", result.data.fullName);
-      setValue("institution", result.data.institution || "Umum");
-      setValue("phoneNumber", result.data.phoneNumber || "");
-      
-      // Simpan ID untuk fitur rating nanti
-      setCurrentVisitorId(result.data.id); 
+      const result = await confirmMobileArrivalAction(vipPin);
 
-      // Langsung lompat ke Layar Sukses / Antrean (Step 3)
-      setStep(3); 
-      
-      // Bersihkan layar PIN
-      setShowPinInput(false);
-      setKeyboardOpen(false);
-      setVipPin("");
-      if (keyboardRef.current) keyboardRef.current.setInput("");
-      
-      // Mainkan efek suara & Alert
-      if (successVoiceRef.current && !isMuted) {
-        successVoiceRef.current.currentTime = 0;
-        successVoiceRef.current.play().catch(() => {});
+      if (result.success && result.data) {
+        setValue("fullName", result.data.fullName);
+        setValue("institution", result.data.institution || "Umum");
+        setValue("phoneNumber", result.data.phoneNumber || "");
+        
+        setCurrentVisitorId(result.data.id); 
+        setStep(3); 
+        
+        setShowPinInput(false);
+        setKeyboardOpen(false);
+        setVipPin("");
+        if (keyboardRef.current) keyboardRef.current.setInput("");
+        
+        if (successVoiceRef.current && !isMuted) {
+          successVoiceRef.current.currentTime = 0;
+          successVoiceRef.current.play().catch(() => {});
+        }
+        customAlert("success", "Prapendaftaran Terkonfirmasi", `Selamat datang, ${result.data.fullName}! Antrean Anda mulai berjalan.`);
+
+      } else {
+        // Tampilkan pesan error dari backend
+        customAlert("error", "Akses Ditolak", result.message || "PIN tidak valid.");
+        setVipPin("");
+        if (keyboardRef.current) keyboardRef.current.setInput("");
       }
-      customAlert("success", "Prapendaftaran Terkonfirmasi", `Selamat datang, ${result.data.fullName}! Antrean Anda mulai berjalan.`);
-
-    } else {
-      // Jika PIN salah atau sudah dipakai
-      customAlert("error", "Akses Ditolak", result.message || "PIN tidak valid.");
+    } catch (error) {
+      // Jika server mati atau gagal merespons, tampilkan ini agar loading tidak macet
+      customAlert("error", "Koneksi Terputus", "Gagal menghubungi server database.");
       setVipPin("");
-      if (keyboardRef.current) keyboardRef.current.setInput("");
+    } finally {
+      // Matikan loading spinner di sini apapun yang terjadi!
+      // setIsLoading(false);
     }
   };
 
