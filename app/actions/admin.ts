@@ -323,19 +323,20 @@ export async function getKioskStatus() {
 }
 
 // 4. FITUR BARU: Hapus Semua Antrean PENDING (Sapu Bersih)
-export async function clearAllPendingVisitsAction() {
+// 4. FITUR BARU: Hapus Semua Antrean PRE_REGISTER (Tamu Batal Datang)
+export async function clearAllPreRegisterVisitsAction() {
   try {
     await requireAdminSession();
 
-    // Hapus semua data yang statusnya PENDING
+    // Hapus semua data yang statusnya masih PRE_REGISTER (Belum datang)
     const deletedVisitors = await prisma.visitorLog.deleteMany({
-      where: { status: VisitStatus.PENDING },
+      where: { status: VisitStatus.PRE_REGISTER },
     });
 
     revalidatePath("/admin");
     return { success: true, count: deletedVisitors.count };
   } catch (error: any) {
-    console.error("Gagal menghapus semua antrean pending:", error);
+    console.error("Gagal menghapus antrean pre-register:", error);
     return { success: false, error: "Gagal menghapus data" };
   }
 }
