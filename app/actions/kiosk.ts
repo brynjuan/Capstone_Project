@@ -313,7 +313,8 @@ export async function confirmMobileArrivalAction(inputPin: string) {
   try {
     const cleanPin = inputPin.trim();
     
-    const visitor = await prisma.visitorLog.findFirst({
+    // 1. Cari tamu berdasarkan PIN
+    const visitor = await prisma.visitorLog.findUnique({
       where: { pin: cleanPin },
     });
 
@@ -321,31 +322,49 @@ export async function confirmMobileArrivalAction(inputPin: string) {
       return { success: false, message: "Kode PIN tidak ditemukan." };
     }
 
-    if (visitor.status !== "PENDING") {
+    // 👇 LOGIKA BENAR: Tamu dari HP harus berstatus PRE_REGISTER, bukan PENDING 👇
+    if (visitor.status !== VisitStatus.PRE_REGISTER) {
       return { success: false, message: "Kode PIN ini sudah digunakan atau tiket tidak valid." };
     }
 
-    // 👇 GENERATOR ANTREAN ANGKA MURNI 👇
+    // 2. CEK ANTREAN (SMART QUEUE)
+    // Apakah ada tamu lain yang sedang dilayani CS?
+    const activeVisitor = await prisma.visitorLog.findFirst({
+      where: { status: VisitStatus.ON_PROGRESS }
+    });
+
+    // Jika CS kosong, langsung layani (ON_PROGRESS). Jika CS sibuk, suruh antre (PENDING)
+    const newStatus = activeVisitor ? VisitStatus.PENDING : VisitStatus.ON_PROGRESS;
+    const startTime = activeVisitor ? null : new Date();
+
+    // 3. GENERATE NOMOR ANTREAN (Angka Murni)
     const today = new Date();
     today.setHours(0, 0, 0, 0); 
 
+    // Hitung antrean HANYA dari mereka yang sudah benar-benar datang (Bukan PRE_REGISTER)
     const queueCount = await prisma.visitorLog.count({
-      where: { checkInTime: { gte: today } }
+      where: { 
+        checkInTime: { gte: today },
+        status: { not: VisitStatus.PRE_REGISTER } 
+      }
     });
     
-    // Gabung dengan jalur reguler (Hanya angka)
     const generatedQueueNumber = queueCount + 1; 
 
-    // Update Waktu Kedatangan & Hapus PIN
+    // 4. UPDATE DATABASE: Ubah wujud mereka dari "Gaib" menjadi "Nyata" di Kiosk
     const updatedVisitor = await prisma.visitorLog.update({
       where: { id: visitor.id },
       data: {
-        checkInTime: new Date(), 
-        pin: null, 
+        status: newStatus,          // Ubah ke PENDING / ON_PROGRESS
+        serviceStartTime: startTime,
+        checkInTime: new Date(),    // Argo waktu tunggu baru dimulai SEKARANG
+        pin: null,                  // Hanguskan PIN
       }
     });
 
-    // Kirim queueNumber yang berupa angka ke Frontend
+    // (Opsional) Jika Anda ingin mengirim notifikasi Telegram saat tamu VIP tiba,
+    // Anda bisa menambahkan logika fetch ke API Telegram di baris ini.
+
     return { success: true, data: updatedVisitor, queueNumber: generatedQueueNumber };
   } catch (error: any) {
     console.error("CRASH saat verifikasi PIN Mobile:", error);
