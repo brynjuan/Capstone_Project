@@ -311,10 +311,10 @@ export async function getVisitorByPinAction(inputPin: string) {
 
 export async function confirmMobileArrivalAction(inputPin: string) {
   try {
-    const cleanPin = inputPin.trim();
+    const cleanPin = inputPin.trim(); // Menghapus spasi yang tidak sengaja terketik
     
-    // 1. Gunakan findFirst untuk menghindari error jika kolom pin bukan @unique
-    const visitor = await prisma.visitorLog.findFirst({
+    // 1. Cari tamu berdasarkan PIN
+    const visitor = await prisma.visitorLog.findUnique({
       where: { pin: cleanPin },
     });
 
@@ -322,27 +322,28 @@ export async function confirmMobileArrivalAction(inputPin: string) {
       return { success: false, message: "Kode PIN tidak ditemukan." };
     }
 
+    // 2. Cegah PIN digunakan berulang kali
     if (visitor.status !== "PENDING") {
-      return { success: false, message: "Kode PIN ini sudah digunakan atau tiket tidak valid." };
+      return { success: false, message: "Kode PIN ini sudah digunakan atau kadaluwarsa." };
     }
 
-    // 2. Update waktu kedatangan. 
-    // Kita ubah pin menjadi string kosong "" alih-alih null untuk mencegah error Schema
+    // 3. Update Waktu Kedatangan menjadi SEKARANG (Bukan waktu saat daftar di HP)
+    // dan hanguskan PIN-nya agar aman.
     const updatedVisitor = await prisma.visitorLog.update({
       where: { id: visitor.id },
       data: {
         checkInTime: new Date(), 
-        pin: "", // Hanguskan PIN dengan aman
+        pin: null // Hanguskan PIN
       }
     });
 
     return { success: true, data: updatedVisitor };
-  } catch (error: any) {
-    // Menangkap error database dan mengirimkannya ke frontend agar loading tidak macet
-    console.error("CRASH saat verifikasi PIN Mobile:", error);
-    return { success: false, message: "Terjadi kesalahan database: " + error.message };
+  } catch (error) {
+    console.error("Gagal verifikasi PIN Mobile:", error);
+    return { success: false, message: "Terjadi kesalahan pada server." };
   }
 }
+
 // app/actions/kiosk.ts
 export async function registerMobileVisitorAction(data: any) {
   try {
