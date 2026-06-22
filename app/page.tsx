@@ -289,27 +289,41 @@ export default function KioskPage() {
 
 const checkVipPin = async () => {
   if (!vipPin) return;
+  
+  // 1. Ambil foto pengunjung secara diam-diam (untuk verifikasi / Telegram)
+  capturePhoto(); 
 
+  // 2. Panggil backend untuk verifikasi PIN (Anda perlu membuat Action ini)
   const result = await getVisitorByPinAction(vipPin);
 
   if (result.success && result.data) {
-    // Auto-fill form dengan data dari database
-    setValue('fullName', result.data.fullName);
-    setValue('institution', result.data.institution || "");
-    setValue('phoneNumber', result.data.phoneNumber || "");
-    setValue('internetNumber', result.data.internetNumber || "");
-    setValue('address', result.data.address || "");
+    // 3. Simpan ID Visitor untuk sistem Rating (Step 4)
+    setCurrentVisitorId(result.data.id); 
 
-    setStep(1); 
+    // 4. LANGSUNG LOMPAT KE STEP 3 (Halaman Sukses / Nomor Antrean)
+    setStep(3); 
+    
+    // 5. Bersihkan state PIN
     setShowPinInput(false);
     setKeyboardOpen(false);
-
-    
+    setVipPin("");
     if (keyboardRef.current) keyboardRef.current.setInput("");
     
-    customAlert("success", "Data Ditemukan", `Selamat datang, ${result.data.fullName}!`);
+    // 6. Putar suara sukses
+    playSuccessSound();
+    if (successVoiceRef.current && !isMuted) {
+      successVoiceRef.current.currentTime = 0;
+      successVoiceRef.current.play().catch(() => {});
+    }
+
+    customAlert("success", "Akses VIP Diterima", `Selamat datang, ${result.data.fullName}! Silakan tunggu.`);
+    
+    // 7. OPTIONAL: Panggil Server Action lain di sini untuk update `checkInTime` 
+    // di database menjadi `new Date()` dan kirim notifikasi Telegram.
+    // await confirmPinArrivalAction(result.data.id, photoBase64);
+
   } else {
-    customAlert("error", "Akses Ditolak", result.message || "PIN salah.");
+    customAlert("error", "Akses Ditolak", result.message || "PIN salah atau sudah digunakan.");
     setVipPin("");
     if (keyboardRef.current) keyboardRef.current.setInput("");
   }

@@ -295,6 +295,7 @@ export async function getVisitorByPinAction(inputPin: string) {
     return { 
       success: true, 
       data: {
+        id: visitor.id,
         fullName: visitor.fullName,
         institution: visitor.institution,
         phoneNumber: visitor.phoneNumber,
@@ -305,6 +306,35 @@ export async function getVisitorByPinAction(inputPin: string) {
   } catch (error) {
     console.error("Error fetching visitor by PIN:", error);
     return { success: false, message: "Terjadi kesalahan pada server." };
+  }
+}
+
+// app/actions/kiosk.ts
+export async function registerMobileVisitorAction(data: any) {
+  try {
+    // Generate 6 Digit PIN Acak
+    const generatedPin = Math.floor(100000 + Math.random() * 900000).toString();
+
+    const newVisitor = await prisma.visitorLog.create({
+      data: {
+        fullName: data.fullName,
+        institution: data.institution || "Umum",
+        phoneNumber: data.phoneNumber,
+        internetNumber: data.internetNumber,
+        address: data.address,
+        category: data.category,
+        purpose: data.purpose,
+        hostName: data.hostName,
+        pin: generatedPin,
+        status: VisitStatus.PENDING, 
+        // checkInTime akan di-update nanti saat mereka tiba di Kiosk
+      },
+    });
+
+    return { success: true, pin: generatedPin, visitorId: newVisitor.id };
+  } catch (error) {
+    console.error("Gagal prapendaftaran mobile:", error);
+    return { success: false, error: "Gagal menyimpan data" };
   }
 }
 
