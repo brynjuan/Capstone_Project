@@ -348,7 +348,7 @@ const historyVisitors = useMemo(() => {
   const queueCapacity = 40;
   const queueOccupancy = Math.min(queueVisitors.length, queueCapacity);
   const queueOccupancyPercent = Math.min(100, Math.round((queueOccupancy / queueCapacity) * 100));
-  const totalPreRegister = queueVisitors.filter(v => v.status === "PRE_REGISTER").length;
+  const totalPreRegister = data.visitors.filter(v => v.status === "PRE_REGISTER").length;
 // 1. Waktu Tunggu Pelanggan Aktif (yang sedang dilayani saat ini)
   const activeVisitorWaitSeconds = activeQueueVisitor && activeQueueVisitor.serviceStartTime
     ? Math.max(0, durationSeconds(activeQueueVisitor.checkInTime, activeQueueVisitor.serviceStartTime))

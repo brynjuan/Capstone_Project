@@ -389,7 +389,7 @@ export async function registerMobileVisitorAction(data: any) {
         purpose: data.purpose,
         hostName: data.hostName,
         pin: generatedPin,
-        status: VisitStatus.PENDING, 
+        status: VisitStatus.PRE_REGISTER,
         // checkInTime akan di-update nanti saat mereka tiba di Kiosk
       },
     });
