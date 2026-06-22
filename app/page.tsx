@@ -290,9 +290,6 @@ export default function KioskPage() {
 
 const checkVipPin = async () => {
     if (!vipPin) return;
-    
-    // Asumsi Anda memiliki state loading (sesuaikan dengan nama state di kode Anda)
-    // setIsLoading(true); 
 
     try {
       capturePhoto(); 
@@ -305,6 +302,10 @@ const checkVipPin = async () => {
         setValue("phoneNumber", result.data.phoneNumber || "");
         
         setCurrentVisitorId(result.data.id); 
+        
+        // 👇 INI YANG KEMARIN TERLEWAT DI KODE ANDA 👇
+        setQueueNumber(result.queueNumber); 
+
         setStep(3); 
         
         setShowPinInput(false);
@@ -319,19 +320,14 @@ const checkVipPin = async () => {
         customAlert("success", "Prapendaftaran Terkonfirmasi", `Selamat datang, ${result.data.fullName}! Antrean Anda mulai berjalan.`);
 
       } else {
-        // Tampilkan pesan error dari backend
         customAlert("error", "Akses Ditolak", result.message || "PIN tidak valid.");
         setVipPin("");
         if (keyboardRef.current) keyboardRef.current.setInput("");
       }
     } catch (error) {
-      // Jika server mati atau gagal merespons, tampilkan ini agar loading tidak macet
       customAlert("error", "Koneksi Terputus", "Gagal menghubungi server database.");
       setVipPin("");
-    } finally {
-      // Matikan loading spinner di sini apapun yang terjadi!
-      // setIsLoading(false);
-    }
+    } 
   };
 
   const handleScanKTP = async () => {

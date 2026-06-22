@@ -32,7 +32,7 @@ import {
   WifiOff,
   X,
 } from "lucide-react";
-import { cancelVisit, completeVisit, reopenVisit, updateVisitorInfo, generateVisitorPin } from "../actions/admin";
+import { cancelVisit, completeVisit, reopenVisit, updateVisitorInfo, generateVisitorPin, clearAllPendingVisitsAction } from "../actions/admin";
 import { logoutAdmin } from "../actions/auth";
 import { supabase } from "@/lib/supabase"; // Sesuaikan path jika berbeda
 
@@ -264,6 +264,24 @@ useEffect(() => {
         }),
     [data.visitors],
   );
+
+  // Handler Hapus Semua Pending
+  const handleClearAllPending = async () => {
+    // Tambahkan konfirmasi agar tidak tidak sengaja terpencet
+    const isConfirmed = window.confirm(
+      "Apakah Anda yakin ingin MENGHAPUS SEMUA tamu yang berstatus MENUNGGU (Pending)? Tindakan ini tidak dapat dibatalkan."
+    );
+
+    if (isConfirmed) {
+      const result = await clearAllPendingVisitsAction();
+      if (result.success) {
+        alert(`Berhasil menghapus ${result.count} data tamu fiktif/batal.`);
+      } else {
+        alert("Gagal menghapus data: " + result.error);
+      }
+    }
+  };
+  
 const historyVisitors = useMemo(() => {
     const now = new Date();
     return data.visitors

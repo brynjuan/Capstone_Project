@@ -322,6 +322,24 @@ export async function getKioskStatus() {
   }
 }
 
+// 4. FITUR BARU: Hapus Semua Antrean PENDING (Sapu Bersih)
+export async function clearAllPendingVisitsAction() {
+  try {
+    await requireAdminSession();
+
+    // Hapus semua data yang statusnya PENDING
+    const deletedVisitors = await prisma.visitorLog.deleteMany({
+      where: { status: VisitStatus.PENDING },
+    });
+
+    revalidatePath("/admin");
+    return { success: true, count: deletedVisitors.count };
+  } catch (error: any) {
+    console.error("Gagal menghapus semua antrean pending:", error);
+    return { success: false, error: "Gagal menghapus data" };
+  }
+}
+
 export async function updateVisitorInfo(formData: FormData) {
   await requireAdminSession();
 

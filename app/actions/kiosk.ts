@@ -311,10 +311,9 @@ export async function getVisitorByPinAction(inputPin: string) {
 
 export async function confirmMobileArrivalAction(inputPin: string) {
   try {
-    const cleanPin = inputPin.trim(); // Menghapus spasi yang tidak sengaja terketik
+    const cleanPin = inputPin.trim();
     
-    // 1. Cari tamu berdasarkan PIN
-    const visitor = await prisma.visitorLog.findUnique({
+    const visitor = await prisma.visitorLog.findFirst({
       where: { pin: cleanPin },
     });
 
@@ -322,25 +321,35 @@ export async function confirmMobileArrivalAction(inputPin: string) {
       return { success: false, message: "Kode PIN tidak ditemukan." };
     }
 
-    // 2. Cegah PIN digunakan berulang kali
     if (visitor.status !== "PENDING") {
-      return { success: false, message: "Kode PIN ini sudah digunakan atau kadaluwarsa." };
+      return { success: false, message: "Kode PIN ini sudah digunakan atau tiket tidak valid." };
     }
 
-    // 3. Update Waktu Kedatangan menjadi SEKARANG (Bukan waktu saat daftar di HP)
-    // dan hanguskan PIN-nya agar aman.
+    // 👇 GENERATOR ANTREAN ANGKA MURNI 👇
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); 
+
+    const queueCount = await prisma.visitorLog.count({
+      where: { checkInTime: { gte: today } }
+    });
+    
+    // Gabung dengan jalur reguler (Hanya angka)
+    const generatedQueueNumber = queueCount + 1; 
+
+    // Update Waktu Kedatangan & Hapus PIN
     const updatedVisitor = await prisma.visitorLog.update({
       where: { id: visitor.id },
       data: {
         checkInTime: new Date(), 
-        pin: null // Hanguskan PIN
+        pin: null, 
       }
     });
 
-    return { success: true, data: updatedVisitor };
-  } catch (error) {
-    console.error("Gagal verifikasi PIN Mobile:", error);
-    return { success: false, message: "Terjadi kesalahan pada server." };
+    // Kirim queueNumber yang berupa angka ke Frontend
+    return { success: true, data: updatedVisitor, queueNumber: generatedQueueNumber };
+  } catch (error: any) {
+    console.error("CRASH saat verifikasi PIN Mobile:", error);
+    return { success: false, message: "Terjadi kesalahan database." };
   }
 }
 
