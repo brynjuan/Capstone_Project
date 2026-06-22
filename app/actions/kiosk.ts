@@ -309,6 +309,41 @@ export async function getVisitorByPinAction(inputPin: string) {
   }
 }
 
+export async function confirmMobileArrivalAction(inputPin: string) {
+  try {
+    const cleanPin = inputPin.trim(); // Menghapus spasi yang tidak sengaja terketik
+    
+    // 1. Cari tamu berdasarkan PIN
+    const visitor = await prisma.visitorLog.findUnique({
+      where: { pin: cleanPin },
+    });
+
+    if (!visitor) {
+      return { success: false, message: "Kode PIN tidak ditemukan." };
+    }
+
+    // 2. Cegah PIN digunakan berulang kali
+    if (visitor.status !== "PENDING") {
+      return { success: false, message: "Kode PIN ini sudah digunakan atau kadaluwarsa." };
+    }
+
+    // 3. Update Waktu Kedatangan menjadi SEKARANG (Bukan waktu saat daftar di HP)
+    // dan hanguskan PIN-nya agar aman.
+    const updatedVisitor = await prisma.visitorLog.update({
+      where: { id: visitor.id },
+      data: {
+        checkInTime: new Date(), 
+        pin: null // Hanguskan PIN
+      }
+    });
+
+    return { success: true, data: updatedVisitor };
+  } catch (error) {
+    console.error("Gagal verifikasi PIN Mobile:", error);
+    return { success: false, message: "Terjadi kesalahan pada server." };
+  }
+}
+
 // app/actions/kiosk.ts
 export async function registerMobileVisitorAction(data: any) {
   try {

@@ -11,6 +11,7 @@ import { QRCodeCanvas } from "qrcode.react";
 import Keyboard from "react-simple-keyboard";
 import "react-simple-keyboard/build/css/index.css";
 import { Scanner } from "@yudiel/react-qr-scanner";
+import { confirmMobileArrivalAction } from "./actions/kiosk";
 
 const ZegoCall = dynamic(() => import("./components/ZegoCall"), { 
   ssr: false 
@@ -288,46 +289,47 @@ export default function KioskPage() {
   };
 
 const checkVipPin = async () => {
-  if (!vipPin) return;
-  
-  // 1. Ambil foto pengunjung secara diam-diam (untuk verifikasi / Telegram)
-  capturePhoto(); 
-
-  // 2. Panggil backend untuk verifikasi PIN (Anda perlu membuat Action ini)
-  const result = await getVisitorByPinAction(vipPin);
-
-  if (result.success && result.data) {
-    // 3. Simpan ID Visitor untuk sistem Rating (Step 4)
-    setCurrentVisitorId(result.data.id); 
-
-    // 4. LANGSUNG LOMPAT KE STEP 3 (Halaman Sukses / Nomor Antrean)
-    setStep(3); 
+    if (!vipPin) return;
     
-    // 5. Bersihkan state PIN
-    setShowPinInput(false);
-    setKeyboardOpen(false);
-    setVipPin("");
-    if (keyboardRef.current) keyboardRef.current.setInput("");
-    
-    // 6. Putar suara sukses
-    playSuccessSound();
-    if (successVoiceRef.current && !isMuted) {
-      successVoiceRef.current.currentTime = 0;
-      successVoiceRef.current.play().catch(() => {});
+    // Ambil foto diam-diam untuk bukti kedatangan
+    capturePhoto(); 
+
+    // Panggil fungsi verifikasi Prapendaftaran Mobile
+    const result = await confirmMobileArrivalAction(vipPin);
+
+    if (result.success && result.data) {
+      // SUNTIKAN GAIB: Isi form Kiosk di latar belakang 
+      // agar Step 3 (Layar Nomor Antrean) bisa menampilkan nama mereka!
+      setValue("fullName", result.data.fullName);
+      setValue("institution", result.data.institution || "Umum");
+      setValue("phoneNumber", result.data.phoneNumber || "");
+      
+      // Simpan ID untuk fitur rating nanti
+      setCurrentVisitorId(result.data.id); 
+
+      // Langsung lompat ke Layar Sukses / Antrean (Step 3)
+      setStep(3); 
+      
+      // Bersihkan layar PIN
+      setShowPinInput(false);
+      setKeyboardOpen(false);
+      setVipPin("");
+      if (keyboardRef.current) keyboardRef.current.setInput("");
+      
+      // Mainkan efek suara & Alert
+      if (successVoiceRef.current && !isMuted) {
+        successVoiceRef.current.currentTime = 0;
+        successVoiceRef.current.play().catch(() => {});
+      }
+      customAlert("success", "Prapendaftaran Terkonfirmasi", `Selamat datang, ${result.data.fullName}! Antrean Anda mulai berjalan.`);
+
+    } else {
+      // Jika PIN salah atau sudah dipakai
+      customAlert("error", "Akses Ditolak", result.message || "PIN tidak valid.");
+      setVipPin("");
+      if (keyboardRef.current) keyboardRef.current.setInput("");
     }
-
-    customAlert("success", "Akses VIP Diterima", `Selamat datang, ${result.data.fullName}! Silakan tunggu.`);
-    
-    // 7. OPTIONAL: Panggil Server Action lain di sini untuk update `checkInTime` 
-    // di database menjadi `new Date()` dan kirim notifikasi Telegram.
-    // await confirmPinArrivalAction(result.data.id, photoBase64);
-
-  } else {
-    customAlert("error", "Akses Ditolak", result.message || "PIN salah atau sudah digunakan.");
-    setVipPin("");
-    if (keyboardRef.current) keyboardRef.current.setInput("");
-  }
-};
+  };
 
   const handleScanKTP = async () => {
     if (!previewWebcamRef.current) return;
