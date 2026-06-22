@@ -309,7 +309,7 @@ export async function getVisitorByPinAction(inputPin: string) {
   }
 }
 
-export async function confirmMobileArrivalAction(inputPin: string) {
+export async function confirmMobileArrivalAction(inputPin: string, photoBase64?: string | null) {
   try {
     const cleanPin = inputPin.trim();
     
@@ -334,7 +334,22 @@ export async function confirmMobileArrivalAction(inputPin: string) {
     const newStatus = activeVisitor ? VisitStatus.PENDING : VisitStatus.ON_PROGRESS;
     const startTime = activeVisitor ? null : new Date();
 
-    // 3. UPDATE DATABASE DULUAN (Agar status mereka "Nyata" di Kiosk & Admin)
+    // 3. FOTO & CLOUDFLARE R2 LOGIC
+    let photoUrl = visitor.photoUrl; 
+    let imageBuffer: Buffer | null = null;
+    let fileName = "";
+
+    if (photoBase64) {
+      const base64Data = photoBase64.replace(/^data:image\/\w+;base64,/, "");
+      imageBuffer = Buffer.from(base64Data, "base64");
+      fileName = `visitors/${uuidv4()}.jpg`;
+
+      const rawDomain = process.env.R2_PUBLIC_DOMAIN || "https://assets.telkomsulbagteng.my.id";
+      const baseUrl = rawDomain.replace(/['"]/g, '').replace(/\/+$/, '');
+      photoUrl = `${baseUrl}/${fileName}`;
+    }
+
+    // 4. UPDATE DATABASE (Sekaligus menyimpan URL foto terbaru)
     const updatedVisitor = await prisma.visitorLog.update({
       where: { id: visitor.id },
       data: {
@@ -342,10 +357,89 @@ export async function confirmMobileArrivalAction(inputPin: string) {
         serviceStartTime: startTime,
         checkInTime: new Date(),
         pin: null, 
+        photoUrl: photoUrl, // Simpan URL foto agar muncul di Dashboard Admin
       }
     });
 
-    // 👇 4. HITUNG NOMOR ANTREAN (RUMUS DISAMAKAN DENGAN JALUR MANUAL) 👇
+    // 5. PROSES TELEGRAM & UPLOAD R2 SECARA PARALEL
+    const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+    const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
+
+    let r2Task: Promise<any> = Promise.resolve();
+    let telegramTask: Promise<any> = Promise.resolve();
+
+    // TUGAS A: Upload R2
+    if (imageBuffer && fileName) {
+      r2Task = s3.send(new PutObjectCommand({
+        Bucket: process.env.R2_BUCKET_NAME,
+        Key: fileName,
+        Body: imageBuffer,
+        ContentType: "image/jpeg",
+      })).catch(err => console.error("❌ R2 Error:", err));
+    }
+
+    // TUGAS B: Kirim Pesan Telegram
+    if (TELEGRAM_BOT_TOKEN && TELEGRAM_CHAT_ID) {
+      const now = new Date();
+      const waktuDaftar = new Intl.DateTimeFormat('id-ID', {
+        timeZone: 'Asia/Makassar',
+        weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+        hour: '2-digit', minute: '2-digit', second: '2-digit', timeZoneName: 'short'
+      }).format(now);
+
+      const statusAntreanTG = newStatus === VisitStatus.PENDING 
+        ? "⏳ <i>Berada di antrean (Menunggu)</i>" 
+        : "✅ <i>Langsung dilayani di meja CS</i>";
+
+      const tgMessage = `
+🚨 <b>Pelanggan VIP (Akses PIN) Tiba!</b> 🚨
+
+🗓 <b>Waktu:</b> ${waktuDaftar}
+📊 <b>Status:</b> ${statusAntreanTG}
+
+🏢 <b>Instansi:</b> ${updatedVisitor.institution || "-"}
+👤 <b>Nama:</b> ${updatedVisitor.fullName}
+📞 <b>No. HP:</b> ${updatedVisitor.phoneNumber || "-"}
+🌐 <b>No. Internet:</b> ${updatedVisitor.internetNumber || '-'}
+
+🎯 <b>Kategori:</b> ${updatedVisitor.category || "-"}
+👩‍💼 <b>Bertemu:</b> ${updatedVisitor.hostName || "Nita Wulandari"}
+📝 <b>Keperluan:</b>
+<i>${updatedVisitor.purpose || "-"}</i>
+`;
+
+      if (imageBuffer) {
+        // Kirim foto fisik ke Telegram langsung
+        const file = new File([new Uint8Array(imageBuffer)], "visitor.jpg", { type: "image/jpeg" });
+        const tgFormData = new FormData();
+        tgFormData.append("chat_id", TELEGRAM_CHAT_ID);
+        tgFormData.append("photo", file);
+        tgFormData.append("caption", tgMessage);
+        tgFormData.append("parse_mode", "HTML");
+
+        telegramTask = fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendPhoto`, {
+          method: "POST",
+          body: tgFormData,
+        }).catch(() => {
+          return fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+             method: "POST",
+             headers: { "Content-Type": "application/json" },
+             body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text: tgMessage, parse_mode: "HTML" })
+          });
+        });
+      } else {
+        telegramTask = fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text: tgMessage, parse_mode: "HTML" })
+        });
+      }
+    }
+
+    // Eksekusi R2 dan Telegram berbarengan agar performa Kiosk cepat
+    await Promise.all([r2Task, telegramTask]);
+
+    // 6. HITUNG NOMOR ANTREAN UNTUK KIOSK
     const currentQueueCount = await prisma.visitorLog.count({
       where: {
         status: { in: [VisitStatus.ON_PROGRESS, VisitStatus.PENDING] }

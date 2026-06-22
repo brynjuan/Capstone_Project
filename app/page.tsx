@@ -292,9 +292,19 @@ const checkVipPin = async () => {
     if (!vipPin) return;
 
     try {
-      capturePhoto(); 
+      // 1. Ambil foto secara instan (real-time) langsung dari kamera
+      // bukan menunggu state photoBase64 agar tidak terjadi delay
+      let currentPhoto = photoBase64;
+      if (previewWebcamRef.current) {
+        const imageSrc = previewWebcamRef.current.getScreenshot();
+        if (imageSrc && imageSrc.length > 100) {
+          currentPhoto = imageSrc;
+          setPhotoBase64(imageSrc); // Simpan juga ke state untuk tampilan (jika perlu)
+        }
+      }
 
-      const result = await confirmMobileArrivalAction(vipPin);
+      // 2. Kirim PIN dan FOTO ke server
+      const result = await confirmMobileArrivalAction(vipPin, currentPhoto);
 
       if (result.success && result.data) {
         setValue("fullName", result.data.fullName);
@@ -302,9 +312,7 @@ const checkVipPin = async () => {
         setValue("phoneNumber", result.data.phoneNumber || "");
         
         setCurrentVisitorId(result.data.id); 
-        
-        // 👇 INI YANG KEMARIN TERLEWAT DI KODE ANDA 👇
-        setQueueNumber(result.queueNumber); 
+        setQueueNumber(result.queueNumber || null); 
 
         setStep(3); 
         
