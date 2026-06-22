@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import AdminDashboard, { type AdminDashboardData } from "./AdminDashboard";
+import AdminDashboard from "./AdminDashboard";
+import { AdminDashboardData } from "./types"; // <-- Ambil tipenya dari file types.ts yang baru
 import { VisitStatus } from "@prisma/client";
 
 export const dynamic = "force-dynamic";

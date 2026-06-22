@@ -36,54 +36,19 @@ import { cancelVisit, completeVisit, reopenVisit, updateVisitorInfo, generateVis
 import { logoutAdmin } from "../actions/auth";
 import { supabase } from "@/lib/supabase"; // Sesuaikan path jika berbeda
 
-export type AdminVisitor = {
-  id: string;
-  createdAt: string | null;
-  fullName: string;
-  phoneNumber: string | null;
-  institution: string | null;
-  internetNumber: string | null;
-  address: string | null;
-  category: string | null;
-  purpose: string;
-  hostName: string | null;
-  photoUrl: string | null;
-  status: "PENDING" | "ON_PROGRESS" | "SUCCESS" | "CANCELLED" | "PRE_REGISTER";
-  checkInTime: string | null;
-  serviceStartTime: string | null;
-  checkOutTime: string | null;
-  rating: number | null;
-};
+import { AdminVisitor, AdminDashboardData } from "./types";
+import { 
+  formatTime, 
+  formatDate, 
+  elapsedLabel, 
+  durationSeconds, 
+  formatDurationClock, 
+  formatCompactDuration, 
+  visitorInitials, 
+  visitorCode 
+} from "./utils";
 
-export type AdminDashboardData = {
-  connectionOk: boolean;
-  visitors: AdminVisitor[];
-  metrics: {
-    totalToday: number;
-    totalMonth: number;
-    totalYear: number;
-    pendingVisits: number;
-    onProgressVisits: number;
-    successVisits: number;
-    completedToday: number;
-    averageRating: number | null;
-  };
-  categories: Array<{
-    name: string;
-    count: number;
-  }>;
-  dailySeries: Array<{ label: string; value: number }>;
-  monthlySeries: Array<{ label: string; value: number }>;
-  yearlySeries: Array<{ label: string; value: number }>;
-  categoryMonthlySeries: Array<{
-    name: string;
-    data: Array<{ label: string; value: number }>;
-  }>;
-  kioskStatus?: {
-    isBusy: boolean;
-    message: string;
-  };
-};
+
 
 type Props = {
   data: AdminDashboardData;
@@ -94,89 +59,7 @@ type Props = {
   };
 };
 
-const formatTime = (value: string | null) => {
-  if (!value) return "-";
 
-  return new Intl.DateTimeFormat("id-ID", {
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone: "Asia/Makassar",
-  }).format(new Date(value));
-};
-
-const formatDate = (value: string | null) => {
-  if (!value) return "-";
-
-  return new Intl.DateTimeFormat("id-ID", {
-    weekday: "short",
-    day: "2-digit",
-    month: "short",
-    timeZone: "Asia/Makassar",
-  }).format(new Date(value));
-};
-
-const elapsedLabel = (value: string | null) => {
-  if (!value) return "-";
-
-  const minutes = Math.max(0, Math.round((Date.now() - new Date(value).getTime()) / 60000));
-
-  if (minutes < 60) return `${minutes} menit`;
-
-  const hours = Math.floor(minutes / 60);
-  const rest = minutes % 60;
-  return `${hours}j ${rest}m`;
-};
-
-const durationSeconds = (start: string | null, end?: string | null) => {
-  if (!start) return 0;
-
-  const startTime = new Date(start).getTime();
-  const endTime = end ? new Date(end).getTime() : Date.now();
-
-  return Math.max(0, Math.floor((endTime - startTime) / 1000));
-};
-
-const waitSecondsFor = (visitor: AdminVisitor) =>
-  durationSeconds(visitor.checkInTime, visitor.serviceStartTime || visitor.checkOutTime);
-
-const formatDurationClock = (seconds: number) => {
-  const minutes = Math.floor(seconds / 60);
-  const rest = seconds % 60;
-
-  return `${String(minutes).padStart(2, "0")} : ${String(rest).padStart(2, "0")}`;
-};
-
-const formatCompactDuration = (seconds: number) => {
-  if (seconds < 60) return `${seconds}s`;
-
-  const minutes = Math.floor(seconds / 60);
-  const rest = seconds % 60;
-
-  if (minutes < 60) return `${minutes}m ${String(rest).padStart(2, "0")}s`;
-
-  const hours = Math.floor(minutes / 60);
-  return `${hours}j ${minutes % 60}m`;
-};
-
-const visitorInitials = (name: string) => {
-  const initials = name
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join("")
-    .toUpperCase();
-
-  return initials || "VI";
-};
-
-const visitorCode = (visitor: AdminVisitor, index = 0) => {
-  const categoryPrefix = (visitor.category || "Q").replace(/[^a-z]/gi, "").slice(0, 1).toUpperCase() || "Q";
-  const numericId = visitor.id.replace(/\D/g, "").slice(-3);
-  const number = numericId ? numericId.padStart(3, "0") : String(index + 101).padStart(3, "0");
-
-  return `#${categoryPrefix}-${number}`;
-};
 
 export default function AdminDashboard({ data, admin }: Props) {
   const router = useRouter();
