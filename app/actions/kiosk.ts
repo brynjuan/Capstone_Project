@@ -1,7 +1,7 @@
 "use server"
 
 import { prisma } from "@/lib/prisma";
-import { VisitStatus } from "@prisma/client"; // <-- PENTING: Import Enum dari Prisma
+import { VisitStatus } from "@prisma/client";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { v4 as uuidv4 } from "uuid";
 import { getAdminSession } from "@/lib/auth";
@@ -33,16 +33,10 @@ export async function performOCR(photoBase64: string) {
     const apiKey = process.env.GOOGLE_VISION_API_KEY;
     const url = `https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`;
 
-    // Membersihkan header base64 jika ada
     const base64Image = photoBase64.replace(/^data:image\/\w+;base64,/, "");
 
     const requestBody = {
-      requests: [
-        {
-          image: { content: base64Image },
-          features: [{ type: "TEXT_DETECTION" }],
-        },
-      ],
+      requests: [{ image: { content: base64Image }, features: [{ type: "TEXT_DETECTION" }] }],
     };
 
     const response = await fetch(url, {
@@ -66,14 +60,11 @@ export async function performOCR(photoBase64: string) {
 // ============================================================================
 export async function uploadPhotoboothImage(photoBase64: string) {
   try {
-    // 1. Bersihkan header base64
     const base64Data = photoBase64.replace(/^data:image\/\w+;base64,/, "");
     const imageBuffer = Buffer.from(base64Data, "base64");
     
-    // 2. Buat nama file unik untuk photobooth
     const fileName = `photobooth/telkom-${uuidv4().substring(0, 8)}.jpg`;
 
-    // 3. Kirim ke Cloudflare R2
     await s3.send(new PutObjectCommand({
       Bucket: process.env.R2_BUCKET_NAME,
       Key: fileName,
@@ -81,10 +72,8 @@ export async function uploadPhotoboothImage(photoBase64: string) {
       ContentType: "image/jpeg",
     }));
 
-    // 4. Rakit URL publiknya (Aman dari kutip ganda)
     const rawDomain = process.env.R2_PUBLIC_DOMAIN || "";
     const baseUrl = rawDomain.replace(/['"]/g, '').replace(/\/+$/, '');
-
     const publicUrl = `${baseUrl}/${fileName}`;
 
     return { success: true, url: publicUrl };
@@ -113,21 +102,17 @@ export async function submitVisitorRating(visitorId: string, ratingScore: number
 // ============================================================================
 // 4. FUNGSI SUBMIT DATA TAMU + LOGIKA ANTREAN CERDAS + TELEGRAM
 // ============================================================================
-// ============================================================================
-// 4. FUNGSI SUBMIT DATA TAMU + LOGIKA ANTREAN CERDAS + TELEGRAM
-// ============================================================================
 export async function submitVisitorData(formData: any, photoBase64: string | null) {
   try {
-    // 👇 1. LETAKKAN PENGECEKAN SESI DI SINI (Di awal fungsi) 👇
+    // 1. AMBIL REGION DARI KIOSK YANG LOGIN
     const session = await getAdminSession();
     if (!session || !session.region) throw new Error("Kiosk tidak valid atau belum login.");
-    // 👆 ====================================================== 👆
+    const currentRegion = session.region;
 
     let photoUrl = null;
     let imageBuffer: Buffer | null = null; 
     let fileName = ""; 
 
-    // 1. SIAPKAN URL DAN BUFFER FOTO (TAPI JANGAN DI-UPLOAD DULU)
     if (photoBase64) {
       const base64Data = photoBase64.replace(/^data:image\/\w+;base64,/, "");
       imageBuffer = Buffer.from(base64Data, "base64");
@@ -138,14 +123,13 @@ export async function submitVisitorData(formData: any, photoBase64: string | nul
       photoUrl = `${baseUrl}/${fileName}`;
     }
 
-    // 2. BERSIHKAN DATA NOMOR HP
     const cleanPhoneNumber = formData.phoneNumber ? formData.phoneNumber.replace(/\D/g, '') : "";
 
-    // 3. CEK ANTREAN (SMART QUEUE)
+    // 2. CEK ANTREAN (Hanya untuk region Kiosk ini)
     const activeVisitor = await prisma.visitorLog.findFirst({
       where: { 
         status: VisitStatus.ON_PROGRESS,
-        region: session.region // <--- (Opsional) Cek antrean hanya untuk daerah ini
+        region: currentRegion // <-- FILTER REGION
       }
     });
 
@@ -157,7 +141,7 @@ export async function submitVisitorData(formData: any, photoBase64: string | nul
       startTime = new Date(); 
     }
 
-    // 4. SIMPAN KE DATABASE SECARA INSTAN!
+    // 3. SIMPAN KE DATABASE DENGAN REGION
     let newVisitor;
 
     if (formData.pin) {
@@ -176,7 +160,7 @@ export async function submitVisitorData(formData: any, photoBase64: string | nul
           status: initialStatus,
           serviceStartTime: startTime,
           checkInTime: new Date(), 
-          region: session.region, // <--- 👇 TAMBAHKAN REGION DI SINI
+          region: currentRegion, // <-- SIMPAN REGION
         }
       });
     } else {
@@ -193,22 +177,18 @@ export async function submitVisitorData(formData: any, photoBase64: string | nul
           photoUrl: photoUrl, 
           status: initialStatus,
           serviceStartTime: startTime, 
-          region: session.region, // <--- 👇 DAN TAMBAHKAN REGION DI SINI JUGA
+          region: currentRegion, // <-- SIMPAN REGION
         }
       });
     }
 
-    // ... (Sisa kode Telegram dan R2 di bawahnya biarkan saja seperti semula) ...
-
-// 5. PROSES UPLOAD R2 & TELEGRAM SECARA PARALEL (Bersamaan)
+    // 4. PROSES UPLOAD R2 & TELEGRAM SECARA PARALEL
     const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN; 
     const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 
-    // Siapkan dua wadah tugas kosong
     let r2Task: Promise<any> = Promise.resolve();
     let telegramTask: Promise<any> = Promise.resolve();
 
-    // TUGAS A: Upload ke Cloudflare R2
     if (imageBuffer && fileName) {
       r2Task = s3.send(new PutObjectCommand({
         Bucket: process.env.R2_BUCKET_NAME,
@@ -219,7 +199,6 @@ export async function submitVisitorData(formData: any, photoBase64: string | nul
          .catch(err => console.error("❌ R2 Error:", err));
     }
 
-    // TUGAS B: Kirim Notifikasi Telegram CS
     if (TELEGRAM_BOT_TOKEN && TELEGRAM_CHAT_ID) {
       const now = new Date();
       const waktuDaftar = new Intl.DateTimeFormat('id-ID', {
@@ -233,7 +212,7 @@ export async function submitVisitorData(formData: any, photoBase64: string | nul
         : "✅ <i>Langsung dilayani di meja CS</i>";
 
       const tgMessage = `
-🚨 <b>Pelanggan TELKOM</b> 🚨
+🚨 <b>Pelanggan TELKOM (${currentRegion})</b> 🚨
 
 🗓 <b>Waktu:</b> ${waktuDaftar}
 📊 <b>Status:</b> ${statusAntreanTG}
@@ -250,7 +229,6 @@ export async function submitVisitorData(formData: any, photoBase64: string | nul
 `;
 
       if (imageBuffer) {
-        // Kirim file mentah langsung (Tidak perlu tunggu R2 atau Delay!)
         const file = new File([new Uint8Array(imageBuffer)], "visitor.jpg", { type: "image/jpeg" });
         const tgFormData = new FormData();
         tgFormData.append("chat_id", TELEGRAM_CHAT_ID);
@@ -259,37 +237,30 @@ export async function submitVisitorData(formData: any, photoBase64: string | nul
         tgFormData.append("parse_mode", "HTML");
 
         telegramTask = fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendPhoto`, {
-          method: "POST",
-          body: tgFormData,
+          method: "POST", body: tgFormData,
         }).then(async (res) => {
           if (!res.ok) throw new Error("Gagal kirim foto TG");
-          console.log("✅ Pesan Telegram CS (Foto) Berhasil!");
         }).catch(() => {
-          // Fallback Teks jika foto gagal
-          console.log("🔄 Mengalihkan ke Fallback Teks CS...");
           return fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
+            method: "POST", headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text: tgMessage, parse_mode: "HTML" })
           });
         });
       } else {
-        // Teks biasa jika tidak ada foto
         telegramTask = fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
+          method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text: tgMessage, parse_mode: "HTML" })
         });
       }
     }
 
-    // 👇 KUNCI UTAMA: Paksa Kiosk mengeksekusi kedua tugas BERSAMAAN dan menunggu hingga keduanya selesai 👇
     await Promise.all([r2Task, telegramTask]);
 
-    // 6. HITUNG NOMOR ANTREAN & RESPONSE INSTAN KE KIOSK
+    // 5. HITUNG NOMOR ANTREAN (Hanya untuk region Kiosk ini)
     const currentQueueCount = await prisma.visitorLog.count({
       where: {
-        status: { in: [VisitStatus.ON_PROGRESS, VisitStatus.PENDING] }
+        status: { in: [VisitStatus.ON_PROGRESS, VisitStatus.PENDING] },
+        region: currentRegion // <-- PERBAIKAN: Hitung antrean per daerah
       }
     });
 
@@ -304,13 +275,13 @@ export async function submitVisitorData(formData: any, photoBase64: string | nul
     return { success: false, error: "Terjadi kesalahan sistem saat menyimpan data." };
   }
 }
+
 export async function getVisitorByPinAction(inputPin: string) {
   try {
     const visitor = await prisma.visitorLog.findUnique({
       where: { pin: inputPin },
     });
 
-    // Validasi: Tolak jika PIN tidak ada atau statusnya BUKAN PRE_REGISTER
     if (!visitor || visitor.status !== VisitStatus.PRE_REGISTER) {
       return { success: false, message: "Kode PIN tidak ditemukan atau sudah digunakan." };
     }
@@ -318,47 +289,54 @@ export async function getVisitorByPinAction(inputPin: string) {
     return { 
       success: true, 
       data: {
-        id: visitor.id,
-        fullName: visitor.fullName,
-        institution: visitor.institution,
-        phoneNumber: visitor.phoneNumber,
-        internetNumber: visitor.internetNumber,
-        address: visitor.address,
+        id: visitor.id, fullName: visitor.fullName, institution: visitor.institution,
+        phoneNumber: visitor.phoneNumber, internetNumber: visitor.internetNumber, address: visitor.address,
       }
     };
   } catch (error) {
-    console.error("Error fetching visitor by PIN:", error);
     return { success: false, message: "Terjadi kesalahan pada server." };
   }
 }
 
 export async function confirmMobileArrivalAction(inputPin: string) {
   try {
+    // 1. AMBIL REGION KIOSK YANG MENGKONFIRMASI
+    const session = await getAdminSession();
+    const currentRegion = session?.region || "Palu";
+
     const cleanPin = inputPin.trim();
     
     const visitor = await prisma.visitorLog.findUnique({ where: { pin: cleanPin } });
     if (!visitor) return { success: false, message: "Kode PIN tidak ditemukan." };
     if (visitor.status !== VisitStatus.PRE_REGISTER) return { success: false, message: "Kode PIN ini sudah digunakan atau tiket tidak valid." };
 
-    const activeVisitor = await prisma.visitorLog.findFirst({ where: { status: VisitStatus.ON_PROGRESS } });
+    // 2. Cek Antrean Aktif di Region Tersebut
+    const activeVisitor = await prisma.visitorLog.findFirst({ 
+      where: { status: VisitStatus.ON_PROGRESS, region: currentRegion } // <-- FILTER REGION
+    });
     const newStatus = activeVisitor ? VisitStatus.PENDING : VisitStatus.ON_PROGRESS;
     const startTime = activeVisitor ? null : new Date();
 
-    // UPDATE DATABASE DULUAN (Wujud tamu dari gaib jadi nyata)
+    // 3. UPDATE DATABASE (Set status dan update region menjadi region Kiosk tempat dia check-in)
     const updatedVisitor = await prisma.visitorLog.update({
       where: { id: visitor.id },
-      data: { status: newStatus, serviceStartTime: startTime, checkInTime: new Date(), pin: null }
+      data: { 
+        status: newStatus, 
+        serviceStartTime: startTime, 
+        checkInTime: new Date(), 
+        pin: null,
+        region: currentRegion // <-- PERBAIKAN: Tamu masuk ke daerah Kiosk
+      }
     });
 
-    // KIRIM TELEGRAM CS (Menggunakan foto yang sudah ada di Database)
+    // KIRIM TELEGRAM CS
     const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
     const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 
     if (TELEGRAM_BOT_TOKEN && TELEGRAM_CHAT_ID) {
-      const tgMessage = `🚨 <b>Pelanggan VIP Tiba (via PIN)!</b> 🚨\n\n🏢 <b>Instansi:</b> ${updatedVisitor.institution}\n👤 <b>Nama:</b> ${updatedVisitor.fullName}\n📞 <b>No. HP:</b> ${updatedVisitor.phoneNumber}\n🎯 <b>Keperluan:</b>\n<i>${updatedVisitor.purpose}</i>`;
+      const tgMessage = `🚨 <b>Pelanggan VIP Tiba (via PIN) di ${currentRegion}!</b> 🚨\n\n🏢 <b>Instansi:</b> ${updatedVisitor.institution}\n👤 <b>Nama:</b> ${updatedVisitor.fullName}\n📞 <b>No. HP:</b> ${updatedVisitor.phoneNumber}\n🎯 <b>Keperluan:</b>\n<i>${updatedVisitor.purpose}</i>`;
 
       if (updatedVisitor.photoUrl) {
-        // Ambil fotonya dari R2, lalu kirim ke Telegram
         fetch(updatedVisitor.photoUrl)
           .then(res => res.arrayBuffer())
           .then(buffer => {
@@ -371,7 +349,6 @@ export async function confirmMobileArrivalAction(inputPin: string) {
             fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendPhoto`, { method: "POST", body: tgFormData });
           })
           .catch(() => {
-             // Fallback teks jika foto gagal diambil
              fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text: tgMessage, parse_mode: "HTML" }) });
           });
       } else {
@@ -379,9 +356,12 @@ export async function confirmMobileArrivalAction(inputPin: string) {
       }
     }
 
-    // HITUNG NOMOR ANTREAN
+    // 4. HITUNG NOMOR ANTREAN (Per Daerah)
     const currentQueueCount = await prisma.visitorLog.count({
-      where: { status: { in: [VisitStatus.ON_PROGRESS, VisitStatus.PENDING] } }
+      where: { 
+        status: { in: [VisitStatus.ON_PROGRESS, VisitStatus.PENDING] },
+        region: currentRegion // <-- PERBAIKAN: Hitung per daerah
+      }
     });
 
     return { success: true, data: updatedVisitor, queueNumber: currentQueueCount };
@@ -390,13 +370,11 @@ export async function confirmMobileArrivalAction(inputPin: string) {
   }
 }
 
-// app/actions/kiosk.ts
 export async function registerMobileVisitorAction(data: any, photoBase64: string | null) {
   try {
-    // 1. Upload Foto ke R2 langsung saat mereka daftar di HP
     let photoUrl = null;
     if (photoBase64) {
-      const uploadResult = await uploadPhotoboothImage(photoBase64); // Kita gunakan fungsi upload yang sudah ada
+      const uploadResult = await uploadPhotoboothImage(photoBase64); 
       if (uploadResult.success && uploadResult.url) {
         photoUrl = uploadResult.url;
       }
@@ -416,7 +394,8 @@ export async function registerMobileVisitorAction(data: any, photoBase64: string
         hostName: data.hostName,
         pin: generatedPin,
         status: VisitStatus.PRE_REGISTER, 
-        photoUrl: photoUrl // Simpan URL fotonya sejak awal!
+        photoUrl: photoUrl,
+        region: data.region || "Palu" // <-- PERBAIKAN: Gunakan region yang dipilih user di HP, atau default Palu
       },
     });
 
@@ -427,16 +406,13 @@ export async function registerMobileVisitorAction(data: any, photoBase64: string
   }
 }
 
-// ============================================================================
-// 6. FUNGSI CEK STATUS KIOSK (UNTUK LAYAR DEPAN)
-// ============================================================================
 export async function getKioskStatusAction() {
   try {
     const session = await getAdminSession();
     if (!session || !session.region) return { isBusy: false, message: "" };
 
     const status = await prisma.kioskSetting.findUnique({ 
-      where: { id: session.region } 
+      where: { id: session.region } // <-- PERBAIKAN: Cek status Kiosk sesuai daerah
     }); 
     
     if (status) return { isBusy: status.isBusy, message: status.message };
@@ -446,12 +422,12 @@ export async function getKioskStatusAction() {
   }
 }
 
-// ============================================================================
-// 5. FUNGSI ADMIN SELESAIKAN PELAYANAN (ESTAFET OTOMATIS)
-// ============================================================================
 export async function completeAdminService(visitorId: string, finalStatus: VisitStatus, adminId?: string) {
   try {
-    // 1. Akhiri pelayanan tamu saat ini
+    // Cari data visitor untuk mengetahui wilayahnya
+    const visitor = await prisma.visitorLog.findUnique({ where: { id: visitorId } });
+    if (!visitor) throw new Error("Visitor tidak ditemukan");
+
     await prisma.visitorLog.update({
       where: { id: visitorId },
       data: {
@@ -461,13 +437,15 @@ export async function completeAdminService(visitorId: string, finalStatus: Visit
       }
     });
 
-    // 2. Cari tamu antrean berikutnya (Cari status PENDING yang datang paling awal)
+    // Panggil antrean berikutnya KHUSUS DI REGION YANG SAMA
     const nextInQueue = await prisma.visitorLog.findFirst({
-      where: { status: VisitStatus.PENDING }, 
+      where: { 
+        status: VisitStatus.PENDING,
+        region: visitor.region // <-- PERBAIKAN: Estafet antrean sesuai daerah
+      }, 
       orderBy: { checkInTime: "asc" } 
     });
 
-    // 3. Otomatis "Panggil" ke meja CS
     if (nextInQueue) {
       await prisma.visitorLog.update({
         where: { id: nextInQueue.id },
