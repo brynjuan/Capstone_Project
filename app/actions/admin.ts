@@ -25,6 +25,20 @@ const nullableString = (value: FormDataEntryValue | null) => {
   return text.length > 0 ? text : null;
 };
 
+// 👇 FUNGSI BARU: Pemilih Chat ID Telegram Berdasarkan Daerah 👇
+const getTelegramChatId = (region: string | null, isAtasan: boolean = false) => {
+  const cleanRegion = (region || "Palu").toUpperCase();
+  if (isAtasan) {
+    if (cleanRegion === "GORONTALO") return process.env.TELEGRAM_CHAT_ID_ATASAN_GORONTALO || process.env.TELEGRAM_CHAT_ID_ATASAN;
+    if (cleanRegion === "PALU") return process.env.TELEGRAM_CHAT_ID_ATASAN_PALU || process.env.TELEGRAM_CHAT_ID_ATASAN;
+    return process.env.TELEGRAM_CHAT_ID_ATASAN;
+  } else {
+    if (cleanRegion === "GORONTALO") return process.env.TELEGRAM_CHAT_ID_GORONTALO || process.env.TELEGRAM_CHAT_ID;
+    if (cleanRegion === "PALU") return process.env.TELEGRAM_CHAT_ID_PALU || process.env.TELEGRAM_CHAT_ID;
+    return process.env.TELEGRAM_CHAT_ID;
+  }
+};
+
 // ============================================================================
 // FUNGSI MANIPULASI DATA (WRITE / UPDATE / DELETE)
 // ============================================================================
@@ -75,7 +89,8 @@ export async function completeVisit(formData: FormData) {
 
   // 3. --- NOTIFIKASI TELEGRAM OTOMATIS MENUJU GRUP ATASAN ---
   const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-  const TELEGRAM_CHAT_ID_ATASAN = process.env.TELEGRAM_CHAT_ID_ATASAN; 
+  // 👇 PANGGIL FUNGSI PEMILIH GRUP MANAJER SESUAI DAERAH KIOSK 👇
+  const TELEGRAM_CHAT_ID_ATASAN = getTelegramChatId(updatedVisitor.region, true); 
   
   if (TELEGRAM_BOT_TOKEN && TELEGRAM_CHAT_ID_ATASAN) {
     const now = new Date();

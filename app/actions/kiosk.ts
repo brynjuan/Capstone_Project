@@ -25,6 +25,20 @@ export async function checkKioskAuthAction() {
   return session;
 }
 
+// 👇 FUNGSI BARU: Pemilih Chat ID Telegram Berdasarkan Daerah 👇
+const getTelegramChatId = (region: string | null, isAtasan: boolean = false) => {
+  const cleanRegion = (region || "Palu").toUpperCase();
+  if (isAtasan) {
+    if (cleanRegion === "GORONTALO") return process.env.TELEGRAM_CHAT_ID_ATASAN_GORONTALO || process.env.TELEGRAM_CHAT_ID_ATASAN;
+    if (cleanRegion === "PALU") return process.env.TELEGRAM_CHAT_ID_ATASAN_PALU || process.env.TELEGRAM_CHAT_ID_ATASAN;
+    return process.env.TELEGRAM_CHAT_ID_ATASAN;
+  } else {
+    if (cleanRegion === "GORONTALO") return process.env.TELEGRAM_CHAT_ID_GORONTALO || process.env.TELEGRAM_CHAT_ID;
+    if (cleanRegion === "PALU") return process.env.TELEGRAM_CHAT_ID_PALU || process.env.TELEGRAM_CHAT_ID;
+    return process.env.TELEGRAM_CHAT_ID;
+  }
+};
+
 // ============================================================================
 // 1. FUNGSI OCR KTP (GOOGLE VISION API)
 // ============================================================================
@@ -184,7 +198,9 @@ export async function submitVisitorData(formData: any, photoBase64: string | nul
 
     // 4. PROSES UPLOAD R2 & TELEGRAM SECARA PARALEL
     const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN; 
-    const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
+    
+    // 👇 PANGGIL FUNGSI PEMILIH GRUP CS SESUAI DAERAH KIOSK 👇
+    const TELEGRAM_CHAT_ID = getTelegramChatId(currentRegion, false);
 
     let r2Task: Promise<any> = Promise.resolve();
     let telegramTask: Promise<any> = Promise.resolve();
@@ -331,7 +347,9 @@ export async function confirmMobileArrivalAction(inputPin: string) {
 
     // KIRIM TELEGRAM CS
     const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-    const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
+    
+    // 👇 PANGGIL FUNGSI PEMILIH GRUP CS SESUAI DAERAH KIOSK 👇
+    const TELEGRAM_CHAT_ID = getTelegramChatId(currentRegion, false);
 
     if (TELEGRAM_BOT_TOKEN && TELEGRAM_CHAT_ID) {
       const tgMessage = `🚨 <b>Pelanggan VIP Tiba (via PIN) di ${currentRegion}!</b> 🚨\n\n🏢 <b>Instansi:</b> ${updatedVisitor.institution}\n👤 <b>Nama:</b> ${updatedVisitor.fullName}\n📞 <b>No. HP:</b> ${updatedVisitor.phoneNumber}\n🎯 <b>Keperluan:</b>\n<i>${updatedVisitor.purpose}</i>`;
