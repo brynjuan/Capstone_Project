@@ -5,6 +5,7 @@ import { Search, UsersRound, Headset, CheckCircle2, PhoneCall, Clock3, RefreshCw
 import { cancelVisit, completeVisit, reopenVisit } from "../../actions/admin";
 import { formatTime, formatDate, durationSeconds, formatDurationClock, formatCompactDuration, visitorCode } from "../utils";
 import { VisitorAvatar, StatusBadge } from "./SharedUI";
+import { AdminVisitor } from "../types";
 
 export function QueueView({
   activeVisitor, activeVisitorIndex, averageWaitSeconds, connectionOk, filteredVisitors, onEdit, onNextPage, onPreviousPage, onPreview, onQueryChange, onSelectVisitor, onStatusFilterChange, page, pageSize, query, queueCapacity, queueOccupancy, queueOccupancyPercent, selectedVisitorId, statusFilter, totalPages,

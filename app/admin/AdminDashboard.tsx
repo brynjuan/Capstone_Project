@@ -11,6 +11,7 @@ import {
   BriefcaseBusiness,
   Building2,
   CheckCircle2,
+  ClipboardList, // Pastikan ini ada jika dipakai di menu
   Clock3,
   Eye,
   Headset,
@@ -34,8 +35,9 @@ import {
 } from "lucide-react";
 import { cancelVisit, completeVisit, reopenVisit, updateVisitorInfo, generateVisitorPin, clearAllPreRegisterVisitsAction } from "../actions/admin";
 import { logoutAdmin } from "../actions/auth";
-import { supabase } from "@/lib/supabase"; // Sesuaikan path jika berbeda
+import { supabase } from "@/lib/supabase"; 
 
+// Import Tipe Data & Utils
 import { AdminVisitor, AdminDashboardData } from "./types";
 import { 
   formatTime, 
@@ -48,9 +50,9 @@ import {
   visitorCode 
 } from "./utils";
 
+// Import Komponen UI yang sudah dipecah
 import { SidebarItem, Metric, StatusBadge, VisitorAvatar } from "./components/SharedUI";
-import { VisitorDetail, EditVisitorDialog } from "./components/Modals";
-
+import { VisitorDetail, EditVisitorDialog, EditField, EditTextarea } from "./components/Modals"; // Tambahkan EditField & EditTextarea jika dipakai di form PIN
 import { TrafficPanel, ProblemPanel } from "./components/Charts";
 import { 
   QueueView, 
@@ -61,6 +63,19 @@ import {
   QueueRowActions 
 } from "./components/QueueComponents";
 
+// Konstanta Kategori untuk Form Buat PIN
+const KATEGORI_KUNJUNGAN = [
+  "Laporan Gangguan",
+  "Pasang Baru (PSB)",
+  "Pindah Alamat",
+  "Ubah Paket Layanan",
+  "Cabut Layanan",
+  "Penagihan",
+  "Administrasi (SPJ)",
+  "Pemeliharaan Kabel",
+  "Kunjungan Dinas",
+  "Lainnya"
+];
 
 type Props = {
   data: AdminDashboardData;
@@ -71,11 +86,9 @@ type Props = {
   };
 };
 
-
-
 export default function AdminDashboard({ data, admin }: Props) {
   const router = useRouter();
-const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" | "pin" | "status">("dashboard");
+  const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" | "pin" | "status" | "preregister">("dashboard");
   const [trafficRange, setTrafficRange] = useState<"daily" | "monthly" | "yearly">("daily");
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"ALL" | AdminVisitor["status"]>("ALL");
@@ -88,10 +101,8 @@ const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" |
   const [generatedPin, setGeneratedPin] = useState<string | null>(null);
   const [isGeneratingPin, startGeneratingPin] = useTransition();
   const [notification, setNotification] = useState<{ show: boolean; message: string; type: "success" | "error" } | null>(null);
-  const [historyRange, setHistoryRange] = useState<"today" | "month" | "year" | "all">("today"); // 👈 TAMBAHKAN INI
+  const [historyRange, setHistoryRange] = useState<"today" | "month" | "year" | "all">("today");
 
-
-  // Fungsi pintar untuk memanggil notifikasi yang hilang otomatis dalam 3 detik
   const showNotification = (message: string, type: "success" | "error" = "success") => {
     setNotification({ show: true, message, type });
     setTimeout(() => setNotification(null), 3000); 
@@ -101,31 +112,19 @@ const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" |
   const [, setTick] = useState(0);
 
   useEffect(() => {
-    // Membuat timer yang mengubah state tick setiap 1000ms (1 detik)
     const timer = setInterval(() => {
       setTick((t) => t + 1);
     }, 1000);
-
-    // Membersihkan timer saat komponen ditutup agar tidak bocor (memory leak)
     return () => clearInterval(timer);
   }, []);
-  // 👆 SAMPAI SINI 👆
 
-useEffect(() => {
-    // Berlangganan ke semua perubahan (INSERT, UPDATE, DELETE) di tabel visitor_logs
+  useEffect(() => {
     const channel = supabase
       .channel('visitor-queue-updates')
       .on(
         'postgres_changes',
-        {
-          event: '*', 
-          schema: 'public',
-          table: 'visitor_logs', // Pastikan nama tabel persis seperti di database
-        },
-        (payload) => {
-          // Setiap kali ada data yang berubah di database, refresh halaman
-          router.refresh();
-        }
+        { event: '*', schema: 'public', table: 'visitor_logs' },
+        (payload) => { router.refresh(); }
       )
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
@@ -133,7 +132,6 @@ useEffect(() => {
         }
       });
 
-    // Cleanup koneksi agar tidak bocor saat komponen ditutup/pindah halaman
     const fallbackTimer = window.setInterval(() => {
       router.refresh();
     }, 12000);
@@ -160,8 +158,14 @@ useEffect(() => {
     [data.visitors],
   );
 
-  // Handler Hapus Semua Pending
-// Handler Hapus Semua Tamu Pre-Register (Ghost Booking)
+  const preRegisterVisitors = useMemo(() => {
+    return data.visitors
+      .filter((visitor) => visitor.status === "PRE_REGISTER")
+      .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+  }, [data.visitors]);
+
+  const totalPreRegister = preRegisterVisitors.length;
+
   const handleClearAllPreRegister = async () => {
     const isConfirmed = window.confirm(
       "Apakah Anda yakin ingin MENGHAPUS SEMUA PIN tamu yang belum datang (Pre-Register)? Tindakan ini akan menghanguskan PIN mereka."
@@ -177,20 +181,15 @@ useEffect(() => {
     }
   };
 
-const historyVisitors = useMemo(() => {
+  const historyVisitors = useMemo(() => {
     const now = new Date();
     return data.visitors
       .filter((visitor) => {
-        // 1. Pastikan hanya mengambil status SUCCESS atau CANCELLED
         if (!["SUCCESS", "CANCELLED"].includes(visitor.status)) return false;
-        
-        // 2. Jika filter "Semua Waktu" dipilih, langsung loloskan
         if (historyRange === "all") return true;
 
-        // 3. Tentukan tanggal yang akan dibandingkan (Pakai checkOutTime jika ada, jika tidak pakai checkInTime)
         const compareDate = visitor.checkOutTime ? new Date(visitor.checkOutTime) : new Date(visitor.checkInTime || 0);
 
-        // 4. Logika Filter Berdasarkan Rentang Waktu
         if (historyRange === "today") {
           return compareDate.toDateString() === now.toDateString();
         }
@@ -200,14 +199,11 @@ const historyVisitors = useMemo(() => {
         if (historyRange === "year") {
           return compareDate.getFullYear() === now.getFullYear();
         }
-        
         return true;
       })
-      // 5. Urutkan dari yang paling baru selesai
       .sort((a, b) => new Date(b.checkOutTime || 0).getTime() - new Date(a.checkOutTime || 0).getTime());
-  }, [data.visitors, historyRange]); // 👈 Pastikan historyRange masuk ke dalam array dependency ini
+  }, [data.visitors, historyRange]); 
 
-  // 👇 Bagian di bawah ini BIAKARKAN SAMA SEPERTI MILIK ANDA 👇
   const tableSource = activeView === "history" ? historyVisitors : queueVisitors;
 
   const filteredVisitors = useMemo(() => {
@@ -232,8 +228,7 @@ const historyVisitors = useMemo(() => {
     });
   }, [query, statusFilter, tableSource]);
 
-  const selectedVisitor =
-    tableSource.find((visitor) => visitor.id === selectedVisitorId) ?? filteredVisitors[0] ?? null;
+  const selectedVisitor = tableSource.find((visitor) => visitor.id === selectedVisitorId) ?? filteredVisitors[0] ?? null;
   const totalPages = Math.max(1, Math.ceil(filteredVisitors.length / pageSize));
   const visibleVisitors = filteredVisitors.slice((page - 1) * pageSize, page * pageSize);
   const activeQueueVisitor = queueVisitors.find((visitor) => visitor.status === "ON_PROGRESS") ?? queueVisitors[0] ?? null;
@@ -243,23 +238,19 @@ const historyVisitors = useMemo(() => {
   const queueCapacity = 40;
   const queueOccupancy = Math.min(queueVisitors.length, queueCapacity);
   const queueOccupancyPercent = Math.min(100, Math.round((queueOccupancy / queueCapacity) * 100));
-  const totalPreRegister = data.visitors.filter(v => v.status === "PRE_REGISTER").length;
-// 1. Waktu Tunggu Pelanggan Aktif (yang sedang dilayani saat ini)
+
   const activeVisitorWaitSeconds = activeQueueVisitor && activeQueueVisitor.serviceStartTime
     ? Math.max(0, durationSeconds(activeQueueVisitor.checkInTime, activeQueueVisitor.serviceStartTime))
     : 0;
 
-  // 2. Metrik Dinamis Riwayat (Mengikuti filter Hari/Bulan/Tahun, hanya hitung yang SUCCESS)
   const historyMetrics = useMemo(() => {
     const successOnly = historyVisitors.filter(v => v.status === "SUCCESS");
     
-    // Rata-rata Rating
     const rated = successOnly.filter(v => v.rating && v.rating > 0);
     const avgRating = rated.length > 0 
       ? (rated.reduce((acc, v) => acc + (v.rating || 0), 0) / rated.length).toFixed(1) 
       : null;
 
-    // Rata-rata Waktu Tunggu (dari Check In sampai mulai dilayani / Check Out)
     const waitSum = successOnly.reduce((acc, v) => {
       const waitTime = durationSeconds(v.checkInTime, v.serviceStartTime || v.checkOutTime);
       return acc + Math.max(0, waitTime);
@@ -269,20 +260,21 @@ const historyVisitors = useMemo(() => {
 
     return { successCount: successOnly.length, avgRating, avgWait };
   }, [historyVisitors]);
-const viewCopy = {
+
+  const viewCopy = {
     dashboard: {
       eyebrow: "Dashboard Resepsionis",
-      title: "Ringkasan Dashboard", // Tambahkan title di sini
+      title: "Ringkasan Dashboard", 
       description: "Pantau antrean, sesi layanan, dan statistik penggunaan kiosk dalam satu tampilan.",
     },
     queue: {
       eyebrow: "Manajemen Antrean",
-      title: "Antrean Kostumer", // Tambahkan title di sini
+      title: "Antrean Kostumer", 
       description: "Kostumer pertama diproses sebagai sedang dilayani, sedangkan antrean berikutnya menunggu giliran.",
     },
     history: {
       eyebrow: "Riwayat Layanan",
-      title: "Riwayat Kunjungan", // Tambahkan title di sini
+      title: "Riwayat Kunjungan", 
       description: "Daftar kostumer yang layanannya sudah diselesaikan oleh admin.",
     },
     pin: {
@@ -295,6 +287,11 @@ const viewCopy = {
       title: "Status Layanan CS",
       description: "Ubah status menjadi Sibuk/Istirahat dan berikan alasan spesifik untuk mengunci layar.",
     },
+    preregister: {
+      eyebrow: "Daftar Tunggu",
+      title: "Pre-Register & PIN",
+      description: "Tamu yang mendaftar via web/mobile dan belum melakukan check-in di Kiosk."
+    }
   }[activeView];
 
   return (
@@ -333,6 +330,13 @@ const viewCopy = {
                 setPage(1);
               }}
             />
+            {/* Menu Daftar Tunggu (Pre-Register) */}
+            <SidebarItem 
+              icon={ClipboardList} 
+              label={`Daftar Tunggu (${totalPreRegister})`} 
+              active={activeView === "preregister"} 
+              onClick={() => setActiveView("preregister")} 
+            />
             <SidebarItem
               icon={Key}
               label="Buat Pin"
@@ -369,9 +373,9 @@ const viewCopy = {
         <section className="min-w-0 px-4 py-5 sm:px-6 lg:ml-[280px] lg:px-8">
           <header className="flex flex-col gap-4 border-b border-[#f0dfdb] pb-5 xl:flex-row xl:items-center xl:justify-between">
             <div>
-              <p className="text-sm text-xl font-semibold tracking-tight text-[#b3261e]">{viewCopy.eyebrow}</p>
+              <p className="text-sm text-xl font-semibold tracking-tight text-[#b3261e]">{viewCopy?.eyebrow}</p>
               <p className="mt-2 max-w-2xl text-sm text-[#725b56]">
-                {viewCopy.description}
+                {viewCopy?.description}
               </p>
             </div>
 
@@ -391,8 +395,8 @@ const viewCopy = {
                 {data.connectionOk ? "Database Aktif" : "Database Tidak Aktif"}
               </div>
               
-{/* Tombol Sapu Bersih PIN yang tidak terpakai */}
-              {activeView === "queue" && totalPreRegister > 0 && (
+              {/* Tombol Sapu Bersih PIN yang tidak terpakai */}
+              {activeView === "preregister" && totalPreRegister > 0 && (
                 <button
                   onClick={handleClearAllPreRegister}
                   className="inline-flex h-11 items-center gap-2 rounded-xl border border-[#efc6c0] bg-[#fff0ed] px-4 text-sm font-bold text-[#b3261e] shadow-sm transition-all hover:bg-[#b3261e] hover:text-white"
@@ -440,8 +444,6 @@ const viewCopy = {
             </>
           )}
 
-  
-
           {activeView === "queue" && (
             <QueueView
               activeVisitor={activeQueueVisitor}
@@ -453,13 +455,13 @@ const viewCopy = {
               onNextPage={() => setPage((current) => Math.min(totalPages, current + 1))}
               onPreviousPage={() => setPage((current) => Math.max(1, current - 1))}
               onPreview={setPreviewPhoto}
-              onQueryChange={(value) => {
+              onQueryChange={(value: string) => {
                 setQuery(value);
                 setPage(1);
               }}
               onSelectVisitor={setSelectedVisitorId}
-              onStatusFilterChange={(value) => {
-                setStatusFilter(value);
+              onStatusFilterChange={(value: string) => {
+                setStatusFilter(value as any);
                 setPage(1);
               }}
               page={page}
@@ -475,13 +477,96 @@ const viewCopy = {
             />
           )}
 
+          {/* ======================================================== */}
+          {/* TAMPILAN DAFTAR TUNGGU (PRE-REGISTER)                      */}
+          {/* ======================================================== */}
+          {activeView === "preregister" && (
+            <div className="mt-6">
+              <section className="min-w-0 rounded-2xl border border-[#f0dfdb] bg-white p-6 shadow-[0_16px_42px_rgba(70,31,25,0.06)] backdrop-blur-2xl">
+                <div className="mb-6">
+                  <h3 className="text-xl font-bold text-[#2b211f]">Daftar Tunggu / PIN</h3>
+                  <p className="mt-1 text-sm text-[#7a625d]">
+                    Menampilkan tamu yang mendaftar via Web/Mobile atau dibuatkan PIN oleh Admin, namun belum melakukan check-in di mesin Kiosk.
+                  </p>
+                </div>
+
+                {preRegisterVisitors.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-[#e6d0cc] bg-[#fffaf9] py-16">
+                    <div className="rounded-full bg-[#fcedea] p-4"><UsersRound className="h-8 w-8 text-[#b3261e] opacity-50" /></div>
+                    <p className="mt-4 text-sm font-semibold text-[#7a625d]">Tidak ada tamu dalam daftar tunggu.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-hidden rounded-2xl border border-[#f0dfdb] shadow-[0_8px_30px_rgba(70,31,25,0.04)]">
+                    <table className="min-w-full divide-y divide-[#f0dfdb]">
+                      <thead className="bg-[#fffaf9]">
+                        <tr>
+                          <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-[#7a625d]">Nama Tamu</th>
+                          <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-[#7a625d]">Kontak & Instansi</th>
+                          <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-[#7a625d]">Keperluan</th>
+                          <th className="px-6 py-4 text-center text-xs font-bold uppercase tracking-wider text-[#7a625d]">PIN Akses</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#f0dfdb] bg-white">
+                        {preRegisterVisitors.map((visitor) => (
+                          <tr key={visitor.id} className="hover:bg-[#fffaf9] transition-colors group">
+                            <td className="whitespace-nowrap px-6 py-5">
+                              <div className="flex items-center gap-3">
+                                {visitor.photoUrl ? (
+                                  <img src={visitor.photoUrl} alt="Foto" className="h-10 w-10 rounded-full object-cover border border-[#f0dfdb]" />
+                                ) : (
+                                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#fcedea] text-[#b3261e] font-bold">
+                                    {visitorInitials(visitor.fullName)}
+                                  </div>
+                                )}
+                                <div>
+                                  <div className="font-bold text-[#2b211f] text-base">{visitor.fullName}</div>
+                                  <div className="text-xs text-[#9b8580] mt-0.5">Didaftarkan: {formatTime(visitor.createdAt)}</div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-5">
+                              <div className="text-sm font-bold text-[#2b211f]">{visitor.institution || "-"}</div>
+                              <div className="text-sm text-[#7a625d] mt-1 flex items-center gap-1">
+                                <PhoneCall className="w-3 h-3"/> {visitor.phoneNumber}
+                              </div>
+                            </td>
+                            <td className="px-6 py-5 text-sm text-[#725b56] max-w-[200px] truncate" title={visitor.purpose}>
+                              <span className="font-bold text-[#b3261e] block mb-1">{visitor.category || "Umum"}</span>
+                              {visitor.purpose}
+                            </td>
+                            <td className="whitespace-nowrap px-6 py-5 text-center">
+                              <div className="flex flex-col items-center">
+                                <span className="inline-flex items-center justify-center rounded-xl bg-[#eefbf4] px-4 py-2 text-xl font-black tracking-[0.2em] text-[#2e7d32] border border-[#cfe9dd]">
+                                  {visitor.pin}
+                                </span>
+                                <button 
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(visitor.pin || "");
+                                    showNotification("PIN disalin!", "success");
+                                  }}
+                                  className="text-xs text-[#b3261e] font-bold mt-2 opacity-0 group-hover:opacity-100 transition-opacity hover:underline"
+                                >
+                                  Salin PIN
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </section>
+            </div>
+          )}
+
           {activeView === "pin" && (
             <div className="mt-6">
               <section className="min-w-0 rounded-2xl border border-[#f0dfdb] bg-white p-6 shadow-[0_16px_42px_rgba(70,31,25,0.06)] backdrop-blur-2xl">
                 <div className="mb-6">
                   <h3 className="text-xl font-bold text-[#2b211f]">Form Pembuatan Token / PIN</h3>
                   <p className="mt-1 text-sm text-[#7a625d]">
-                    Isi data pelanggan untuk menghasilkan PIN. Kostumer dapat memasukkan PIN ini di layar Kiosk untuk mempercepat proses pendaftaran tanpa harus mengetik ulang.
+                    Isi data pelanggan untuk menghasilkan PIN. Kostumer dapat memasukkan PIN ini di layar Kiosk untuk mempercepat proses pendaftaran.
                   </p>
                 </div>
 
@@ -493,7 +578,6 @@ const viewCopy = {
                         const res = await generateVisitorPin(formData);
                         if (res.success && res.pin) {
                           setGeneratedPin(res.pin);
-                          // Reset form setelah berhasil
                           (document.getElementById("form-buat-pin") as HTMLFormElement)?.reset();
                         } else {
                           alert(res.error || "Gagal membuat PIN");
@@ -510,6 +594,14 @@ const viewCopy = {
                       <EditField label="Nomor Internet (IndiHome/Astinet)" name="internetNumber" defaultValue="" />
                     </div>
                     
+                    <label className="grid gap-2">
+                      <span className="text-xs font-semibold uppercase tracking-wide text-[#806762]">Kategori Kunjungan *</span>
+                      <select name="category" required className="h-11 rounded-xl border border-[#f0dfdb] bg-[#fff8f6] px-3 text-sm font-semibold text-[#2b211f] outline-none transition focus:border-[#d23a2f] focus:bg-white">
+                        <option value="">Pilih kategori...</option>
+                        {KATEGORI_KUNJUNGAN.map(kat => <option key={kat} value={kat}>{kat}</option>)}
+                      </select>
+                    </label>
+
                     <EditTextarea label="Alamat / Keterangan Tambahan" name="address" defaultValue="" rows={3} />
 
                     <div className="flex pt-2">
@@ -539,7 +631,7 @@ const viewCopy = {
                           type="button"
                           onClick={() => {
                             navigator.clipboard.writeText(generatedPin);
-                            showNotification("PIN berhasil disalin ke clipboard!", "success"); // 👈 DI SINI
+                            showNotification("PIN berhasil disalin ke clipboard!", "success");
                           }}
                           className="mt-4 text-xs font-bold text-[#b3261e] hover:underline"
                         >
@@ -558,7 +650,7 @@ const viewCopy = {
             </div>
           )}
 
-{activeView === "status" && (
+          {activeView === "status" && (
             <div className="mt-6">
               <section className="min-w-0 rounded-2xl border border-[#f0dfdb] bg-white p-6 shadow-[0_16px_42px_rgba(70,31,25,0.06)]">
                 <div className="mb-6">
@@ -577,7 +669,7 @@ const viewCopy = {
                     
                     const { updateKioskStatus } = await import("../actions/admin");
                     const res = await updateKioskStatus(isBusy, message);
-if (res.success) {
+                    if (res.success) {
                       showNotification("Status Kiosk Berhasil Diperbarui!", "success");
                     } else {
                       showNotification("Gagal mengubah status.", "error");
@@ -620,8 +712,7 @@ if (res.success) {
             </div>
             )}
           
-
-{activeView === "history" && (
+          {activeView === "history" && (
             <>
               <div className="mt-6 grid grid-cols-3 gap-4">
                 <Metric 
@@ -651,12 +742,11 @@ if (res.success) {
                     </div>
                     <div className="flex flex-col gap-3 sm:flex-row">
                       
-                      {/* 👇 INI ADALAH DROPDOWN FILTER WAKTU BARU 👇 */}
                       <select
                         value={historyRange}
                         onChange={(event) => {
                           setHistoryRange(event.target.value as "today" | "month" | "year" | "all");
-                          setPage(1); // Reset halaman ke 1 saat filter berubah
+                          setPage(1); 
                         }}
                         className="h-11 rounded-xl border border-[#f0dfdb] bg-[#fff7f5] px-3 text-sm font-bold text-[#b3261e] outline-none focus:border-[#d23a2f]"
                       >
@@ -753,7 +843,7 @@ if (res.success) {
                         {activeView === "history" && (
                           <td className="px-5 py-4 text-center">
                             {visitor.rating ? (
-                              <div className="flex items-center gap-1">
+                              <div className="flex items-center justify-center gap-1">
                                 {(() => {
                                   const ratingValue = Math.floor(visitor.rating);
                                   return [...Array(5)].map((_, i) => (
@@ -933,7 +1023,7 @@ if (res.success) {
             <VisitorDetail
               selectedVisitor={detailVisitor}
               onPreview={setPreviewPhoto}
-              onEdit={(visitor) => {
+              onEdit={(visitor: AdminVisitor) => {
                 setDetailVisitor(null);
                 setEditingVisitor(visitor);
               }}
@@ -943,13 +1033,12 @@ if (res.success) {
         </div>
       )}
       
-
-{editingVisitor && (
+      {editingVisitor && (
         <EditVisitorDialog
           visitor={editingVisitor}
           isSaving={isSavingVisitor}
           onClose={() => setEditingVisitor(null)}
-          onSubmit={(formData) => {
+          onSubmit={(formData: FormData) => {
             startSavingVisitor(() => {
               void updateVisitorInfo(formData).then(() => {
                 setEditingVisitor(null);
@@ -960,7 +1049,7 @@ if (res.success) {
         />
       )}
 
-{/* ===== TOAST NOTIFICATION MODERN ===== */}
+      {/* ===== TOAST NOTIFICATION MODERN ===== */}
       {notification && (
         <div className={`fixed top-8 left-1/2 -translate-x-1/2 z-[999] flex items-center gap-3 rounded-2xl px-6 py-4 text-white shadow-[0_15px_40px_rgba(0,0,0,0.2)] transition-all animate-in slide-in-from-top-8 fade-in duration-300 ${
           notification.type === "success" 
@@ -977,790 +1066,5 @@ if (res.success) {
       )}
       
     </main>
-  );
-}
-
-function QueueView({
-  activeVisitor,
-  activeVisitorIndex,
-  averageWaitSeconds,
-  connectionOk,
-  filteredVisitors,
-  onEdit,
-  onNextPage,
-  onPreviousPage,
-  onPreview,
-  onQueryChange,
-  onSelectVisitor,
-  onStatusFilterChange,
-  page,
-  pageSize,
-  query,
-  queueCapacity,
-  queueOccupancy,
-  queueOccupancyPercent,
-  selectedVisitorId,
-  statusFilter,
-  totalPages,
-  visibleVisitors,
-}: {
-  activeVisitor: AdminVisitor | null;
-  activeVisitorIndex: number;
-  averageWaitSeconds: number;
-  connectionOk: boolean;
-  filteredVisitors: AdminVisitor[];
-  onEdit: (visitor: AdminVisitor) => void;
-  onNextPage: () => void;
-  onPreviousPage: () => void;
-  onPreview: (visitor: AdminVisitor) => void;
-  onQueryChange: (value: string) => void;
-  onSelectVisitor: (id: string) => void;
-  onStatusFilterChange: (value: "ALL" | AdminVisitor["status"]) => void;
-  page: number;
-  pageSize: number;
-  query: string;
-  queueCapacity: number;
-  queueOccupancy: number;
-  queueOccupancyPercent: number;
-  selectedVisitorId: string;
-  statusFilter: "ALL" | AdminVisitor["status"];
-  totalPages: number;
-  visibleVisitors: AdminVisitor[];
-}) {
-  const queueStatusOptions = [
-    { value: "ALL" as const, label: "Semua" },
-    { value: "ON_PROGRESS" as const, label: "Dilayani" },
-    { value: "PENDING" as const, label: "Menunggu" },
-  ];
-  const showingFrom = filteredVisitors.length > 0 ? (page - 1) * pageSize + 1 : 0;
-  const showingTo = Math.min(page * pageSize, filteredVisitors.length);
-
-  return (
-    <div className="mt-6 space-y-5">
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_390px]">
-        <QueueActiveSessionCard
-          visitor={activeVisitor}
-          visitorIndex={activeVisitorIndex}
-          onPreview={onPreview}
-        />
-        <QueueStatsCard
-          averageWaitSeconds={averageWaitSeconds}
-          connectionOk={connectionOk}
-          queueCapacity={queueCapacity}
-          queueOccupancy={queueOccupancy}
-          queueOccupancyPercent={queueOccupancyPercent}
-        />
-      </div>
-
-      <section className="relative overflow-hidden rounded-2xl border border-[#f0dfdb] bg-white shadow-[0_18px_48px_rgba(70,31,25,0.07)]">
-        <div className="flex flex-col gap-4 border-b border-[#f4e7e3] px-4 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <h3 className="text-xl font-semibold tracking-tight text-[#3b302d]">Daftar Antrean</h3>
-          </div>
-
-          <div className="flex flex-col gap-3 md:flex-row md:items-center">
-            <label className="relative block md:w-[320px]">
-              <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9b8580]" />
-              <input
-                value={query}
-                onChange={(event) => onQueryChange(event.target.value)}
-                placeholder="Cari kostumer..."
-                className="h-11 w-full rounded-xl border border-[#fae1dc] bg-[#fff3f1] pl-10 pr-3 text-sm font-semibold text-[#3b302d] outline-none transition placeholder:text-[#b29d98] focus:border-[#d23a2f] focus:bg-white"
-              />
-            </label>
-
-            <div className="grid h-11 grid-cols-3 rounded-xl bg-[#fff3f1] p-1 text-xs font-black text-[#7a625d] md:w-[290px]">
-              {queueStatusOptions.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => onStatusFilterChange(option.value)}
-                  className={`rounded-lg transition ${
-                    statusFilter === option.value
-                      ? "bg-white text-[#b3261e] shadow-[0_8px_20px_rgba(70,31,25,0.08)]"
-                      : "hover:bg-white/70 hover:text-[#b3261e]"
-                  }`}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-
-            <button
-              type="button"
-              title="Filter lanjutan"
-              aria-label="Filter lanjutan"
-              className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[#f0dfdb] bg-white text-[#6f5752] transition hover:bg-[#fff3f1] hover:text-[#b3261e]"
-            >
-              <SlidersHorizontal className="h-5 w-5" />
-            </button>
-          </div>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px] text-left text-sm">
-            <thead className="border-b border-[#f4e7e3] bg-[#fffaf9] text-[11px] font-black uppercase tracking-[0.16em] text-[#9b8580]">
-              <tr>
-                <th className="px-6 py-4 text-center">Tamu</th>
-                <th className="px-6 py-4 text-center">Instansi</th>
-                <th className="px-6 py-4 text-center">Kategori</th>
-                <th className="px-6 py-4 text-center">Waktu Kedatangan</th>
-                <th className="px-6 py-4 text-center">Status</th>
-                <th className="px-6 py-4 text-center">Aksi</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#f8eeeb]">
-              {visibleVisitors.map((visitor, index) => {
-                const globalIndex = (page - 1) * pageSize + index;
-
-                return (
-                  <tr
-                    key={visitor.id}
-                    onClick={() => onSelectVisitor(visitor.id)}
-                    className={`cursor-pointer transition hover:bg-[#fff7f5] ${
-                      selectedVisitorId === visitor.id ? "bg-[#fff2ef]" : ""
-                    }`}
-                  >
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <VisitorAvatar visitor={visitor} size="sm" onPreview={onPreview} />
-                        <div className="min-w-0">
-                          <div className="truncate font-black text-[#3b302d]">{visitor.fullName}</div>
-                          <div className="mt-0.5 text-xs font-bold text-[#9b8580]">
-                            {visitorCode(visitor, globalIndex)}
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 font-semibold text-[#7a625d] text-center">
-                      {visitor.institution || "Instansi belum diisi"}
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <QueueCategoryLabel category={visitor.category} />
-                    </td>
-                    <td className="px-6 py-4 font-bold text-[#7a625d] text-center">{formatTime(visitor.checkInTime)}</td>
-                    <td className="px-6 py-4 text-center">
-                      <QueueStatusBadge status={visitor.status} />
-                    </td>
-                    <td className="px-6 py-4">
-                      <QueueRowActions visitor={visitor} onEdit={onEdit} />
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-
-        {filteredVisitors.length === 0 && (
-          <div className="px-5 py-14 text-center">
-            <UsersRound className="mx-auto h-10 w-10 text-[#bba5a0]" />
-            <p className="mt-3 font-bold text-[#6f5752]">Belum ada antrean sesuai filter.</p>
-            <p className="text-sm text-[#806762]">Coba ubah pencarian atau status kunjungan.</p>
-          </div>
-        )}
-
-        {filteredVisitors.length > 0 && (
-          <div className="flex flex-col gap-3 border-t border-[#f0dfdb] px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm font-semibold text-[#806762]">
-              Menampilkan {showingFrom}-{showingTo} dari {filteredVisitors.length} data
-            </p>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={onPreviousPage}
-                disabled={page === 1}
-                className="h-9 rounded-lg border border-[#f0dfdb] px-3 text-sm font-bold text-[#6f5752] transition hover:bg-[#fff3f0] disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                Sebelumnya
-              </button>
-              <span className="min-w-16 text-center text-sm font-bold text-[#6f5752]">
-                {page} / {totalPages}
-              </span>
-              <button
-                type="button"
-                onClick={onNextPage}
-                disabled={page === totalPages}
-                className="h-9 rounded-lg border border-[#f0dfdb] px-3 text-sm font-bold text-[#6f5752] transition hover:bg-[#fff3f0] disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                Berikutnya
-              </button>
-            </div>
-          </div>
-        )}
-
-        <Link
-          href="/"
-          title="Tambah kostumer"
-          aria-label="Tambah kostumer"
-          className="absolute bottom-5 right-5 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-[#b3261e] text-white shadow-[0_18px_32px_rgba(179,38,30,0.3)] transition hover:bg-[#cf3429]"
-        >
-          <Plus className="h-7 w-7" />
-        </Link>
-      </section>
-    </div>
-  );
-}
-
-function QueueActiveSessionCard({
-  visitor,
-  visitorIndex,
-  onPreview,
-}: {
-  visitor: AdminVisitor | null;
-  visitorIndex: number;
-  onPreview: (visitor: AdminVisitor) => void;
-}) {
-  if (!visitor) {
-    return (
-      <section className="rounded-2xl border border-[#f0dfdb] bg-white p-7 shadow-[0_18px_48px_rgba(70,31,25,0.07)]">
-        <div className="inline-flex rounded-lg bg-[#fff0ed] px-3 py-1 text-xs font-black uppercase text-[#b3261e]">
-          Sesi Aktif
-        </div>
-        <div className="mt-8 flex min-h-48 flex-col items-center justify-center rounded-xl border border-dashed border-[#f0dfdb] bg-[#fffaf9] text-center">
-          <Headset className="h-10 w-10 text-[#bba5a0]" />
-          <p className="mt-3 text-lg font-black text-[#3b302d]">Tidak ada sesi aktif</p>
-          <p className="mt-1 text-sm font-semibold text-[#8b7671]">Kostumer berikutnya akan tampil setelah mulai dilayani.</p>
-        </div>
-      </section>
-    );
-  }
-
-  const servingSeconds = durationSeconds(visitor.serviceStartTime || visitor.checkInTime);
-  const canComplete = visitor.status === "ON_PROGRESS";
-
-  return (
-    <section className="rounded-2xl border border-[#f0dfdb] bg-white p-5 shadow-[0_18px_48px_rgba(70,31,25,0.07)] sm:p-7">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <span className="inline-flex rounded-lg bg-[#fff0ed] px-3 py-1 text-xs font-black uppercase text-[#b3261e]">
-            Sesi Aktif
-          </span>
-          <h3 className="mt-3 text-2xl font-semibold tracking-tight text-[#332926]">
-            Antrean {visitorCode(visitor, visitorIndex)}
-          </h3>
-        </div>
-        <div className="text-right">
-          <p className="text-xs font-black text-[#8b7671]">Durasi Layanan</p>
-          <p className="mt-1 text-2xl font-black tabular-nums text-[#b3261e]">{formatDurationClock(servingSeconds)}</p>
-        </div>
-      </div>
-
-      <div className="mt-7 flex flex-col gap-4 sm:flex-row sm:items-center">
-        <VisitorAvatar visitor={visitor} size="lg" onPreview={onPreview} />
-        <div className="min-w-0">
-          <h4 className="truncate text-lg font-black text-[#3b302d]">{visitor.fullName}</h4>
-          <p className="mt-1 text-sm font-bold text-[#7a625d]">
-            {visitor.institution || "Instansi belum diisi"}
-          </p>
-          <div className="mt-3 flex flex-wrap gap-3 text-xs font-bold text-[#7a625d]">
-            <span className="inline-flex items-center gap-1.5">
-              <BriefcaseBusiness className="h-3.5 w-3.5 text-[#3f6fb5]" />
-              {visitor.category || "Umum"}
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <Clock3 className="h-3.5 w-3.5 text-[#8b7671]" />
-              Datang pukul {formatTime(visitor.checkInTime)}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      <div className="my-6 h-px bg-[#f5e8e4]" />
-
-      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_150px]">
-        <form action={completeVisit}>
-          <input type="hidden" name="id" value={visitor.id} />
-          <button
-            type="submit"
-            disabled={!canComplete}
-            className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#b3261e] text-sm font-black text-white shadow-[0_16px_28px_rgba(179,38,30,0.24)] transition hover:bg-[#cf3429] disabled:cursor-not-allowed disabled:bg-[#d8c2bd] disabled:shadow-none"
-          >
-            <CheckCircle2 className="h-5 w-5" />
-            Tandai selesai
-          </button>
-        </form>
-
-        <Link
-          href="/admin/live"
-          title="Bantuan live"
-          aria-label="Bantuan live"
-          className="inline-flex h-12 items-center justify-center rounded-xl border-2 border-[#d9b8b2] bg-white text-[#7a625d] transition hover:border-[#b3261e] hover:bg-[#fff3f1] hover:text-[#b3261e]"
-        >
-          <PhoneCall className="h-5 w-5" />
-        </Link>
-      </div>
-    </section>
-  );
-}
-
-function QueueStatsCard({
-  averageWaitSeconds,
-  connectionOk,
-  queueCapacity,
-  queueOccupancy,
-  queueOccupancyPercent,
-}: {
-  averageWaitSeconds: number;
-  connectionOk: boolean;
-  queueCapacity: number;
-  queueOccupancy: number;
-  queueOccupancyPercent: number;
-}) {
-  return (
-    <section className="rounded-2xl border border-[#f0dfdb] bg-white p-5 shadow-[0_18px_48px_rgba(70,31,25,0.07)] sm:p-7">
-      <h3 className="text-lg font-black text-[#3b302d]">Ringkasan Cepat</h3>
-
-      <div className="mt-5 space-y-3">
-        <div className="rounded-xl bg-[#fff0ed] p-4">
-          <div className="flex items-end justify-between gap-3">
-            <div>
-              <p className="text-xs font-black text-[#7a625d]">Waktu Tunggu (Pelanggan Aktif)</p>
-              <p className="mt-1 text-2xl font-black text-[#3f6fb5]">{formatCompactDuration(averageWaitSeconds)}</p>
-            </div>
-            {averageWaitSeconds < 5 ? (
-              <span className="text-xs font-black text-[#62b47d]">Langsung</span>
-            ) : (
-              <span className="text-xs font-black text-[#b07926]">Menunggu</span>
-            )}
-          </div>
-        </div>
-
-        <div className="rounded-xl bg-[#fff7f4] p-4">
-          <p className="text-xs font-black text-[#7a625d]">Kapasitas Antrean</p>
-          <div className="mt-2 flex items-center gap-4">
-            <p className="text-2xl font-black text-[#3b302d]">
-              {queueOccupancy}/{queueCapacity}
-            </p>
-            <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-[#e5bcb5]">
-              <div
-                className="h-full rounded-full bg-[#b3261e]"
-                style={{ width: `${queueOccupancyPercent}%` }}
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="rounded-xl bg-[#f8ded9] p-4">
-          <p className="text-xs font-black text-[#7a625d]">Kondisi Sistem</p>
-          <div className="mt-2 flex items-center gap-2 text-sm font-black text-[#3b302d]">
-            <span className={`h-2.5 w-2.5 rounded-full ${connectionOk ? "bg-[#62b47d]" : "bg-[#f2ae3f]"}`} />
-            {connectionOk ? "Semua layanan beroperasi" : "Basis data tidak aktif"}
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-
-function QueueCategoryLabel({ category }: { category: string | null }) {
-  return (
-    <span className="inline-flex items-center gap-2 text-xs font-black text-[#3f6fb5]">
-      <span className="h-1.5 w-1.5 rounded-full bg-[#3f6fb5]" />
-      {category || "Umum"}
-    </span>
-  );
-}
-
-function QueueStatusBadge({ status }: { status: AdminVisitor["status"] }) {
-  if (status === "ON_PROGRESS") {
-    return (
-      <span className="inline-flex items-center gap-1.5 rounded-full bg-[#e8edff] px-3 py-1 text-xs font-black text-[#5865d9]">
-        <RefreshCw className="h-3 w-3" />
-        Sedang Dilayani
-      </span>
-    );
-  }
-
-  if (status === "PENDING") {
-    return (
-      <span className="inline-flex items-center gap-1.5 rounded-full bg-[#fff3d9] px-3 py-1 text-xs font-black text-[#c88717]">
-        <Clock3 className="h-3 w-3" />
-        Menunggu
-      </span>
-    );
-  }
-
-  return <StatusBadge status={status} />;
-}
-
-function QueueRowActions({
-  visitor,
-  onEdit,
-}: {
-  visitor: AdminVisitor;
-  onEdit: (visitor: AdminVisitor) => void;
-}) {
-  return (
-    <div className="flex items-center justify-end gap-2">
-      <button
-        type="button"
-        title="Edit kostumer"
-        aria-label="Edit kostumer"
-        onClick={(event) => {
-          event.stopPropagation();
-          onEdit(visitor);
-        }}
-        className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-[#b3261e] transition hover:bg-[#fff0ed]"
-      >
-        <Pencil className="h-4 w-4" />
-      </button>
-
-      {["PENDING", "ON_PROGRESS"].includes(visitor.status) && (
-        <form action={cancelVisit}>
-          <input type="hidden" name="id" value={visitor.id} />
-          <button
-            type="submit"
-            title="Batalkan"
-            aria-label="Batalkan"
-            onClick={(event) => event.stopPropagation()}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-[#b3261e] transition hover:bg-[#fff0ed] hover:text-[#7a625e]"
-          >
-            <Ban className="h-4 w-4" />
-          </button>
-        </form>
-      )}
-    </div>
-  );
-}
-
-function TrafficPanel({
-  activeRange,
-  onRangeChange,
-  dailyData,
-  monthlyData,
-  yearlyData,
-}: {
-  activeRange: "daily" | "monthly" | "yearly";
-  onRangeChange: (range: "daily" | "monthly" | "yearly") => void;
-  dailyData: Array<{ label: string; value: number }>;
-  monthlyData: Array<{ label: string; value: number }>;
-  yearlyData: Array<{ label: string; value: number }>;
-}) {
-  const rangeOptions = [
-    { value: "daily", label: "Harian", data: dailyData },
-    { value: "monthly", label: "Bulanan", data: monthlyData },
-    { value: "yearly", label: "Tahunan", data: yearlyData },
-  ] as const;
-  const data = rangeOptions.find((option) => option.value === activeRange)?.data ?? dailyData;
-  const chartWidth = 760;
-  const chartHeight = 260;
-  const paddingX = 30;
-  const paddingTop = 26;
-  const paddingBottom = 42;
-  const maxValue = Math.max(1, ...data.map((item) => item.value));
-  const xStep = data.length > 1 ? (chartWidth - paddingX * 2) / (data.length - 1) : 0;
-  const xFor = (index: number) => paddingX + xStep * index;
-  const yFor = (value: number) =>
-    chartHeight - paddingBottom - (value / maxValue) * (chartHeight - paddingTop - paddingBottom);
-  const points = data.map((item, index) => ({ ...item, x: xFor(index), y: yFor(item.value) }));
-  const linePath = points
-    .map((point, index) => {
-      if (index === 0) return `M ${point.x} ${point.y}`;
-
-      const previous = points[index - 1];
-      const controlOffset = xStep * 0.45;
-      return `C ${previous.x + controlOffset} ${previous.y}, ${point.x - controlOffset} ${point.y}, ${point.x} ${point.y}`;
-    })
-    .join(" ");
-
-  return (
-    <section className="rounded-2xl border border-[#f0dfdb] bg-white p-5 shadow-[0_16px_42px_rgba(70,31,25,0.06)] backdrop-blur-2xl">
-      <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h3 className="text-lg font-bold">Statistik Kunjungan</h3>
-        </div>
-        <div className="grid h-12 grid-cols-3 rounded-xl bg-[#fdebe7] p-1 text-sm font-bold text-[#6f5752] sm:w-[340px]">
-          {rangeOptions.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              onClick={() => onRangeChange(option.value)}
-              className={`rounded-lg transition ${
-                activeRange === option.value
-                  ? "bg-white text-[#b3261e] shadow-[0_8px_18px_rgba(70,31,25,0.08)]"
-                  : "hover:bg-white/45 hover:text-[#b3261e]"
-              }`}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="mt-6 h-72">
-        {data.length > 0 ? (
-          <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="h-full w-full" role="img">
-            {points.map((point) => (
-              <line
-                key={`traffic-guide-${point.label}`}
-                x1={point.x}
-                x2={point.x}
-                y1={paddingTop + 12}
-                y2={chartHeight - paddingBottom + 18}
-                stroke="#f4e3df"
-                strokeWidth="4"
-                strokeLinecap="round"
-              />
-            ))}
-
-            <path
-              d={linePath}
-              fill="none"
-              stroke="#b3261e"
-              strokeWidth="7"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-
-            {points.map((point) => (
-              <g key={`traffic-point-${point.label}`}>
-                <circle cx={point.x} cy={point.y} r="8" fill="#b3261e" />
-                <text
-                  x={point.x}
-                  y={chartHeight - 10}
-                  textAnchor="middle"
-                  className="fill-[#a8918c] text-[13px] font-bold"
-                >
-                  {point.label}
-                </text>
-                <text
-                  x={point.x}
-                  y={Math.max(18, point.y - 16)}
-                  textAnchor="middle"
-                  className="fill-[#b3261e] text-[13px] font-bold"
-                >
-                  {point.value}
-                </text>
-              </g>
-            ))}
-          </svg>
-        ) : (
-          <div className="flex h-full w-full items-center justify-center text-sm text-[#806762]">
-            Belum ada data statistik.
-          </div>
-        )}
-      </div>
-    </section>
-  );
-}
-
-function CategoryChart({
-  categories,
-}: {
-  categories: AdminDashboardData["categories"];
-}) {
-  const colors = ["#b3261e", "#e4a63a", "#62b47d", "#5865d9", "#a05aa6"];
-  const total = categories.reduce((sum, item) => sum + item.count, 0);
-  const radius = 72;
-  const circumference = 2 * Math.PI * radius;
-  const chartSegments = categories.reduce<{
-    offset: number;
-    segments: Array<{
-      dashArray: string;
-      dashOffset: number;
-      item: AdminDashboardData["categories"][number];
-      stroke: string;
-    }>;
-  }>(
-    (accumulator, item, index) => {
-      const segment = total > 0 ? (item.count / total) * circumference : 0;
-
-      return {
-        offset: accumulator.offset + segment,
-        segments: [
-          ...accumulator.segments,
-          {
-            dashArray: `${segment} ${circumference - segment}`,
-            dashOffset: -accumulator.offset,
-            item,
-            stroke: colors[index % colors.length],
-          },
-        ],
-      };
-    },
-    { offset: 0, segments: [] },
-  ).segments;
-
-  return (
-    <section className="rounded-2xl border border-[#f0dfdb] bg-white p-5 shadow-[0_16px_42px_rgba(70,31,25,0.06)] backdrop-blur-2xl">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h3 className="text-lg font-bold text-[#2b211f]">Kategori Teratas</h3>
-          <p className="mt-1 text-sm text-[#806762]">Distribusi kategori kunjungan.</p>
-        </div>
-        <div className="rounded-xl bg-[#fff0ed] px-3 py-2 text-sm font-bold text-[#b3261e]">
-          {total}
-        </div>
-      </div>
-
-      {categories.length > 0 && total > 0 ? (
-        <div className="mt-5">
-          <div className="relative mx-auto aspect-square max-w-[260px]">
-            <svg viewBox="0 0 220 220" className="h-full w-full -rotate-90" role="img">
-              <circle
-                cx="110"
-                cy="110"
-                r={radius}
-                fill="none"
-                stroke="#fff0ed"
-                strokeWidth="28"
-              />
-              {chartSegments.map(({ dashArray, dashOffset, item, stroke }) => {
-                return (
-                  <circle
-                    key={item.name}
-                    cx="110"
-                    cy="110"
-                    r={radius}
-                    fill="none"
-                    stroke={stroke}
-                    strokeWidth="28"
-                    strokeDasharray={dashArray}
-                    strokeDashoffset={dashOffset}
-                    strokeLinecap="round"
-                  />
-                );
-              })}
-            </svg>
-            <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-              <span className="text-4xl font-bold text-[#2b211f]">{total}</span>
-              <span className="text-xs font-semibold uppercase tracking-wide text-[#806762]">Kunjungan</span>
-            </div>
-          </div>
-
-          <div className="mt-5 grid gap-2">
-            {categories.map((item, index) => (
-              <div key={item.name} className="grid grid-cols-[1fr_auto] items-center gap-3 text-sm">
-                <div className="flex min-w-0 items-center gap-2">
-                  <span
-                    className="h-3 w-3 rounded-full"
-                    style={{ backgroundColor: colors[index % colors.length] }}
-                  />
-                  <span className="truncate font-semibold text-[#725b56]">{item.name}</span>
-                </div>
-                <span className="font-bold text-[#2b211f]">{item.count}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : (
-        <div className="mt-5 flex h-64 items-center justify-center rounded-xl border border-[#f0dfdb] bg-[#fff8f6] text-sm text-[#806762]">
-          Grafik kategori akan muncul setelah data tersedia.
-        </div>
-      )}
-    </section>
-  );
-}
-
-function ProblemPanel({
-  series,
-}: {
-  series: AdminDashboardData["categoryMonthlySeries"];
-}) {
-  const chartWidth = 640;
-  const chartHeight = 220;
-  const padding = 28;
-  const colors = ["#b3261e", "#5865d9", "#62b47d", "#e4a63a", "#a05aa6"];
-  const labels = series[0]?.data.map((item) => item.label) ?? [];
-  const maxValue = Math.max(1, ...series.flatMap((item) => item.data.map((point) => point.value)));
-  const xStep = labels.length > 1 ? (chartWidth - padding * 2) / (labels.length - 1) : 0;
-  const yFor = (value: number) =>
-    chartHeight - padding - (value / maxValue) * (chartHeight - padding * 2);
-  const xFor = (index: number) => padding + xStep * index;
-
-  return (
-    <section className="rounded-2xl border border-[#f0dfdb] bg-white p-5 shadow-[0_16px_42px_rgba(70,31,25,0.06)] backdrop-blur-2xl">
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-lg font-bold">Permasalahan Paling Sering</h3>
-          <p className="mt-1 text-sm text-[#806762]">Tren kategori kunjungan dalam 6 bulan terakhir.</p>
-        </div>
-        <Activity className="h-5 w-5 text-[#b3261e]" />
-      </div>
-      <div className="mt-6">
-        {series.length > 0 ? (
-          <>
-            <div className="overflow-hidden rounded-xl border border-[#f0dfdb] bg-[#fff8f6]">
-              <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="h-64 w-full" role="img">
-                {[0, 1, 2, 3].map((line) => {
-                  const y = padding + ((chartHeight - padding * 2) / 3) * line;
-
-                  return (
-                    <line
-                      key={`grid-${line}`}
-                      x1={padding}
-                      x2={chartWidth - padding}
-                      y1={y}
-                      y2={y}
-                      stroke="#f1dfdb"
-                      strokeWidth="1"
-                    />
-                  );
-                })}
-
-                {series.map((item, itemIndex) => {
-                  const points = item.data
-                    .map((point, index) => `${xFor(index)},${yFor(point.value)}`)
-                    .join(" ");
-
-                  return (
-                    <g key={item.name}>
-                      <polyline
-                        points={points}
-                        fill="none"
-                        stroke={colors[itemIndex % colors.length]}
-                        strokeWidth="3"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                      {item.data.map((point, index) => (
-                        <circle
-                          key={`${item.name}-${point.label}`}
-                          cx={xFor(index)}
-                          cy={yFor(point.value)}
-                          r="4"
-                          fill={colors[itemIndex % colors.length]}
-                          stroke="#ffffff"
-                          strokeWidth="2"
-                        />
-                      ))}
-                    </g>
-                  );
-                })}
-
-                {labels.map((label, index) => (
-                  <text
-                    key={label}
-                    x={xFor(index)}
-                    y={chartHeight - 8}
-                    textAnchor="middle"
-                    className="fill-[#806762] text-[12px] font-bold"
-                  >
-                    {label}
-                  </text>
-                ))}
-              </svg>
-            </div>
-            <div className="mt-4 flex flex-wrap gap-3">
-              {series.map((item, index) => (
-                <div key={item.name} className="inline-flex items-center gap-2 text-sm font-semibold text-[#725b56]">
-                  <span
-                    className="h-2.5 w-2.5 rounded-full"
-                    style={{ backgroundColor: colors[index % colors.length] }}
-                  />
-                  {item.name}
-                </div>
-              ))}
-            </div>
-          </>
-        ) : (
-          <div className="flex h-64 items-center justify-center rounded-xl border border-[#f0dfdb] bg-[#fff8f6] text-sm text-[#806762]">
-            Tren kategori akan muncul setelah data kunjungan tersedia.
-          </div>
-        )}
-      </div>
-    </section>
   );
 }
