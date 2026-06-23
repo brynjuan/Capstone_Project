@@ -32,6 +32,7 @@ import {
   UsersRound,
   WifiOff,
   X,
+  ShieldAlert,
 } from "lucide-react";
 import { cancelVisit, completeVisit, reopenVisit, updateVisitorInfo, generateVisitorPin, clearAllPreRegisterVisitsAction } from "../actions/admin";
 import { logoutAdmin } from "../actions/auth";
@@ -63,6 +64,8 @@ import {
   QueueRowActions 
 } from "./components/QueueComponents";
 
+import { SuperadminPanel } from "./components/SuperadminPanel";
+
 // Konstanta Kategori untuk Form Buat PIN
 const KATEGORI_KUNJUNGAN = [
   "Laporan Gangguan",
@@ -83,12 +86,14 @@ type Props = {
     id: string;
     email: string;
     name: string;
+    role: "SUPERADMIN" | "ADMIN" | "KIOSK"; // <--- TAMBAHKAN "KIOSK" DI SINI
+    region: string | null;
   };
 };
 
 export default function AdminDashboard({ data, admin }: Props) {
   const router = useRouter();
-  const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" | "pin" | "status" | "preregister">("dashboard");
+const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" | "pin" | "status" | "preregister" | "superadmin">("dashboard");
   const [trafficRange, setTrafficRange] = useState<"daily" | "monthly" | "yearly">("daily");
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"ALL" | AdminVisitor["status"]>("ALL");
@@ -291,7 +296,14 @@ export default function AdminDashboard({ data, admin }: Props) {
       eyebrow: "Daftar Tunggu",
       title: "Pre-Register & PIN",
       description: "Tamu yang mendaftar via web/mobile dan belum melakukan check-in di Kiosk."
+    },
+    // 👇 TAMBAHKAN BLOK SUPERADMIN INI 👇
+    superadmin: {
+      eyebrow: "Manajemen Akses",
+      title: "Superadmin Panel",
+      description: "Kelola akun pengelola dan admin untuk masing-masing cabang daerah."
     }
+    // 👆 SAMPAI SINI 👆
   }[activeView];
 
   return (
@@ -357,6 +369,15 @@ export default function AdminDashboard({ data, admin }: Props) {
             />
             <SidebarItem icon={Headset} label="Bantuan Langsung" href="/admin/live" />
           </nav>
+
+          {admin.role === "SUPERADMIN" && (
+              <SidebarItem
+                icon={ShieldAlert}
+                label="Akses Superadmin"
+                active={activeView === "superadmin"}
+                onClick={() => setActiveView("superadmin")}
+              />
+            )}
 
           <div className="mt-auto">
             <form action={logoutAdmin} className="mt-4">
@@ -443,7 +464,12 @@ export default function AdminDashboard({ data, admin }: Props) {
               </div>
             </>
           )}
-
+{/* ======================================================== */}
+          {/* TAMPILAN MANAJEMEN SUPERADMIN                            */}
+          {/* ======================================================== */}
+          {activeView === "superadmin" && admin.role === "SUPERADMIN" && (
+            <SuperadminPanel showNotification={showNotification} />
+          )}
           {activeView === "queue" && (
             <QueueView
               activeVisitor={activeQueueVisitor}

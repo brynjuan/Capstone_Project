@@ -1,13 +1,17 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
+import { Role } from "@prisma/client"; // <-- Import Enum Role dari Prisma
 
 const SESSION_COOKIE = "admin_session";
-const SESSION_MAX_AGE = 60 * 60 * 8;
+const SESSION_MAX_AGE = 60 * 60 * 8; // 8 Jam
 
+// 1. Tambahkan role dan region ke dalam Payload
 type SessionPayload = {
   adminId: string;
   email: string;
+  role: Role;
+  region: string | null;
   exp: number;
 };
 
@@ -15,7 +19,6 @@ const getSecret = () =>
   process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || "dev-admin-session-secret";
 
 const base64UrlEncode = (value: string) => Buffer.from(value).toString("base64url");
-
 const base64UrlDecode = (value: string) => Buffer.from(value, "base64url").toString("utf8");
 
 const sign = (payload: string) =>
@@ -29,7 +32,6 @@ export const createAdminSessionToken = (payload: Omit<SessionPayload, "exp">) =>
     }),
   );
   const signature = sign(encodedPayload);
-
   return `${encodedPayload}.${signature}`;
 };
 
@@ -37,7 +39,6 @@ export const verifyAdminSessionToken = (token: string | undefined) => {
   if (!token) return null;
 
   const [encodedPayload, signature] = token.split(".");
-
   if (!encodedPayload || !signature) return null;
 
   const expectedSignature = sign(encodedPayload);
@@ -53,11 +54,9 @@ export const verifyAdminSessionToken = (token: string | undefined) => {
 
   try {
     const payload = JSON.parse(base64UrlDecode(encodedPayload)) as SessionPayload;
-
     if (!payload.adminId || !payload.email || payload.exp < Math.floor(Date.now() / 1000)) {
       return null;
     }
-
     return payload;
   } catch {
     return null;
@@ -96,6 +95,8 @@ export async function getAdminSession() {
         id: true,
         email: true,
         name: true,
+        role: true,     // <-- Ambil role dari DB
+        region: true,   // <-- Ambil region dari DB
       },
     });
   } catch (error) {
@@ -110,10 +111,8 @@ export async function getAdminSession() {
 
 export async function requireAdminSession() {
   const admin = await getAdminSession();
-
   if (!admin) {
     throw new Error("Unauthorized");
   }
-
   return admin;
 }

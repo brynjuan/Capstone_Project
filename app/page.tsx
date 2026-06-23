@@ -433,6 +433,23 @@ const startIdleTimer = useCallback(() => {
     }
   }, [step, reset]);
 
+  // KUNCI HALAMAN KIOSK: Jika belum login, lempar ke halaman login
+  useEffect(() => {
+    const verifyKioskAccess = async () => {
+      try {
+        const { checkKioskAuthAction } = await import("./actions/kiosk");
+        const session = await checkKioskAuthAction();
+        // Jika tidak ada sesi atau role-nya bukan KIOSK, usir ke halaman login!
+        if (!session) {
+          window.location.href = "/admin/login";
+        }
+      } catch (error) {
+        console.error("Gagal verifikasi Kiosk");
+      }
+    };
+    verifyKioskAccess();
+  }, []);
+  
 useEffect(() => {
     startIdleTimer();
     

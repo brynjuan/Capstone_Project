@@ -41,12 +41,20 @@ export async function loginAdmin(
     return { error: "Email atau kata sandi tidak sesuai." };
   }
 
+  // 👇 Tambahkan role dan region ke dalam sesi
   await setAdminSession({
     adminId: admin.id,
     email: admin.email,
+    role: admin.role,
+    region: admin.region,
   });
 
-  redirect("/admin");
+  // 👇 GANTI BAGIAN REDIRECT MENJADI INI 👇
+  if (admin.role === "KIOSK") {
+    redirect("/"); // Jika yang login adalah Kiosk, lempar ke Layar Depan
+  } else {
+    redirect("/admin"); // Jika Admin/Superadmin, lempar ke Dashboard
+  }
 }
 
 export async function logoutAdmin() {

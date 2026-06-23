@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { VisitStatus } from "@prisma/client"; // <-- PENTING: Import Enum dari Prisma
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { v4 as uuidv4 } from "uuid";
+import { getAdminSession } from "@/lib/auth";
 
 // ============================================================================
 // KONFIGURASI CLOUDFLARE R2 (S3 COMPATIBLE)
@@ -16,6 +17,13 @@ const s3 = new S3Client({
     secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
   },
 });
+
+// Fungsi verifikasi Kiosk
+export async function checkKioskAuthAction() {
+  const session = await getAdminSession();
+  if (!session || session.role !== "KIOSK") return null;
+  return session;
+}
 
 // ============================================================================
 // 1. FUNGSI OCR KTP (GOOGLE VISION API)
@@ -105,11 +113,19 @@ export async function submitVisitorRating(visitorId: string, ratingScore: number
 // ============================================================================
 // 4. FUNGSI SUBMIT DATA TAMU + LOGIKA ANTREAN CERDAS + TELEGRAM
 // ============================================================================
+// ============================================================================
+// 4. FUNGSI SUBMIT DATA TAMU + LOGIKA ANTREAN CERDAS + TELEGRAM
+// ============================================================================
 export async function submitVisitorData(formData: any, photoBase64: string | null) {
   try {
+    // 👇 1. LETAKKAN PENGECEKAN SESI DI SINI (Di awal fungsi) 👇
+    const session = await getAdminSession();
+    if (!session || !session.region) throw new Error("Kiosk tidak valid atau belum login.");
+    // 👆 ====================================================== 👆
+
     let photoUrl = null;
     let imageBuffer: Buffer | null = null; 
-    let fileName = ""; // Pindahkan deklarasi fileName ke sini agar bisa diakses di bawah
+    let fileName = ""; 
 
     // 1. SIAPKAN URL DAN BUFFER FOTO (TAPI JANGAN DI-UPLOAD DULU)
     if (photoBase64) {
@@ -127,7 +143,10 @@ export async function submitVisitorData(formData: any, photoBase64: string | nul
 
     // 3. CEK ANTREAN (SMART QUEUE)
     const activeVisitor = await prisma.visitorLog.findFirst({
-      where: { status: VisitStatus.ON_PROGRESS }
+      where: { 
+        status: VisitStatus.ON_PROGRESS,
+        region: session.region // <--- (Opsional) Cek antrean hanya untuk daerah ini
+      }
     });
 
     let initialStatus: VisitStatus = VisitStatus.PENDING;
@@ -138,7 +157,7 @@ export async function submitVisitorData(formData: any, photoBase64: string | nul
       startTime = new Date(); 
     }
 
-    // 4. SIMPAN KE DATABASE SECARA INSTAN! (Dashboard Admin akan langsung ter-trigger)
+    // 4. SIMPAN KE DATABASE SECARA INSTAN!
     let newVisitor;
 
     if (formData.pin) {
@@ -153,10 +172,11 @@ export async function submitVisitorData(formData: any, photoBase64: string | nul
           category: formData.category,
           hostName: formData.hostName || "Nita Wulandari",
           purpose: formData.purpose || "Kunjungan Umum",
-          photoUrl: photoUrl, // URL foto yang digenerate di atas dimasukkan ke sini
+          photoUrl: photoUrl,
           status: initialStatus,
           serviceStartTime: startTime,
           checkInTime: new Date(), 
+          region: session.region, // <--- 👇 TAMBAHKAN REGION DI SINI
         }
       });
     } else {
@@ -173,9 +193,12 @@ export async function submitVisitorData(formData: any, photoBase64: string | nul
           photoUrl: photoUrl, 
           status: initialStatus,
           serviceStartTime: startTime, 
+          region: session.region, // <--- 👇 DAN TAMBAHKAN REGION DI SINI JUGA
         }
       });
     }
+
+    // ... (Sisa kode Telegram dan R2 di bawahnya biarkan saja seperti semula) ...
 
 // 5. PROSES UPLOAD R2 & TELEGRAM SECARA PARALEL (Bersamaan)
     const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN; 
@@ -409,12 +432,14 @@ export async function registerMobileVisitorAction(data: any, photoBase64: string
 // ============================================================================
 export async function getKioskStatusAction() {
   try {
-    const status = await prisma.kioskSetting.findFirst(); 
+    const session = await getAdminSession();
+    if (!session || !session.region) return { isBusy: false, message: "" };
+
+    const status = await prisma.kioskSetting.findUnique({ 
+      where: { id: session.region } 
+    }); 
     
-    if (status) {
-      return { isBusy: status.isBusy, message: status.message };
-    }
-    
+    if (status) return { isBusy: status.isBusy, message: status.message };
     return { isBusy: false, message: "" }; 
   } catch (error) {
     return { isBusy: false, message: "" };

@@ -5,13 +5,28 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  // HAPUS BARIS URL DI SINI! Cukup sisakan provider saja.
 }
+
+// 1. TAMBAHKAN ENUM ROLE BARU
+enum Role {
+  SUPERADMIN
+  ADMIN
+  KIOSK
+}
+
+// ... (Biarkan sisa kode di bawahnya persis seperti sebelumnya)
 
 model Admin {
   id        String   @id @default(uuid())
   email     String   @unique
   name      String
   password  String   
+  
+  // 2. TAMBAHKAN ROLE DAN REGION (DAERAH)
+  role      Role     @default(ADMIN)
+  region    String?  @db.VarChar(100) // Contoh: "Palu", "Donggala". Jika Superadmin, ini bisa kosong/null.
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -25,14 +40,17 @@ model VisitorLog {
   fullName       String      @db.VarChar(100)  // Nama PIC (Pengunjung)
   phoneNumber    String?     @db.VarChar(20)   // Nope PIC
   institution    String?     @db.VarChar(100)  // Nama Customer / Instansi
-  internetNumber String?   @db.VarChar(50)
-  address        String?   @db.Text          // Alamat
-  category       String?   @db.VarChar(100)  // Kategori Kunjungan
-  purpose        String    @db.Text          // Maksud dan Tujuan
-  hostName       String?   @db.VarChar(100)  // Petugas yang dituju
-  photoUrl       String?   @db.Text
-  pin            String?   @unique @db.VarChar(10) // Tambahkan ini
+  internetNumber String?     @db.VarChar(50)
+  address        String?     @db.Text          // Alamat
+  category       String?     @db.VarChar(100)  // Kategori Kunjungan
+  purpose        String      @db.Text          // Maksud dan Tujuan
+  hostName       String?     @db.VarChar(100)  // Petugas yang dituju
+  photoUrl       String?     @db.Text
+  pin            String?     @unique @db.VarChar(10) // Tambahkan ini
   
+  // 3. TAMBAHKAN KOLOM REGION (DAERAH) UNTUK LOG KUNJUNGAN
+  region         String      @default("Palu") @db.VarChar(100)
+
   // ========================================================
   // SISTEM ANTREAN CERDAS (SMART QUEUE)
   status           VisitStatus @default(PENDING) // Default saat daftar adalah PENDING
@@ -59,7 +77,8 @@ enum VisitStatus {
 }
 
 model KioskSetting {
-  id        String   @id @default("global")
+  // 4. ID DISESUAIKAN UNTUK MENAMPUNG NAMA DAERAH
+  id        String   @id @default("global") // Nanti id ini akan diisi nama daerah seperti "Palu" atau "Tolitoli"
   isBusy    Boolean  @default(false)
   message   String   @db.Text
   updatedAt DateTime @updatedAt
