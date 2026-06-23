@@ -26,6 +26,10 @@ export default function MobileRegistration() {
   const { register, handleSubmit, formState: { errors }, watch } = useForm();
 
   const onSubmit = async (data: any) => {
+    if (!photoBase64) {
+      alert("Mohon sertakan Foto Kunjungan/Selfie Anda terlebih dahulu.");
+      return;
+    }
     setIsSubmitting(true);
     // Kirim data beserta foto ke server
     const result = await registerMobileVisitorAction(data, photoBase64);
@@ -44,7 +48,7 @@ export default function MobileRegistration() {
         
         {/* Header Premium Telkom */}
         <div className="bg-gradient-to-br from-red-600 to-red-800 p-8 text-white text-center rounded-b-[2.5rem] shadow-lg z-10 relative">
-          <h1 className="text-2xl font-black tracking-wide">Prapendaftaran</h1>
+          <h1 className="text-2xl font-black tracking-wide">Pendaftaran</h1>
           <p className="text-red-100 text-sm mt-2 font-medium">Telkom Witel Sulbagteng</p>
         </div>
 
@@ -59,7 +63,7 @@ export default function MobileRegistration() {
                 </div>
                 <div>
                   <label className="block text-sm font-bold text-slate-600 mb-2">Instansi / Perusahaan</label>
-                  <input {...register("institution")} className="w-full p-4 bg-slate-50 rounded-2xl outline-none border border-slate-200 focus:border-red-500 focus:ring-2 focus:ring-red-200 transition-all" placeholder="Contoh: Telkom (Opsional)" />
+                  <input {...register("institution", { required: true })} className="w-full p-4 bg-slate-50 rounded-2xl outline-none border border-slate-200 focus:border-red-500 focus:ring-2 focus:ring-red-200 transition-all" placeholder="Contoh: Telkom (Opsional)" />
                 </div>
                 <div>
                   <label className="block text-sm font-bold text-slate-600 mb-2">Nomor HP / WhatsApp <span className="text-red-500">*</span></label>
@@ -96,12 +100,12 @@ export default function MobileRegistration() {
 
                 {/* Upload Foto Elegan */}
                 <div className="mt-4 p-5 bg-red-50 border-2 border-dashed border-red-200 rounded-3xl">
-                  <label className="block text-sm font-bold text-red-700 mb-3 text-center">Foto Kunjungan (Opsional)</label>
+                  <label className="block text-sm font-bold text-red-700 mb-3 text-center">Foto Kunjungan <span className="text-red-500">*</span></label>
                   
                   {photoBase64 ? (
                     <div className="relative">
                       <img src={photoBase64} alt="Foto Kunjungan" className="w-full h-48 object-cover rounded-2xl shadow-md" />
-                      <button type="button" onClick={() => setPhotoBase64(null)} className="absolute top-3 right-3 bg-black/60 backdrop-blur-md text-white rounded-full px-4 py-2 text-xs font-bold hover:bg-black/80 transition-all">✕ Ganti Foto</button>
+                      <button type="button" onClick={() => setPhotoBase64(null)}  className="absolute top-3 right-3 bg-black/60 backdrop-blur-md text-white rounded-full px-4 py-2 text-xs font-bold hover:bg-black/80 transition-all">✕ Ganti Foto</button>
                     </div>
                   ) : (
                     <div className="relative overflow-hidden group">
@@ -125,12 +129,21 @@ export default function MobileRegistration() {
                 </div>
               </div>
 
-              <div className="flex gap-4 mt-8 pb-8">
-                <button onClick={() => setStep(1)} className="w-1/3 bg-slate-100 text-slate-600 font-bold p-4 rounded-2xl active:scale-95 transition-all">Kembali</button>
-                <button onClick={handleSubmit(onSubmit)} disabled={isSubmitting} className="w-2/3 bg-red-600 text-white font-bold p-4 rounded-2xl active:scale-95 transition-all shadow-[0_10px_20px_rgba(220,38,38,0.3)]">
-                  {isSubmitting ? "Memproses..." : "Dapatkan PIN"}
-                </button>
-              </div>
+<div className="flex gap-4 mt-8 pb-8">
+  <button onClick={() => setStep(1)} className="w-1/3 bg-slate-100 text-slate-600 font-bold p-4 rounded-2xl active:scale-95 transition-all">Kembali</button>
+  
+  <button 
+    onClick={handleSubmit(onSubmit)} 
+    disabled={isSubmitting || !photoBase64} 
+    className={`w-2/3 font-bold p-4 rounded-2xl transition-all ${
+      !photoBase64 || isSubmitting
+        ? "bg-slate-300 text-slate-500 cursor-not-allowed" // Warna abu-abu saat foto belum ada
+        : "bg-red-600 text-white active:scale-95 shadow-[0_10px_20px_rgba(220,38,38,0.3)]" // Warna merah menyala saat foto sudah diisi
+    }`}
+  >
+    {isSubmitting ? "Memproses..." : !photoBase64 ? "Foto Wajib Diisi" : "Dapatkan PIN"}
+  </button>
+</div>
             </motion.div>
           )}
 
