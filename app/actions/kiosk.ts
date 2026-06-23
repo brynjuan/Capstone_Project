@@ -405,6 +405,23 @@ export async function registerMobileVisitorAction(data: any, photoBase64: string
 }
 
 // ============================================================================
+// 6. FUNGSI CEK STATUS KIOSK (UNTUK LAYAR DEPAN)
+// ============================================================================
+export async function getKioskStatusAction() {
+  try {
+    const status = await prisma.kioskSetting.findFirst(); 
+    
+    if (status) {
+      return { isBusy: status.isBusy, message: status.message };
+    }
+    
+    return { isBusy: false, message: "" }; 
+  } catch (error) {
+    return { isBusy: false, message: "" };
+  }
+}
+
+// ============================================================================
 // 5. FUNGSI ADMIN SELESAIKAN PELAYANAN (ESTAFET OTOMATIS)
 // ============================================================================
 export async function completeAdminService(visitorId: string, finalStatus: VisitStatus, adminId?: string) {
