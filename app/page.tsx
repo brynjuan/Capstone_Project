@@ -207,11 +207,13 @@ export default function KioskPage() {
   const [isCsBusy, setIsCsBusy] = useState<boolean>(false);
   const [busyMessage, setBusyMessage] = useState<string>("");
 
-  const checkKioskLock = async () => {
-    const { getKioskStatus } = await import("./actions/admin");
-    const status = await getKioskStatus();
+const checkKioskLock = async () => {
+    // 👇 UBAH IMPORT DARI "./actions/admin" MENJADI "./actions/kiosk"
+    const { getKioskStatusAction } = await import("./actions/kiosk");
+    const status = await getKioskStatusAction();
     
-    if (status.isBusy) {
+    // Gunakan status?.isBusy (tambahkan tanda tanya agar lebih aman)
+    if (status?.isBusy) {
       setBusyMessage(status.message);
       setIsCsBusy(true);
       // Mainkan suara error agar Kiosk memberi sinyal penolakan
@@ -449,7 +451,7 @@ const startIdleTimer = useCallback(() => {
     };
     verifyKioskAccess();
   }, []);
-  
+
 useEffect(() => {
     startIdleTimer();
     
