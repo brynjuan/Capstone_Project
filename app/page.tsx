@@ -697,36 +697,30 @@ let shiftY = 0;
 
       <AnimatePresence mode="wait">
         
-{step === 0 && (
+        {step === 0 && (
           <motion.div key="idle" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 flex flex-col items-center justify-end pb-24 z-20">
-            
-            {/* 1. TOMBOL UTAMA (SENTUH LAYAR UNTUK MEMULAI) */}
-            <motion.div 
-              animate={kioskStatus?.isBusy ? {} : { scale: [1, 1.05, 1], y: [0, -10, 0] }} 
-              transition={{ repeat: Infinity, duration: 2 }} 
-              className={`px-10 py-5 backdrop-blur-lg border rounded-full text-2xl font-bold flex items-center gap-3 transition-all ${
-                kioskStatus?.isBusy 
-                  ? "bg-white/10 border-white/20 text-white/40 cursor-not-allowed" // Tampilan Terkunci
-                  : "bg-red-600/60 border-red-400/60 text-white shadow-[0_0_40px_rgba(220,38,38,0.5)] cursor-pointer" // Tampilan Normal
-              }`}
-              onClick={handleStartKiosk}
-            >
-              {kioskStatus?.isBusy ? (
-                <>🔒 Layanan Sedang Jeda</>
-              ) : (
-                <>Sentuh layar untuk memulai <ChevronRight className="w-8 h-8" /></>
-              )}
-            </motion.div>
+<motion.div 
+  animate={{ scale: [1, 1.05, 1], y: [0, -10, 0] }} 
+  transition={{ repeat: Infinity, duration: 2 }} 
+  className="px-10 py-5 
+             bg-red-600/60 backdrop-blur-lg 
+             border border-red-400/60 
+             text-white rounded-full text-2xl font-bold 
+             shadow-[0_0_40px_rgba(220,38,38,0.5)] 
+             flex items-center gap-3 cursor-pointer"
+  onClick={handleStartKiosk}
+>
+  Sentuh layar untuk memulai <ChevronRight className="w-8 h-8" />
+</motion.div>
 
-            {/* 2. TOMBOL PIN / JANJI TEMU */}
-            <div className="flex gap-4 mt-6">
+<div className="flex gap-4 mt-6">
               <motion.button 
                 onClick={() => { setShowPinInput(true); setActiveInput("vipPin"); }} 
                 disabled={kioskStatus?.isBusy}
                 className={`px-6 py-3 backdrop-blur-md border rounded-full text-lg font-semibold flex items-center gap-3 transition-all ${
                   kioskStatus?.isBusy 
-                    ? "bg-white/5 border-white/10 text-white/40 cursor-not-allowed" 
-                    : "bg-amber-500/20 border-amber-500/50 text-amber-400 hover:bg-amber-500/30"
+                    ? "bg-white/5 border-white/10 text-white/40 cursor-not-allowed" // Tampilan saat dikunci Admin
+                    : "bg-amber-500/20 border-amber-500/50 text-amber-400 hover:bg-amber-500/30" // Tampilan normal
                 }`}
               >
                 {kioskStatus?.isBusy ? (
@@ -740,6 +734,7 @@ let shiftY = 0;
             <AnimatePresence>
               {showPinInput && (
                 <motion.div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/90 backdrop-blur-md">
+                  
                   <motion.div animate={{ y: keyboardOpen && activeInput === "vipPin" ? -220 : 0 }} transition={{ type: "spring", stiffness: 300, damping: 30 }} className="bg-white/10 p-10 rounded-[40px] border border-white/20 text-center w-[400px]">
                       
                       {/* Lapis Keamanan 2: Jika Admin mengunci saat tamu sedang mengetik PIN */}
@@ -758,6 +753,7 @@ let shiftY = 0;
                           </button>
                         </div>
                       ) : (
+                        // Tampilan Input PIN Normal
                         <div className="animate-in fade-in zoom-in duration-300">
                           <h2 className="text-2xl font-bold text-white mb-6">Masukkan PIN VIP</h2>
                           <input type="password" value={vipPin} onFocus={() => { setActiveInput("vipPin"); setKeyboardOpen(true); }} onKeyDown={playBeep} onChange={(e) => { setVipPin(e.target.value); if (keyboardRef.current && activeInput === "vipPin") keyboardRef.current.setInput(e.target.value); }} className="w-full bg-white/5 border border-white/20 rounded-2xl p-4 text-white text-3xl text-center mb-6 focus:border-amber-500 outline-none transition-all" placeholder="******" inputMode="none" />
@@ -773,30 +769,19 @@ let shiftY = 0;
               )}
             </AnimatePresence>
 
-            {/* 3. TOMBOL QR SCANNER */}
-            <motion.button 
-              disabled={kioskStatus?.isBusy}
-              onClick={async (e) => { 
-                e.stopPropagation(); 
-                const locked = await checkKioskLock();
-                if (locked) return; // Hentikan fungsi jika terkunci!
-                
-                setIsScanning(true); 
-                if (scanVoiceRef.current && !isMuted) scanVoiceRef.current.play(); 
-              }} 
-              className={`mt-6 px-6 py-3 backdrop-blur-md border rounded-full text-lg font-semibold flex items-center gap-3 transition-all ${
-                kioskStatus?.isBusy 
-                  ? "bg-white/5 border-white/10 text-white/30 cursor-not-allowed" // Tampilan Terkunci
-                  : "bg-black/40 border-white/20 text-white hover:bg-black/60 cursor-pointer" // Tampilan Normal
-              }`}
-            >
-              {kioskStatus?.isBusy ? (
-                <>🔒 Pemindai QR Dinonaktifkan</>
-              ) : (
-                <><QrCode className="w-6 h-6 text-red-400" /> Punya kode QR? Pindai di sini</>
-              )}
-            </motion.button>
-
+<motion.button 
+  onClick={async (e) => { 
+    e.stopPropagation(); 
+    const locked = await checkKioskLock();
+    if (locked) return; // Hentikan fungsi jika terkunci!
+    
+    setIsScanning(true); 
+    if (scanVoiceRef.current && !isMuted) scanVoiceRef.current.play(); 
+  }} 
+  className="mt-6 px-6 py-3 bg-black/40 backdrop-blur-md border border-white/20 text-white rounded-full text-lg font-semibold flex items-center gap-3 hover:bg-black/60 transition-all cursor-pointer"
+>
+  <QrCode className="w-6 h-6 text-red-400" /> Punya kode QR? Pindai di sini
+</motion.button>
           </motion.div>
         )}
 
@@ -1052,6 +1037,7 @@ let shiftY = 0;
           <Headset className={`w-10 h-10 text-white ${kioskStatus?.isBusy ? "" : "animate-pulse group-hover:animate-none"}`} />
         </motion.button>
       )}
+
       <AnimatePresence>
         {showIntercom && (
           <motion.div initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 50 }} className="fixed inset-0 z-[300] flex items-center justify-center p-10 bg-gray-700/40 backdrop-blur-md border border-white/20 rounded-xl shadow-[0_0_30px_rgba(0,0,0,0.4)]">
