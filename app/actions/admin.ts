@@ -25,8 +25,9 @@ export async function completeVisit(formData: FormData) {
       },
     });
 
-    const nextVisitor = await tx.visitorLog.findFirst({
-      where: { status: VisitStatus.PENDING },
+const nextVisitor = await tx.visitorLog.findFirst({
+      // Hanya panggil PENDING yang region-nya sama dengan tamu yang baru selesai
+      where: { status: VisitStatus.PENDING, region: visitor.region },
       orderBy: { checkInTime: "asc" },
     });
 
@@ -227,9 +228,10 @@ export async function cancelVisit(formData: FormData) {
 
     if (visitor.status === VisitStatus.ON_PROGRESS) {
       const nextVisitor = await tx.visitorLog.findFirst({
-        where: { status: VisitStatus.PENDING },
-        orderBy: { checkInTime: "asc" },
-      });
+      // Hanya panggil PENDING yang region-nya sama dengan tamu yang baru selesai
+      where: { status: VisitStatus.PENDING, region: visitor.region },
+      orderBy: { checkInTime: "asc" },
+    });
 
       if (nextVisitor) {
         await tx.visitorLog.update({
