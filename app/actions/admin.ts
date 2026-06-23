@@ -5,28 +5,56 @@ import { prisma } from "@/lib/prisma";
 import { requireAdminSession } from "@/lib/auth";
 import { VisitStatus } from "@prisma/client";
 
-export async function completeVisit(formData: FormData) {
-  const admin = await requireAdminSession();
+// ============================================================================
+// FUNGSI HELPER KEAMANAN & FILTER DAERAH (WAJIB ADA)
+// ============================================================================
+async function getSessionAndFilter() {
+  const session = await requireAdminSession();
+  
+  // Usir akun KIOSK jika mencoba menjalankan fungsi Admin
+  if (session.role === "KIOSK") {
+    throw new Error("Akses ditolak. Mesin Kiosk tidak memiliki izin mengakses fungsi Admin.");
+  }
+  
+  const regionFilter = session.role === "SUPERADMIN" ? {} : { region: session.region || "" };
+  return { session, regionFilter };
+}
 
+const nullableString = (value: FormDataEntryValue | null) => {
+  const text = String(value || "").trim();
+  return text.length > 0 ? text : null;
+};
+
+// ============================================================================
+// FUNGSI MANIPULASI DATA (WRITE / UPDATE / DELETE)
+// ============================================================================
+
+export async function completeVisit(formData: FormData) {
+  const { session } = await getSessionAndFilter();
   const id = String(formData.get("id") || "");
 
-  if (!id) {
-    return;
+  if (!id) return;
+
+  // 1. Cek keamanan wilayah (Admin daerah lain tidak boleh menyelesaikan data ini)
+  const existingVisitor = await prisma.visitorLog.findUnique({ where: { id } });
+  if (!existingVisitor) return;
+  if (session.role === "ADMIN" && existingVisitor.region !== session.region) {
+    throw new Error("Akses ditolak. Ini bukan data wilayah Anda.");
   }
 
-  // 1. Jalankan update status dan tampung data kostumer terbaru hasil return transaction
+  // 2. Jalankan update status dan tampung data kostumer terbaru
   const updatedVisitor = await prisma.$transaction(async (tx) => {
     const visitor = await tx.visitorLog.update({
       where: { id },
       data: {
         status: VisitStatus.SUCCESS,
         checkOutTime: new Date(),
-        adminId: admin.id,
+        adminId: session.id,
       },
     });
 
-const nextVisitor = await tx.visitorLog.findFirst({
-      // Hanya panggil PENDING yang region-nya sama dengan tamu yang baru selesai
+    // Panggil antrean berikutnya KHUSUS DI DAERAH YANG SAMA
+    const nextVisitor = await tx.visitorLog.findFirst({
       where: { status: VisitStatus.PENDING, region: visitor.region },
       orderBy: { checkInTime: "asc" },
     });
@@ -45,12 +73,10 @@ const nextVisitor = await tx.visitorLog.findFirst({
     return visitor;
   });
 
-// 2. --- NOTIFIKASI TELEGRAM OTOMATIS MENUJU GRUP ATASAN ---
+  // 3. --- NOTIFIKASI TELEGRAM OTOMATIS MENUJU GRUP ATASAN ---
   const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-  const TELEGRAM_CHAT_ID_ATASAN = process.env.TELEGRAM_CHAT_ID_ATASAN; // Menggunakan grup atasan
+  const TELEGRAM_CHAT_ID_ATASAN = process.env.TELEGRAM_CHAT_ID_ATASAN; 
   
-  console.log("CEK ENV ATASAN - Token:", TELEGRAM_BOT_TOKEN ? "Ada" : "Kosong", "| Chat ID:", TELEGRAM_CHAT_ID_ATASAN);
-
   if (TELEGRAM_BOT_TOKEN && TELEGRAM_CHAT_ID_ATASAN) {
     const now = new Date();
     const waktuSelesai = new Intl.DateTimeFormat('id-ID', {
@@ -59,7 +85,6 @@ const nextVisitor = await tx.visitorLog.findFirst({
       hour: '2-digit', minute: '2-digit', second: '2-digit', timeZoneName: 'short'
     }).format(now);
 
-    // Hitung durasi pelayanan riil dari serviceStartTime hingga checkOutTime
     const start = updatedVisitor.serviceStartTime || updatedVisitor.checkInTime || now;
     const end = updatedVisitor.checkOutTime || now;
     const durationSeconds = Math.max(0, Math.floor((end.getTime() - new Date(start).getTime()) / 1000));
@@ -76,13 +101,12 @@ const nextVisitor = await tx.visitorLog.findFirst({
       }
     }
 
-    // Susun format pesan laporan untuk atasan menggunakan data terbaru dari DB
     const tgMessage = `
-📈 <b>LAPORAN KUNJUNGAN SELESAI</b> 📈
+📈 <b>LAPORAN KUNJUNGAN SELESAI (${updatedVisitor.region || "Pusat"})</b> 📈
 
 🗓 <b>Waktu Selesai:</b> ${waktuSelesai}
 ⏱ <b>Durasi Pelayanan:</b> ${durasiLayanan}
-👤 <b>Petugas CS:</b> ${admin.name}
+👤 <b>Petugas CS:</b> ${session.name}
 
 🏢 <b>Instansi:</b> ${updatedVisitor.institution || '-'}
 👤 <b>Nama Pelanggan:</b> ${updatedVisitor.fullName}
@@ -95,16 +119,13 @@ const nextVisitor = await tx.visitorLog.findFirst({
 <i>${updatedVisitor.purpose || "-"}</i>
 `;
 
-if (updatedVisitor.photoUrl) {
+    if (updatedVisitor.photoUrl) {
       try {
-        // 1. Server lokal Anda mengunduh foto dari Cloudflare terlebih dahulu (Bypass blokir Telegram)
         const imgFetch = await fetch(updatedVisitor.photoUrl);
-        
         if (imgFetch.ok) {
           const arrayBuffer = await imgFetch.arrayBuffer();
           const blob = new Blob([arrayBuffer], { type: "image/jpeg" });
           
-          // 2. Kirim foto ke Telegram dalam bentuk File Mentah (Sama seperti metode CS)
           const tgFormData = new FormData();
           tgFormData.append("chat_id", TELEGRAM_CHAT_ID_ATASAN);
           tgFormData.append("photo", blob, "visitor.jpg");
@@ -116,53 +137,26 @@ if (updatedVisitor.photoUrl) {
             body: tgFormData,
           });
 
-          const tgResponse = await res.json();
-          
-          if (!res.ok) {
-             console.error("❌ ERROR TELEGRAM ATASAN (Foto):", JSON.stringify(tgResponse, null, 2));
-             throw new Error("Gagal upload foto via FormData"); // Lempar ke blok catch untuk fallback teks
-          } else {
-             console.log("✅ Pesan Telegram Atasan (Foto) Berhasil!");
-          }
+          if (!res.ok) throw new Error("Gagal upload foto via FormData"); 
         } else {
           throw new Error("Server gagal mengambil foto dari R2");
         }
       } catch (err) {
-        console.error("❌ Terjadi kendala foto, mengalihkan ke Fallback Teks:", err);
-        // SISTEM FALLBACK: Jika foto benar-benar bermasalah, kirim teks saja agar laporan atasan tidak hilang!
         await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            chat_id: TELEGRAM_CHAT_ID_ATASAN,
-            text: tgMessage,
-            parse_mode: "HTML"
-          })
+          body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID_ATASAN, text: tgMessage, parse_mode: "HTML" })
         });
       }
-
     } else {
-      // Jika pelanggan dari awal mendaftar tanpa foto
       try {
-        const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+        await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            chat_id: TELEGRAM_CHAT_ID_ATASAN,
-            text: tgMessage,
-            parse_mode: "HTML"
-          })
+          body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID_ATASAN, text: tgMessage, parse_mode: "HTML" })
         });
-        
-        const tgResponse = await res.json();
-        
-        if (!res.ok) {
-           console.error("❌ ERROR TELEGRAM ATASAN (Teks):", JSON.stringify(tgResponse, null, 2));
-        } else {
-           console.log("✅ Pesan Telegram Atasan (Teks) Berhasil!");
-        }
       } catch (err) {
-        console.error("❌ Gagal total menghubungi server Telegram Atasan:", err);
+        console.error("Gagal mengirim pesan teks telegram", err);
       }
     }
   }
@@ -171,19 +165,21 @@ if (updatedVisitor.photoUrl) {
 }
 
 export async function reopenVisit(formData: FormData) {
-  await requireAdminSession();
-
+  const { session } = await getSessionAndFilter();
   const id = String(formData.get("id") || "");
 
-  if (!id) {
-    return;
+  if (!id) return;
+
+  const visitor = await prisma.visitorLog.findUnique({ where: { id } });
+  if (!visitor) return;
+  if (session.role === "ADMIN" && visitor.region !== session.region) {
+    throw new Error("Akses ditolak.");
   }
 
   const hasActiveVisit = await prisma.visitorLog.count({
-    where: {
-      status: VisitStatus.ON_PROGRESS,
-    },
+    where: { status: VisitStatus.ON_PROGRESS, region: visitor.region }, // Filter area yang sama
   });
+  
   const status = hasActiveVisit > 0 ? VisitStatus.PENDING : VisitStatus.ON_PROGRESS;
 
   await prisma.visitorLog.update({
@@ -192,6 +188,7 @@ export async function reopenVisit(formData: FormData) {
       status,
       serviceStartTime: status === VisitStatus.ON_PROGRESS ? new Date() : null,
       checkOutTime: null,
+      adminId: null,
     },
   });
 
@@ -199,39 +196,33 @@ export async function reopenVisit(formData: FormData) {
 }
 
 export async function cancelVisit(formData: FormData) {
-  const admin = await requireAdminSession();
-
+  const { session } = await getSessionAndFilter();
   const id = String(formData.get("id") || "");
 
-  if (!id) {
-    return;
+  if (!id) return;
+
+  const existingVisitor = await prisma.visitorLog.findUnique({ where: { id }});
+  if (!existingVisitor || existingVisitor.status === VisitStatus.SUCCESS || existingVisitor.status === VisitStatus.CANCELLED) return;
+  
+  if (session.role === "ADMIN" && existingVisitor.region !== session.region) {
+    throw new Error("Akses ditolak.");
   }
 
   await prisma.$transaction(async (tx) => {
-    const visitor = await tx.visitorLog.findUnique({
-      where: { id },
-      select: { status: true },
-    });
-
-    if (!visitor || visitor.status === VisitStatus.SUCCESS || visitor.status === VisitStatus.CANCELLED) {
-      return;
-    }
-
     await tx.visitorLog.update({
       where: { id },
       data: {
         status: VisitStatus.CANCELLED,
         checkOutTime: new Date(),
-        adminId: admin.id,
+        adminId: session.id,
       },
     });
 
-    if (visitor.status === VisitStatus.ON_PROGRESS) {
+    if (existingVisitor.status === VisitStatus.ON_PROGRESS) {
       const nextVisitor = await tx.visitorLog.findFirst({
-      // Hanya panggil PENDING yang region-nya sama dengan tamu yang baru selesai
-      where: { status: VisitStatus.PENDING, region: visitor.region },
-      orderBy: { checkInTime: "asc" },
-    });
+        where: { status: VisitStatus.PENDING, region: existingVisitor.region }, // Filter area yang sama
+        orderBy: { checkInTime: "asc" },
+      });
 
       if (nextVisitor) {
         await tx.visitorLog.update({
@@ -249,15 +240,8 @@ export async function cancelVisit(formData: FormData) {
   revalidatePath("/admin");
 }
 
-const nullableString = (value: FormDataEntryValue | null) => {
-  const text = String(value || "").trim();
-  return text.length > 0 ? text : null;
-};
-
-// Tambahkan fungsi ini di bagian paling bawah file app/actions/admin.ts
-
 export async function generateVisitorPin(formData: FormData) {
-  await requireAdminSession();
+  const { session } = await getSessionAndFilter();
 
   const fullName = String(formData.get("fullName") || "").trim();
   const institution = nullableString(formData.get("institution"));
@@ -269,7 +253,6 @@ export async function generateVisitorPin(formData: FormData) {
     return { success: false, error: "Nama lengkap wajib diisi." };
   }
 
-  // Generate 6 digit PIN angka acak (misal: 482910)
   const pin = Math.floor(100000 + Math.random() * 900000).toString();
 
   try {
@@ -282,7 +265,8 @@ export async function generateVisitorPin(formData: FormData) {
         address,
         pin,
         purpose: "Pre-registrasi (Kunjungan Terjadwal)", 
-        status: VisitStatus.PRE_REGISTER, // Masuk ke antrean
+        status: VisitStatus.PRE_REGISTER,
+        region: session.region || "Palu", // <-- KUNCI: Sesuaikan dengan region admin pembuat
       },
     });
 
@@ -296,62 +280,66 @@ export async function generateVisitorPin(formData: FormData) {
 
 export async function updateKioskStatus(isBusy: boolean, message: string) {
   try {
+    const { session } = await getSessionAndFilter();
+    const regionId = session.region || "global"; // <-- KUNCI: Kiosk status per wilayah
+
     await prisma.kioskSetting.upsert({
-      where: { id: "global" },
+      where: { id: regionId },
       update: { isBusy, message },
-      create: { id: "global", isBusy, message },
+      create: { id: regionId, isBusy, message },
     });
     
-    // Refresh halaman agar data terbaru langsung tampil
     revalidatePath("/admin");
     revalidatePath("/");
     return { success: true };
   } catch (error: any) {
-    console.error("Gagal mengubah status kiosk:", error);
     return { success: false, error: "Gagal menyimpan status." };
   }
 }
 
 export async function getKioskStatus() {
   try {
+    const { session } = await getSessionAndFilter();
+    const regionId = session.region || "global"; // <-- KUNCI: Ambil status per wilayah
+    
     const setting = await prisma.kioskSetting.findUnique({
-      where: { id: "global" },
+      where: { id: regionId },
     });
-    // Mengembalikan string kosong jika belum ada data
     return setting || { isBusy: false, message: "" };
   } catch (error) {
     return { isBusy: false, message: "" };
   }
 }
 
-// 4. FITUR BARU: Hapus Semua Antrean PENDING (Sapu Bersih)
-// 4. FITUR BARU: Hapus Semua Antrean PRE_REGISTER (Tamu Batal Datang)
 export async function clearAllPreRegisterVisitsAction() {
   try {
-    await requireAdminSession();
+    const { regionFilter } = await getSessionAndFilter();
 
-    // Hapus semua data yang statusnya masih PRE_REGISTER (Belum datang)
     const deletedVisitors = await prisma.visitorLog.deleteMany({
-      where: { status: VisitStatus.PRE_REGISTER },
+      where: { status: VisitStatus.PRE_REGISTER, ...regionFilter }, // <-- KUNCI: Hapus sesuai filter wilayah
     });
 
     revalidatePath("/admin");
     return { success: true, count: deletedVisitors.count };
   } catch (error: any) {
-    console.error("Gagal menghapus antrean pre-register:", error);
     return { success: false, error: "Gagal menghapus data" };
   }
 }
 
 export async function updateVisitorInfo(formData: FormData) {
-  await requireAdminSession();
+  const { session } = await getSessionAndFilter();
 
   const id = String(formData.get("id") || "");
   const fullName = String(formData.get("fullName") || "").trim();
   const purpose = String(formData.get("purpose") || "").trim();
 
-  if (!id || !fullName || !purpose) {
-    return;
+  if (!id || !fullName || !purpose) return;
+
+  // Lapis keamanan wilayah
+  const visitor = await prisma.visitorLog.findUnique({ where: { id }});
+  if (!visitor) return;
+  if (session.role === "ADMIN" && visitor.region !== session.region) {
+    throw new Error("Akses ditolak.");
   }
 
   await prisma.visitorLog.update({
@@ -366,8 +354,6 @@ export async function updateVisitorInfo(formData: FormData) {
       category: nullableString(formData.get("category")),
       hostName: nullableString(formData.get("hostName")),
     },
-
-    
   });
 
   revalidatePath("/admin");
