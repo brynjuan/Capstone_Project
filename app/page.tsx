@@ -4,7 +4,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { motion, AnimatePresence, Variants } from "framer-motion";
 import Webcam from "react-webcam";
-import { Headset, Hash, Star, User, Building, Target, CheckCircle, ChevronRight, ChevronLeft, ChevronDown, Phone, MapPin, Tag, Contact, QrCode, Volume2, VolumeX, XCircle, AlertTriangle } from "lucide-react";
+import { Headset,Search, Hash, Star, User, Building, Target, CheckCircle, ChevronRight, ChevronLeft, ChevronDown, Phone, MapPin, Tag, Contact, QrCode, Volume2, VolumeX, XCircle, AlertTriangle, Smartphone, X,} from "lucide-react";
 import { getVisitorByPinAction, submitVisitorData, performOCR, submitVisitorRating, uploadPhotoboothImage } from "./actions/kiosk";
 import dynamic from "next/dynamic";
 import { QRCodeCanvas } from "qrcode.react";
@@ -12,6 +12,7 @@ import Keyboard from "react-simple-keyboard";
 import "react-simple-keyboard/build/css/index.css";
 import { Scanner } from "@yudiel/react-qr-scanner";
 import { confirmMobileArrivalAction } from "./actions/kiosk";
+import NextImage from "next/image"; // Menggunakan alias 'NextImage'
 
 const ZegoCall = dynamic(() => import("./components/ZegoCall"), { 
   ssr: false 
@@ -125,6 +126,23 @@ export default function KioskPage() {
   }, []);
   // --- AKHIR KODE BARU ---
 
+  const openFinpayPopup = () => {
+    // Mengatur ukuran popup
+    const width = 600;
+    const height = 700;
+    
+    // Menghitung posisi agar popup berada di tengah layar
+    const left = (window.innerWidth / 2) - (width / 2);
+    const top = (window.innerHeight / 2) - (height / 2);
+    
+    // Membuka popup
+    window.open(
+      "https://live.finpay.id/widgetpg/001001/indibiz",
+      "FinpayWindow",
+      `width=${width},height=${height},top=${top},left=${left},toolbar=no,menubar=no,scrollbars=yes,resizable=yes,location=no,status=no`
+    );
+  };
+
   const [showIntercom, setShowIntercom] = useState(false);
   const [showPhotobooth, setShowPhotobooth] = useState(false);
   const [photoboothResult, setPhotoboothResult] = useState<string | null>(null);
@@ -138,6 +156,8 @@ export default function KioskPage() {
   const [vipPin, setVipPin] = useState("");
   const [previewCameraKey, setPreviewCameraKey] = useState(0);
   const [photoboothCameraKey, setPhotoboothCameraKey] = useState(0);
+  const [showMobileQR, setShowMobileQR] = useState(false);
+  const [showFinpayModal, setShowFinpayModal] = useState(false);
   
   const previewWebcamRef = useRef<Webcam>(null);
   const photoboothWebcamRef = useRef<Webcam>(null);
@@ -732,6 +752,14 @@ let shiftY = 0;
   Sentuh layar untuk memulai <ChevronRight className="w-8 h-8" />
 </motion.div>
 
+<button 
+      onClick={openFinpayPopup}
+      className="flex items-center justify-center mt-4 px-6 py-3 border border-gray-600 rounded-full bg-black/50 text-white hover:bg-black/70 transition-all"
+    >
+      <Search className="w-5 h-5 mr-2 text-green-400" />
+      Cek Nomor Pelanggan Indibiz
+    </button>
+
 <div className="flex gap-4 mt-6">
               <motion.button 
                 onClick={() => { setShowPinInput(true); setActiveInput("vipPin"); }} 
@@ -801,6 +829,14 @@ let shiftY = 0;
 >
   <QrCode className="w-6 h-6 text-red-400" /> Punya kode QR? Pindai di sini
 </motion.button>
+{/* --- TOMBOL BARU UNTUK QR MOBILE --- */}
+        <button 
+          onClick={() => setShowMobileQR(true)}
+          className="flex items-center justify-center mt-4 px-6 py-3 border border-gray-600 rounded-full bg-black/50 text-white hover:bg-black/70 transition-all"
+        >
+          <Smartphone className="w-5 h-5 mr-2 text-blue-400" />
+          Akses via Mobile
+        </button>
           </motion.div>
         )}
 
@@ -870,6 +906,74 @@ let shiftY = 0;
             </motion.div>
           </motion.div>
         )}
+
+        {/* --- OVERLAY & MODAL GLASSMORPHISM --- */}
+      {showMobileQR && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-300">
+          
+          {/* Container Glassmorphism */}
+          <div className="relative flex flex-col items-center p-8 rounded-3xl max-w-sm w-full shadow-[0_8px_32px_0_rgba(0,0,0,0.3)] bg-white/10 backdrop-blur-md border border-white/20">
+            
+            {/* Tombol Close */}
+            <button 
+              onClick={() => setShowMobileQR(false)}
+              className="absolute top-4 right-4 p-2 rounded-full bg-black/20 text-white/80 hover:text-white hover:bg-black/40 transition-all"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <h3 className="text-2xl font-bold text-white mb-2 drop-shadow-md">Akses Mobile</h3>
+            <p className="text-sm text-gray-200 text-center mb-6 drop-shadow-sm">
+              Gunakan kamera HP Anda untuk memindai QR code ini dan melanjutkan via mobile.
+            </p>
+
+            {/* Area QR Code (Background solid agar QR mudah discan) */}
+            <div className="p-4 bg-white rounded-2xl shadow-inner">
+              <NextImage 
+                src="/qr-mobile1.png" 
+                alt="QR Code Mobile" 
+                width={200} 
+                height={200} 
+                className="rounded-xl"
+              />
+            </div>
+
+          </div>
+          
+        </div>
+      )}
+      {/* --- AKHIR MODAL --- */}
+
+      {/* --- MODAL IFRAME FINPAY --- */}
+      {showFinpayModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-6 animate-in fade-in duration-300">
+          
+          {/* Container Glassmorphism yang lebih besar */}
+          <div className="relative flex flex-col w-full max-w-5xl h-[85vh] p-3 rounded-3xl shadow-[0_8px_32px_0_rgba(0,0,0,0.5)] bg-white/10 backdrop-blur-md border border-white/20">
+            
+            {/* Tombol Close (Dibuat lebih besar & mencolok untuk Kiosk) */}
+            <button 
+              onClick={() => setShowFinpayModal(false)}
+              className="absolute -top-5 -right-5 p-4 rounded-full bg-red-600 text-white shadow-xl hover:bg-red-700 transition-all z-[70]"
+            >
+              <X className="w-8 h-8" />
+            </button>
+
+            {/* Area Iframe */}
+            <div className="w-full h-full bg-white rounded-2xl overflow-hidden shadow-inner">
+              <iframe 
+                src="https://live.finpay.id/widgetpg/001001/indibiz"
+                className="w-full h-full border-none"
+                title="Portal Finpay Indibiz"
+                allow="clipboard-write"
+              />
+            </div>
+
+          </div>
+          
+        </div>
+      )}
+      {/* --- AKHIR MODAL IFRAME --- */}
 
         {step === 2 && (
           <motion.div key="step2" variants={slideVariants} initial="hidden" animate="visible" exit="exit" className="w-full max-w-6xl z-20">

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireAdminSession } from "@/lib/auth";
 import { VisitStatus } from "@prisma/client";
+import { syncToSpreadsheet } from "@/lib/sheets";
 
 // ============================================================================
 // FUNGSI HELPER KEAMANAN & FILTER DAERAH (WAJIB ADA)
@@ -87,9 +88,36 @@ export async function completeVisit(formData: FormData) {
     return visitor;
   });
 
+// 👇 SINKRONISASI KE GOOGLE SPREADSHEET 👇
+  try {
+    const now = new Date();
+    const timestamp = new Intl.DateTimeFormat('id-ID', {
+      timeZone: 'Asia/Makassar',
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit'
+    }).format(now).replace(/\./g, ':');
+
+    await syncToSpreadsheet({
+      dbId: updatedVisitor.id,
+      timestamp: timestamp,
+      namaPelanggan: updatedVisitor.institution || "-",
+      namaPic: updatedVisitor.fullName,
+      
+      // Tambahkan kutip tunggal (') sebelum nomor jika datanya ada
+      nomorHpPic: updatedVisitor.phoneNumber ? `'${updatedVisitor.phoneNumber}` : "-",
+      nomorUser: updatedVisitor.internetNumber ? `'${updatedVisitor.internetNumber}` : "-",
+      
+      alamat: updatedVisitor.address || "-",
+      kategori: updatedVisitor.category || "-",
+      hotda: updatedVisitor.region || "Witel Sulbagteng",
+      status: "Selesai",
+    });
+  } catch (sheetError) {
+    console.error("Gagal sinkron ke spreadsheet saat completeVisit:", sheetError);
+  }
+  // 👆 AKHIR SINKRONISASI 👆
   // 3. --- NOTIFIKASI TELEGRAM OTOMATIS MENUJU GRUP ATASAN ---
   const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-  // 👇 PANGGIL FUNGSI PEMILIH GRUP MANAJER SESUAI DAERAH KIOSK 👇
   const TELEGRAM_CHAT_ID_ATASAN = getTelegramChatId(updatedVisitor.region, true); 
   
   if (TELEGRAM_BOT_TOKEN && TELEGRAM_CHAT_ID_ATASAN) {
@@ -357,7 +385,8 @@ export async function updateVisitorInfo(formData: FormData) {
     throw new Error("Akses ditolak.");
   }
 
-  await prisma.visitorLog.update({
+  // 👇 Tangkap hasil pembaruan ke dalam variabel updatedVisitor 👇
+  const updatedVisitor = await prisma.visitorLog.update({
     where: { id },
     data: {
       fullName,
@@ -370,6 +399,33 @@ export async function updateVisitorInfo(formData: FormData) {
       hostName: nullableString(formData.get("hostName")),
     },
   });
+
+// 👇 SINKRONISASI KE GOOGLE SPREADSHEET 👇
+  try {
+    const now = new Date();
+    const timestamp = new Intl.DateTimeFormat('id-ID', {
+      timeZone: 'Asia/Makassar',
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit'
+    }).format(now).replace(/\./g, ':');
+
+    await syncToSpreadsheet({
+      dbId: updatedVisitor.id,
+      timestamp: timestamp,
+      namaPelanggan: updatedVisitor.institution || "-",
+      namaPic: updatedVisitor.fullName,
+      // Tambahkan kutip tunggal (') sebelum nomor agar formatnya menjadi plain text (rata kiri)
+      nomorHpPic: updatedVisitor.phoneNumber ? `'${updatedVisitor.phoneNumber}` : "-",
+      nomorUser: updatedVisitor.internetNumber ? `'${updatedVisitor.internetNumber}` : "-",
+      alamat: updatedVisitor.address || "-",
+      kategori: updatedVisitor.category || "-",
+      hotda: updatedVisitor.region || "Witel Sulbagteng",
+      status: updatedVisitor.status, // Kirimkan status yang saat ini aktif
+    });
+  } catch (sheetError) {
+    console.error("Gagal sinkron ke spreadsheet saat edit info:", sheetError);
+  }
+  // 👆 AKHIR SINKRONISASI 👆
 
   revalidatePath("/admin");
 }

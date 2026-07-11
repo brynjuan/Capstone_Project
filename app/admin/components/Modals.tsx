@@ -29,12 +29,19 @@ export function VisitorDetail({ selectedVisitor, onPreview, onEdit, isHistory }:
             <InfoTile icon={Clock3} label="Durasi" value={elapsedLabel(selectedVisitor.serviceStartTime || selectedVisitor.checkInTime)} />
             <InfoTile icon={Star} label="Penilaian" value={selectedVisitor.rating ? `${selectedVisitor.rating}/5` : "-"} />
           </div>
-          <div className="rounded-3xl border border-[#ece0dc] bg-[#fcf8f6] p-5 text-sm">
+<div className="rounded-3xl border border-[#ece0dc] bg-[#fcf8f6] p-5 text-sm">
             <div className="grid gap-3 sm:grid-cols-2">
               <DetailRow label="Kategori" value={selectedVisitor.category || "Umum"} />
               <DetailRow label="Petugas" value={selectedVisitor.hostName || "-"} />
               <DetailRow label="Telepon" value={selectedVisitor.phoneNumber || "-"} />
               <DetailRow label="Nomor Internet" value={selectedVisitor.internetNumber || "-"} />
+              
+              {/* 👇 TAMBAHKAN BLOK ALAMAT DI SINI 👇 */}
+              <div className="sm:col-span-2 mt-1 pt-3 border-t border-[#ece0dc]">
+                <DetailRow label="Alamat" value={selectedVisitor.address || "-"} />
+              </div>
+              {/* 👆 AKHIR BLOK ALAMAT 👆 */}
+              
             </div>
           </div>
           <div><p className="mb-2 text-xs uppercase tracking-[0.2em] text-[#7a625d]">Keperluan</p><p className="rounded-3xl border border-[#ece0dc] bg-[#faf6f4] p-4 text-sm text-[#3c302d]">{selectedVisitor.purpose || "-"}</p></div>

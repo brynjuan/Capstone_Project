@@ -23,7 +23,9 @@ export default function MobileRegistration() {
   const [pinResult, setPinResult] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [photoBase64, setPhotoBase64] = useState<string | null>(null);
-  const { register, handleSubmit, formState: { errors }, watch } = useForm();
+  
+  // Tambahkan 'trigger' untuk memvalidasi step 1 sebelum lanjut ke step 2
+  const { register, handleSubmit, formState: { errors }, watch, trigger } = useForm();
 
   const onSubmit = async (data: any) => {
     if (!photoBase64) {
@@ -31,8 +33,15 @@ export default function MobileRegistration() {
       return;
     }
     setIsSubmitting(true);
+    
+    // Gabungkan gender dengan nama lengkap
+    const payload = {
+      ...data,
+      fullName: `${data.gender}${data.fullName}`
+    };
+
     // Kirim data beserta foto ke server
-    const result = await registerMobileVisitorAction(data, photoBase64);
+    const result = await registerMobileVisitorAction(payload, photoBase64);
     if (result.success && result.pin) {
       setPinResult(result.pin);
       setStep(3); 
@@ -57,25 +66,59 @@ export default function MobileRegistration() {
             <motion.div key="step1" initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -50 }} className="p-8 flex-1 flex flex-col justify-center overflow-y-auto">
               <h2 className="text-xl font-bold mb-6 text-slate-800">1. Data Pribadi</h2>
               <div className="space-y-5">
+                
+                {/* Nama Lengkap & Gender */}
                 <div>
                   <label className="block text-sm font-bold text-slate-600 mb-2">Nama Lengkap <span className="text-red-500">*</span></label>
-                  <input {...register("fullName", { required: true })} className={`w-full p-4 bg-slate-50 rounded-2xl outline-none border transition-all ${errors.fullName ? 'border-red-400 bg-red-50' : 'border-slate-200 focus:border-red-500 focus:ring-2 focus:ring-red-200'}`} placeholder="Contoh: Budi Santoso" />
+                  <div className="flex gap-2">
+                    <select defaultValue="" {...register("gender", { required: true })} className={`w-1/3 p-4 bg-slate-50 rounded-2xl outline-none border transition-all ${errors.gender ? 'border-red-400 bg-red-50' : 'border-slate-200 focus:border-red-500 focus:ring-2 focus:ring-red-200'}`}>
+                      <option value="" disabled hidden>Pilih</option>
+                      <option value="Bapak ">Bapak</option>
+                      <option value="Ibu ">Ibu</option>
+                    </select>
+                    <input {...register("fullName", { required: true })} className={`w-2/3 p-4 bg-slate-50 rounded-2xl outline-none border transition-all ${errors.fullName ? 'border-red-400 bg-red-50' : 'border-slate-200 focus:border-red-500 focus:ring-2 focus:ring-red-200'}`} placeholder="Contoh: Budi Santoso" />
+                  </div>
                 </div>
+
+                {/* Instansi / Perusahaan */}
                 <div>
-                  <label className="block text-sm font-bold text-slate-600 mb-2">Instansi / Perusahaan</label>
-                  <input {...register("institution", { required: true })} className="w-full p-4 bg-slate-50 rounded-2xl outline-none border border-slate-200 focus:border-red-500 focus:ring-2 focus:ring-red-200 transition-all" placeholder="Contoh: Telkom (Opsional)" />
+                  <label className="block text-sm font-bold text-slate-600 mb-2">Instansi / Perusahaan <span className="text-red-500">*</span></label>
+                  <input {...register("institution", { required: true })} className={`w-full p-4 bg-slate-50 rounded-2xl outline-none border transition-all ${errors.institution ? 'border-red-400 bg-red-50' : 'border-slate-200 focus:border-red-500 focus:ring-2 focus:ring-red-200'}`} placeholder="Contoh: Telkom" />
                 </div>
+
+                {/* Nomor HP */}
                 <div>
                   <label className="block text-sm font-bold text-slate-600 mb-2">Nomor HP / WhatsApp <span className="text-red-500">*</span></label>
                   <input type="tel" inputMode="numeric" {...register("phoneNumber", { required: true })} className={`w-full p-4 bg-slate-50 rounded-2xl outline-none border transition-all ${errors.phoneNumber ? 'border-red-400 bg-red-50' : 'border-slate-200 focus:border-red-500 focus:ring-2 focus:ring-red-200'}`} placeholder="0812..." />
                 </div>
+
+                {/* Nomor Internet */}
+                <div>
+                  <label className="block text-sm font-bold text-slate-600 mb-2">Nomor Internet <span className="text-red-500">*</span></label>
+                  <input type="text" inputMode="numeric" {...register("internetNumber", { required: true })} className={`w-full p-4 bg-slate-50 rounded-2xl outline-none border transition-all ${errors.internetNumber ? 'border-red-400 bg-red-50' : 'border-slate-200 focus:border-red-500 focus:ring-2 focus:ring-red-200'}`} placeholder="Contoh: 1412..." />
+                </div>
+
+                {/* Alamat Pelanggan */}
+                <div>
+                  <label className="block text-sm font-bold text-slate-600 mb-2">Alamat Pelanggan <span className="text-red-500">*</span></label>
+                  <textarea {...register("address", { required: true })} className={`w-full p-4 bg-slate-50 rounded-2xl outline-none border transition-all resize-none h-24 ${errors.address ? 'border-red-400 bg-red-50' : 'border-slate-200 focus:border-red-500 focus:ring-2 focus:ring-red-200'}`} placeholder="Jl. Cik Ditiro..." />
+                </div>
               </div>
-              <button onClick={async () => {
-                const name = watch("fullName");
-                const phone = watch("phoneNumber");
-                if (name && phone) setStep(2);
-                else alert("Nama dan Nomor HP wajib diisi!");
-              }} className="w-full mt-10 bg-red-600 text-white font-bold p-4 rounded-2xl shadow-[0_10px_20px_rgba(220,38,38,0.3)] hover:bg-red-700 active:scale-95 transition-all">Lanjut ➔</button>
+
+              <button 
+                onClick={async () => {
+                  // Validasi khusus untuk field di step 1
+                  const isStep1Valid = await trigger(["gender", "fullName", "institution", "phoneNumber", "internetNumber", "address"]);
+                  if (isStep1Valid) {
+                    setStep(2);
+                  } else {
+                    alert("Mohon lengkapi semua data wajib!");
+                  }
+                }} 
+                className="w-full mt-10 bg-red-600 text-white font-bold p-4 rounded-2xl shadow-[0_10px_20px_rgba(220,38,38,0.3)] hover:bg-red-700 active:scale-95 transition-all"
+              >
+                Lanjut ➔
+              </button>
             </motion.div>
           )}
 
@@ -127,23 +170,47 @@ export default function MobileRegistration() {
                     </div>
                   )}
                 </div>
+
+                {/* Checkbox Persetujuan Administrasi */}
+                <div className="mt-4 p-4 bg-slate-50 border border-slate-200 rounded-xl">
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      {...register("consent", { required: true })}
+                      className="mt-1 w-5 h-5 accent-red-600 cursor-pointer"
+                    />
+                    <span className="text-sm text-slate-700 leading-tight">
+                      Saya setuju data saya digunakan untuk administrasi di <span className="font-bold text-red-600">Telkom Witel Sulbagteng</span>. <span className="text-red-500">*</span>
+                    </span>
+                  </label>
+                  {errors.consent && <p className="text-red-500 text-xs mt-2">Persetujuan wajib dicentang.</p>}
+                </div>
               </div>
 
+
 <div className="flex gap-4 mt-8 pb-8">
-  <button onClick={() => setStep(1)} className="w-1/3 bg-slate-100 text-slate-600 font-bold p-4 rounded-2xl active:scale-95 transition-all">Kembali</button>
+  <button 
+    onClick={() => setStep(1)} 
+    className="w-1/3 bg-slate-100 text-slate-600 font-bold p-4 rounded-2xl active:scale-95 transition-all"
+  >
+    Kembali
+  </button>
   
   <button 
     onClick={handleSubmit(onSubmit)} 
-    disabled={isSubmitting || !photoBase64} 
-    className={`w-2/3 font-bold p-4 rounded-2xl transition-all ${
-      !photoBase64 || isSubmitting
-        ? "bg-slate-300 text-slate-500 cursor-not-allowed" // Warna abu-abu saat foto belum ada
-        : "bg-red-600 text-white active:scale-95 shadow-[0_10px_20px_rgba(220,38,38,0.3)]" // Warna merah menyala saat foto sudah diisi
+    // Syarat tombol aktif: Tidak sedang submit, ada foto, dan checkbox dicentang
+    disabled={isSubmitting || !photoBase64 || !watch("consent")} 
+    className={`w-2/3 font-bold p-4 rounded-2xl transition-all duration-300 ${
+      isSubmitting || !photoBase64 || !watch("consent")
+        ? "bg-slate-300 text-slate-500 cursor-not-allowed" // Warna abu-abu
+        : "bg-red-600 text-white shadow-[0_10px_20px_rgba(220,38,38,0.3)] hover:bg-red-700 active:scale-95" // Warna merah
     }`}
   >
-    {isSubmitting ? "Memproses..." : !photoBase64 ? "Foto Wajib Diisi" : "Dapatkan PIN"}
+    {isSubmitting ? "Memproses..." : "Dapatkan PIN"}
   </button>
 </div>
+
+
             </motion.div>
           )}
 
