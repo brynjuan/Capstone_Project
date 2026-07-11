@@ -20,7 +20,7 @@ const auth = new google.auth.GoogleAuth({
 
 const sheets = google.sheets({ version: "v4", auth });
 const SPREADSHEET_ID = process.env.SPREADSHEET_ID;
-const SHEET_NAME = "contoh";
+const SHEET_NAME = "Form responses 1";
 
 export type CustomerSheetData = {
   dbId: string; // ID unik dari database Prisma untuk referensi edit
