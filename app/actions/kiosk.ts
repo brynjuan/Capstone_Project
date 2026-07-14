@@ -245,6 +245,20 @@ export async function submitVisitorData(formData: any, photoBase64: string | nul
 <i>${formData.purpose || "-"}</i>
 `;
 
+      const processTgResponse = async (res: Response) => {
+        if (!res.ok) throw new Error("Gagal kirim TG");
+        const data = await res.json();
+        if (data.ok && data.result) {
+          await prisma.visitorLog.update({
+            where: { id: newVisitor.id },
+            data: {
+              tgMsgId: data.result.message_id.toString(),
+              tgChatId: data.result.chat.id.toString(),
+            }
+          });
+        }
+      };
+
       if (imageBuffer) {
         const file = new File([new Uint8Array(imageBuffer)], "visitor.jpg", { type: "image/jpeg" });
         const tgFormData = new FormData();
@@ -255,19 +269,17 @@ export async function submitVisitorData(formData: any, photoBase64: string | nul
 
         telegramTask = fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendPhoto`, {
           method: "POST", body: tgFormData,
-        }).then(async (res) => {
-          if (!res.ok) throw new Error("Gagal kirim foto TG");
-        }).catch(() => {
+        }).then(processTgResponse).catch(() => {
           return fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
             method: "POST", headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text: tgMessage, parse_mode: "HTML" })
-          });
+          }).then(processTgResponse);
         });
       } else {
         telegramTask = fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
           method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text: tgMessage, parse_mode: "HTML" })
-        });
+        }).then(processTgResponse);
       }
     }
 
@@ -355,6 +367,20 @@ export async function confirmMobileArrivalAction(inputPin: string) {
     if (TELEGRAM_BOT_TOKEN && TELEGRAM_CHAT_ID) {
       const tgMessage = `🚨 <b>Pelanggan VIP Tiba (via PIN) di ${currentRegion}!</b> 🚨\n\n🏢 <b>Instansi:</b> ${updatedVisitor.institution}\n👤 <b>Nama:</b> ${updatedVisitor.fullName}\n📞 <b>No. HP:</b> ${updatedVisitor.phoneNumber}\n🏠 <b>Alamat:</b> ${updatedVisitor.address || '-'}\n🎯 <b>Keperluan:</b>\n<i>${updatedVisitor.purpose}</i>`;
 
+      const processTgResponse = async (res: Response) => {
+        if (!res.ok) throw new Error("Gagal kirim TG");
+        const data = await res.json();
+        if (data.ok && data.result) {
+          await prisma.visitorLog.update({
+            where: { id: updatedVisitor.id },
+            data: {
+              tgMsgId: data.result.message_id.toString(),
+              tgChatId: data.result.chat.id.toString(),
+            }
+          });
+        }
+      };
+
       if (updatedVisitor.photoUrl) {
         fetch(updatedVisitor.photoUrl)
           .then(res => res.arrayBuffer())
@@ -365,13 +391,13 @@ export async function confirmMobileArrivalAction(inputPin: string) {
             tgFormData.append("photo", blob, "visitor.jpg");
             tgFormData.append("caption", tgMessage);
             tgFormData.append("parse_mode", "HTML");
-            fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendPhoto`, { method: "POST", body: tgFormData });
+            fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendPhoto`, { method: "POST", body: tgFormData }).then(processTgResponse);
           })
           .catch(() => {
-             fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text: tgMessage, parse_mode: "HTML" }) });
+             fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text: tgMessage, parse_mode: "HTML" }) }).then(processTgResponse);
           });
       } else {
-        fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text: tgMessage, parse_mode: "HTML" }) });
+        fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text: tgMessage, parse_mode: "HTML" }) }).then(processTgResponse);
       }
     }
 

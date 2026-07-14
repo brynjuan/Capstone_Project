@@ -51,6 +51,10 @@ model VisitorLog {
   // 3. TAMBAHKAN KOLOM REGION (DAERAH) UNTUK LOG KUNJUNGAN
   region         String      @default("Palu") @db.VarChar(100)
 
+  // 4. TELEGRAM INTEGRATION
+  tgMsgId        String?     @db.VarChar(50)
+  tgChatId       String?     @db.VarChar(50)
+
   // ========================================================
   // SISTEM ANTREAN CERDAS (SMART QUEUE)
   status           VisitStatus @default(PENDING) // Default saat daftar adalah PENDING

@@ -54,6 +54,8 @@ export async function completeVisit(formData: FormData) {
   // 1. Cek keamanan wilayah (Admin daerah lain tidak boleh menyelesaikan data ini)
   const existingVisitor = await prisma.visitorLog.findUnique({ where: { id } });
   if (!existingVisitor) return;
+  if (existingVisitor.status === VisitStatus.SUCCESS || existingVisitor.status === VisitStatus.CANCELLED) return;
+  
   if (session.role === "ADMIN" && existingVisitor.region !== session.region) {
     throw new Error("Akses ditolak. Ini bukan data wilayah Anda.");
   }
@@ -164,44 +166,84 @@ export async function completeVisit(formData: FormData) {
 <i>${updatedVisitor.purpose || "-"}</i>
 `;
 
-    if (updatedVisitor.photoUrl) {
-      try {
-        const imgFetch = await fetch(updatedVisitor.photoUrl);
-        if (imgFetch.ok) {
-          const arrayBuffer = await imgFetch.arrayBuffer();
-          const blob = new Blob([arrayBuffer], { type: "image/jpeg" });
+    if (updatedVisitor.tgMsgId && updatedVisitor.tgChatId) {
+      // JIKA ADA PESAN SEBELUMNYA -> EDIT PESAN
+      if (updatedVisitor.photoUrl) {
+        try {
+          const editPayload = {
+            chat_id: updatedVisitor.tgChatId,
+            message_id: updatedVisitor.tgMsgId,
+            media: JSON.stringify({
+              type: "photo",
+              media: updatedVisitor.photoUrl,
+              caption: tgMessage,
+              parse_mode: "HTML"
+            })
+          };
           
-          const tgFormData = new FormData();
-          tgFormData.append("chat_id", TELEGRAM_CHAT_ID_ATASAN);
-          tgFormData.append("photo", blob, "visitor.jpg");
-          tgFormData.append("caption", tgMessage);
-          tgFormData.append("parse_mode", "HTML");
-
-          const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendPhoto`, {
+          const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/editMessageMedia`, {
             method: "POST",
-            body: tgFormData,
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(editPayload)
           });
-
-          if (!res.ok) throw new Error("Gagal upload foto via FormData"); 
-        } else {
-          throw new Error("Server gagal mengambil foto dari R2");
+          
+          if (!res.ok) throw new Error("Gagal editMessageMedia");
+        } catch (err) {
+          // Fallback edit text if editing media fails
+          await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/editMessageText`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ chat_id: updatedVisitor.tgChatId, message_id: updatedVisitor.tgMsgId, text: tgMessage, parse_mode: "HTML" })
+          });
         }
-      } catch (err) {
-        await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+      } else {
+        await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/editMessageText`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID_ATASAN, text: tgMessage, parse_mode: "HTML" })
+          body: JSON.stringify({ chat_id: updatedVisitor.tgChatId, message_id: updatedVisitor.tgMsgId, text: tgMessage, parse_mode: "HTML" })
         });
       }
     } else {
-      try {
-        await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID_ATASAN, text: tgMessage, parse_mode: "HTML" })
-        });
-      } catch (err) {
-        console.error("Gagal mengirim pesan teks telegram", err);
+      // JIKA TIDAK ADA PESAN SEBELUMNYA -> KIRIM PESAN BARU
+      if (updatedVisitor.photoUrl) {
+        try {
+          const imgFetch = await fetch(updatedVisitor.photoUrl);
+          if (imgFetch.ok) {
+            const arrayBuffer = await imgFetch.arrayBuffer();
+            const blob = new Blob([arrayBuffer], { type: "image/jpeg" });
+            
+            const tgFormData = new FormData();
+            tgFormData.append("chat_id", TELEGRAM_CHAT_ID_ATASAN);
+            tgFormData.append("photo", blob, "visitor.jpg");
+            tgFormData.append("caption", tgMessage);
+            tgFormData.append("parse_mode", "HTML");
+
+            const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendPhoto`, {
+              method: "POST",
+              body: tgFormData,
+            });
+
+            if (!res.ok) throw new Error("Gagal upload foto via FormData"); 
+          } else {
+            throw new Error("Server gagal mengambil foto dari R2");
+          }
+        } catch (err) {
+          await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID_ATASAN, text: tgMessage, parse_mode: "HTML" })
+          });
+        }
+      } else {
+        try {
+          await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID_ATASAN, text: tgMessage, parse_mode: "HTML" })
+          });
+        } catch (err) {
+          console.error("Gagal mengirim pesan teks telegram", err);
+        }
       }
     }
   }
