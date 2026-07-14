@@ -156,7 +156,7 @@ export default function MobileRegistration() {
                         <div className="flex gap-2 text-3xl mb-1">📸 <span className="text-gray-200">|</span> 📁</div>
                         <span>Ambil Selfie / Unggah Foto</span>
                       </div>
-                      <input type="file" accept="image/*" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      <input type="file" accept="image/*" capture="user" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                         onChange={(e) => {
                           const file = e.target.files?.[0];
                           if (file) {

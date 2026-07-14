@@ -78,19 +78,24 @@ export async function syncToSpreadsheet(data: CustomerSheetData) {
       console.log("Data Spreadsheet diupdate pada baris:", rowIndex + 1);
       
     } else {
-      // JIKA DATA TIDAK ADA -> APPEND (TAMBAH BARIS BARU)
-      await sheets.spreadsheets.values.append({
+      // JIKA DATA TIDAK ADA -> TAMBAH BARIS BARU DI BAWAH (KRONOLOGIS)
+      // Cari baris terakhir yang terisi berdasarkan kolom pertama (timestamp)
+      const lastFilledRowIndex = rows.reduce((lastIdx, row, idx) => {
+        return (row[0] && row[0].toString().trim() !== "") ? idx : lastIdx;
+      }, 0);
+      
+      const newRowIndex = lastFilledRowIndex + 2; // +1 untuk 1-based sheet row, +1 untuk baris berikutnya
+      const range = `${SHEET_NAME}!A${newRowIndex}:J${newRowIndex}`;
+
+      await sheets.spreadsheets.values.update({
         spreadsheetId: SPREADSHEET_ID,
-        // 👇 PERUBAHAN ADA DI DUA BARIS INI 👇
-        range: `${SHEET_NAME}!A:A`, // Paksa API untuk selalu mulai dari Kolom A
+        range: range,
         valueInputOption: "USER_ENTERED",
-        insertDataOption: "INSERT_ROWS", // Paksa sisipkan baris baru, agar tidak tergeser oleh dropdown
-        // 👆 👆 👆
         requestBody: {
           values: [rowValues],
         },
       });
-      console.log("Data baru ditambahkan ke Spreadsheet");
+      console.log("Data baru ditambahkan ke Spreadsheet pada baris:", newRowIndex);
     }
 
 // ... kode bagian bawah tetap sama ...

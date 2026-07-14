@@ -237,6 +237,7 @@ export async function submitVisitorData(formData: any, photoBase64: string | nul
 👤 <b>Nama:</b> ${formData.salutation} ${formData.fullName}
 📞 <b>No. HP:</b> ${cleanPhoneNumber}
 🌐 <b>No. Internet:</b> ${formData.internetNumber || '-'}
+🏠 <b>Alamat:</b> ${formData.address || '-'}
 
 🎯 <b>Kategori:</b> ${formData.category}
 👩‍💼 <b>Bertemu:</b> ${formData.hostName || "Nita Wulandari"}
@@ -352,7 +353,7 @@ export async function confirmMobileArrivalAction(inputPin: string) {
     const TELEGRAM_CHAT_ID = getTelegramChatId(currentRegion, false);
 
     if (TELEGRAM_BOT_TOKEN && TELEGRAM_CHAT_ID) {
-      const tgMessage = `🚨 <b>Pelanggan VIP Tiba (via PIN) di ${currentRegion}!</b> 🚨\n\n🏢 <b>Instansi:</b> ${updatedVisitor.institution}\n👤 <b>Nama:</b> ${updatedVisitor.fullName}\n📞 <b>No. HP:</b> ${updatedVisitor.phoneNumber}\n🎯 <b>Keperluan:</b>\n<i>${updatedVisitor.purpose}</i>`;
+      const tgMessage = `🚨 <b>Pelanggan VIP Tiba (via PIN) di ${currentRegion}!</b> 🚨\n\n🏢 <b>Instansi:</b> ${updatedVisitor.institution}\n👤 <b>Nama:</b> ${updatedVisitor.fullName}\n📞 <b>No. HP:</b> ${updatedVisitor.phoneNumber}\n🏠 <b>Alamat:</b> ${updatedVisitor.address || '-'}\n🎯 <b>Keperluan:</b>\n<i>${updatedVisitor.purpose}</i>`;
 
       if (updatedVisitor.photoUrl) {
         fetch(updatedVisitor.photoUrl)

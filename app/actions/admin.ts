@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAdminSession } from "@/lib/auth";
 import { VisitStatus } from "@prisma/client";
 import { syncToSpreadsheet } from "@/lib/sheets";
+import { uploadPhotoboothImage } from "./kiosk";
 
 // ============================================================================
 // FUNGSI HELPER KEAMANAN & FILTER DAERAH (WAJIB ADA)
@@ -155,6 +156,7 @@ export async function completeVisit(formData: FormData) {
 👤 <b>Nama Pelanggan:</b> ${updatedVisitor.fullName}
 📞 <b>No. HP:</b> ${updatedVisitor.phoneNumber || '-'}
 🌐 <b>No. Internet:</b> ${updatedVisitor.internetNumber || '-'}
+🏠 <b>Alamat:</b> ${updatedVisitor.address || '-'}
 
 🎯 <b>Kategori Kunjungan:</b> ${updatedVisitor.category || '-'}
 👩‍💼 <b>Bertemu Dengan:</b> ${updatedVisitor.hostName || '-'}
@@ -385,6 +387,17 @@ export async function updateVisitorInfo(formData: FormData) {
     throw new Error("Akses ditolak.");
   }
 
+  // 👇 Cek apakah ada foto baru yang diunggah 👇
+  let photoUrl = visitor.photoUrl;
+  const photoBase64 = formData.get("photoBase64") as string | null;
+  
+  if (photoBase64) {
+    const uploadResult = await uploadPhotoboothImage(photoBase64);
+    if (uploadResult.success && uploadResult.url) {
+      photoUrl = uploadResult.url;
+    }
+  }
+
   // 👇 Tangkap hasil pembaruan ke dalam variabel updatedVisitor 👇
   const updatedVisitor = await prisma.visitorLog.update({
     where: { id },
@@ -397,6 +410,7 @@ export async function updateVisitorInfo(formData: FormData) {
       address: nullableString(formData.get("address")),
       category: nullableString(formData.get("category")),
       hostName: nullableString(formData.get("hostName")),
+      photoUrl,
     },
   });
 

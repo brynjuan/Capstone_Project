@@ -1,6 +1,7 @@
 // File: app/admin/components/Modals.tsx
 
 import Image from "next/image";
+import { useState } from "react";
 import { X, UserRound, Clock3, Star } from "lucide-react";
 import { AdminVisitor } from "../types";
 import { elapsedLabel } from "../utils";
@@ -52,6 +53,8 @@ export function VisitorDetail({ selectedVisitor, onPreview, onEdit, isHistory }:
 }
 
 export function EditVisitorDialog({ visitor, isSaving, onClose, onSubmit }: any) {
+  const [photoBase64, setPhotoBase64] = useState<string | null>(null);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#2b211f]/70 p-4 backdrop-blur-md">
       <section className="max-h-[92vh] w-full max-w-3xl overflow-hidden rounded-2xl border border-[#f0dfdb] bg-white shadow-2xl">
@@ -62,6 +65,7 @@ export function EditVisitorDialog({ visitor, isSaving, onClose, onSubmit }: any)
         <form className="flex max-h-[calc(92vh-73px)] flex-col" onSubmit={(e) => { e.preventDefault(); onSubmit(new FormData(e.currentTarget)); }}>
           <div className="overflow-y-auto p-5">
             <input type="hidden" name="id" value={visitor.id} />
+            {photoBase64 && <input type="hidden" name="photoBase64" value={photoBase64} />}
             <div className="grid gap-4 md:grid-cols-2">
               <EditField label="Nama Kostumer" name="fullName" defaultValue={visitor.fullName} required />
               <EditField label="Nomor Telepon" name="phoneNumber" defaultValue={visitor.phoneNumber || ""} />
@@ -73,6 +77,35 @@ export function EditVisitorDialog({ visitor, isSaving, onClose, onSubmit }: any)
             <div className="mt-4 grid gap-4">
               <EditTextarea label="Alamat" name="address" defaultValue={visitor.address || ""} rows={3} />
               <EditTextarea label="Keperluan" name="purpose" defaultValue={visitor.purpose} rows={4} required />
+            </div>
+            <div className="mt-4">
+              <label className="block text-xs font-semibold uppercase tracking-wide text-[#806762] mb-2">Ubah Foto Kunjungan</label>
+              <div className="flex items-center gap-4">
+                {(photoBase64 || visitor.photoUrl) ? (
+                  <div className="relative">
+                    <img src={photoBase64 || visitor.photoUrl} alt="Foto Kunjungan" className="w-24 h-24 object-cover rounded-xl shadow-sm border border-[#f0dfdb]" />
+                    {photoBase64 && <button type="button" onClick={() => setPhotoBase64(null)} className="absolute -top-2 -right-2 bg-[#b3261e] text-white rounded-full p-1 text-xs hover:bg-[#cf3429]">✕</button>}
+                  </div>
+                ) : (
+                  <div className="w-24 h-24 bg-[#fff8f6] border border-[#f0dfdb] rounded-xl flex items-center justify-center text-[#bba5a0]">
+                    <UserRound className="w-8 h-8" />
+                  </div>
+                )}
+                <div className="flex-1">
+                  <input type="file" accept="image/*" className="text-sm text-[#7a625d] file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-[#fff8f6] file:text-[#b3261e] hover:file:bg-[#ffece8] cursor-pointer outline-none transition focus:ring-2 focus:ring-[#d23a2f]"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        if (file.size > 5 * 1024 * 1024) return alert("Ukuran foto maksimal 5MB.");
+                        const reader = new FileReader();
+                        reader.onloadend = () => setPhotoBase64(reader.result as string);
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                  />
+                  <p className="text-xs text-[#a8918c] mt-2">Format: JPG, PNG. Maks 5MB. Biarkan kosong jika tidak ingin mengubah foto.</p>
+                </div>
+              </div>
             </div>
           </div>
           <div className="flex flex-col-reverse gap-3 border-t border-[#f0dfdb] bg-white px-5 py-4 sm:flex-row sm:justify-end">
