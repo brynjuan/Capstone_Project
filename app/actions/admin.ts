@@ -617,7 +617,7 @@ export async function updateVisitorInfo(formData: FormData) {
       }
     };
 
-    // 1. Update pesan di grup CS jika ada
+    // 1. Update pesan di grup CS jika adaa
     if (updatedVisitor.tgChatId && updatedVisitor.tgMsgId) {
       await editTelegramMessage(updatedVisitor.tgChatId, updatedVisitor.tgMsgId).catch(() => {});
     }
