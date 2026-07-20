@@ -510,6 +510,126 @@ export async function updateVisitorInfo(formData: FormData) {
   }
   // 👆 AKHIR SINKRONISASI 👆
 
+  // 👇 SINKRONISASI KE TELEGRAM (EDIT PESAN JIKA ADA PERUBAHAN DATA) 👇
+  const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+  if (TELEGRAM_BOT_TOKEN) {
+    let tgMessage = "";
+    
+    // Format Pesan Selesai (Sama dengan format completeVisit)
+    if (updatedVisitor.status === VisitStatus.SUCCESS) {
+      const now = new Date();
+      const waktuSelesai = updatedVisitor.checkOutTime 
+        ? new Intl.DateTimeFormat('id-ID', {
+            timeZone: 'Asia/Makassar',
+            weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+            hour: '2-digit', minute: '2-digit', second: '2-digit', timeZoneName: 'short'
+          }).format(new Date(updatedVisitor.checkOutTime))
+        : "-";
+
+      const checkIn = updatedVisitor.checkInTime || now;
+      const start = updatedVisitor.serviceStartTime || checkIn;
+      const end = updatedVisitor.checkOutTime || now;
+      
+      const waitSeconds = Math.max(0, Math.floor((new Date(start).getTime() - new Date(checkIn).getTime()) / 1000));
+      const durationSeconds = Math.max(0, Math.floor((new Date(end).getTime() - new Date(start).getTime()) / 1000));
+      
+      const formatDur = (secs: number) => {
+        if (secs <= 0) return "0 detik";
+        if (secs < 60) return `${secs} detik`;
+        const m = Math.floor(secs / 60);
+        const s = secs % 60;
+        if (m < 60) return `${m} menit ${s} detik`;
+        const h = Math.floor(m / 60);
+        const rm = m % 60;
+        return `${h} jam ${rm} menit`;
+      };
+
+      const waktuTunggu = formatDur(waitSeconds);
+      const durasiLayanan = formatDur(durationSeconds);
+
+      tgMessage = `
+🚨 <b>Pelanggan TELKOM Selesai (${updatedVisitor.region || "Palu"})</b> 🚨
+
+🗓 <b>Waktu Selesai:</b> ${waktuSelesai}
+⏳ <b>Waktu Tunggu:</b> ${waktuTunggu}
+⏱ <b>Durasi Layanan:</b> ${durasiLayanan}
+
+🏢 <b>Instansi:</b> ${updatedVisitor.institution || '-'}
+👤 <b>Nama:</b> ${updatedVisitor.fullName}
+📞 <b>No. HP:</b> ${updatedVisitor.phoneNumber || '-'}
+🌐 <b>No. Internet:</b> ${updatedVisitor.internetNumber || '-'}
+🏠 <b>Alamat:</b> ${updatedVisitor.address || '-'}
+
+🎯 <b>Kategori:</b> ${updatedVisitor.category || '-'}
+👩‍💼 <b>Bertemu:</b> ${updatedVisitor.hostName || '-'}
+📝 <b>Keperluan:</b>
+<i>${updatedVisitor.purpose || "-"}</i>
+`;
+    } else {
+      // Format Pesan Proses/Menunggu
+      tgMessage = `🚨 <b>Data Pelanggan (Diperbarui) - ${updatedVisitor.region || "Palu"}</b> 🚨
+
+🏢 <b>Instansi:</b> ${updatedVisitor.institution || 'Umum'}
+👤 <b>Nama:</b> ${updatedVisitor.fullName}
+📞 <b>No. HP:</b> ${updatedVisitor.phoneNumber || '-'}
+🌐 <b>No. Internet:</b> ${updatedVisitor.internetNumber || '-'}
+🏠 <b>Alamat:</b> ${updatedVisitor.address || '-'}
+
+🎯 <b>Kategori:</b> ${updatedVisitor.category || '-'}
+👩‍💼 <b>Bertemu:</b> ${updatedVisitor.hostName || '-'}
+📝 <b>Keperluan:</b>
+<i>${updatedVisitor.purpose || '-'}</i>`;
+    }
+
+    // Fungsi helper untuk edit pesan
+    const editTelegramMessage = async (chatId: string, msgId: string) => {
+      if (updatedVisitor.photoUrl) {
+        try {
+          const editPayload = {
+            chat_id: chatId,
+            message_id: msgId,
+            media: JSON.stringify({
+              type: "photo",
+              media: updatedVisitor.photoUrl,
+              caption: tgMessage,
+              parse_mode: "HTML"
+            })
+          };
+          const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/editMessageMedia`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(editPayload)
+          });
+          if (!res.ok) throw new Error("Gagal editMessageMedia");
+        } catch (err) {
+          await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/editMessageText`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ chat_id: chatId, message_id: msgId, text: tgMessage, parse_mode: "HTML" })
+          });
+        }
+      } else {
+        await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/editMessageText`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ chat_id: chatId, message_id: msgId, text: tgMessage, parse_mode: "HTML" })
+        });
+      }
+    };
+
+    // 1. Update pesan di grup CS jika ada
+    if (updatedVisitor.tgChatId && updatedVisitor.tgMsgId) {
+      await editTelegramMessage(updatedVisitor.tgChatId, updatedVisitor.tgMsgId).catch(() => {});
+    }
+
+    // 2. Update pesan di grup Besar jika sudah selesai
+    const TELEGRAM_CHAT_ID_COMPLETED = process.env.TELEGRAM_CHAT_ID_COMPLETED;
+    if (updatedVisitor.status === VisitStatus.SUCCESS && TELEGRAM_CHAT_ID_COMPLETED && updatedVisitor.tgCompletedMsgId) {
+      await editTelegramMessage(TELEGRAM_CHAT_ID_COMPLETED, updatedVisitor.tgCompletedMsgId).catch(() => {});
+    }
+  }
+  // 👆 AKHIR SINKRONISASI TELEGRAM 👆
+
   revalidatePath("/admin");
 }
 
