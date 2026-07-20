@@ -33,8 +33,9 @@ import {
   WifiOff,
   X,
   ShieldAlert,
+  Trash2,
 } from "lucide-react";
-import { cancelVisit, completeVisit, reopenVisit, updateVisitorInfo, generateVisitorPin, clearAllPreRegisterVisitsAction } from "../actions/admin";
+import { cancelVisit, completeVisit, reopenVisit, updateVisitorInfo, generateVisitorPin, clearAllPreRegisterVisitsAction, deleteVisitor } from "../actions/admin";
 import { logoutAdmin } from "../actions/auth";
 import { supabase } from "@/lib/supabase"; 
 
@@ -907,6 +908,20 @@ const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" |
                                 View
                               </button>
                             )}
+                            {activeView === "history" && (
+                              <button
+                                type="button"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  setEditingVisitor(visitor);
+                                }}
+                                title="Edit"
+                                aria-label="Edit"
+                                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[#efc6c0] bg-[#fff0ed] text-[#b3261e] transition hover:bg-[#b3261e] hover:text-white"
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </button>
+                            )}
                             {visitor.status !== "PENDING" && (
                               <form
                                 action={
@@ -943,6 +958,25 @@ const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" |
                                   onClick={(event) => event.stopPropagation()}
                                 >
                                   <Ban className="h-4 w-4" />
+                                </button>
+                              </form>
+                            )}
+
+                            {["SUCCESS", "CANCELLED"].includes(visitor.status) && activeView === "history" && (
+                              <form action={deleteVisitor} onSubmit={(e) => {
+                                if (!confirm("Apakah Anda yakin ingin menghapus data ini? Aksi ini akan menghapus data di database, spreadsheet, dan telegram laporan.")) {
+                                  e.preventDefault();
+                                }
+                              }}>
+                                <input type="hidden" name="id" value={visitor.id} />
+                                <button
+                                  type="submit"
+                                  title="Hapus Riwayat"
+                                  aria-label="Hapus Riwayat"
+                                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[#efc6c0] bg-[#fff0ed] text-[#b3261e] transition hover:bg-[#b3261e] hover:text-white"
+                                  onClick={(event) => event.stopPropagation()}
+                                >
+                                  <Trash2 className="h-4 w-4" />
                                 </button>
                               </form>
                             )}

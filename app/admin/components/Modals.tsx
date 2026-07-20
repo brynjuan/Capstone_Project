@@ -71,7 +71,20 @@ export function EditVisitorDialog({ visitor, isSaving, onClose, onSubmit }: any)
               <EditField label="Nomor Telepon" name="phoneNumber" defaultValue={visitor.phoneNumber || ""} />
               <EditField label="Pelanggan / Instansi" name="institution" defaultValue={visitor.institution || ""} />
               <EditField label="Nomor Internet" name="internetNumber" defaultValue={visitor.internetNumber || ""} />
-              <EditField label="Kategori" name="category" defaultValue={visitor.category || ""} />
+              <label className="grid gap-2">
+                <span className="text-xs font-semibold uppercase tracking-wide text-[#806762]">Kategori</span>
+                <select name="category" defaultValue={visitor.category || ""} className="h-11 rounded-xl border border-[#f0dfdb] bg-[#fff8f6] px-3 text-sm font-semibold text-[#2b211f] outline-none transition focus:border-[#d23a2f] focus:bg-white">
+                  <option value="">Pilih Kategori...</option>
+                  <option value="Lapor Gangguan">Lapor Gangguan</option>
+                  <option value="Permintaan Pasang Baru (PSB)">Permintaan Pasang Baru (PSB)</option>
+                  <option value="Permintaan Pindah Alamat">Permintaan Pindah Alamat</option>
+                  <option value="Permintaan Modify (Upgrade & Downgrade)">Permintaan Modify (Upgrade & Downgrade)</option>
+                  <option value="Permintaan Cabut (DO)">Permintaan Cabut (DO)</option>
+                  <option value="Invoicing">Invoicing</option>
+                  <option value="TTD SPJ">TTD SPJ</option>
+                  <option value="Benah Tiang / Kabel">Benah Tiang / Kabel</option>
+                </select>
+              </label>
               <EditField label="Petugas Dituju" name="hostName" defaultValue={visitor.hostName || ""} />
             </div>
             <div className="mt-4 grid gap-4">
