@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireAdminSession } from "@/lib/auth";
 import { VisitStatus } from "@prisma/client";
-import { syncToSpreadsheet } from "@/lib/sheets";
+import { syncToSpreadsheet, deleteFromSpreadsheet } from "@/lib/sheets";
 import { uploadPhotoboothImage } from "./kiosk";
 
 // ============================================================================
@@ -213,6 +213,7 @@ export async function completeVisit(formData: FormData) {
 
     // B. KIRIM PESAN BARU KE GRUP BESAR (YANG MENGGABUNGKAN SEMUA CABANG)
     if (TELEGRAM_CHAT_ID_COMPLETED) {
+      let tgRes;
       if (updatedVisitor.photoUrl) {
         try {
           const imgFetch = await fetch(updatedVisitor.photoUrl);
@@ -226,17 +227,17 @@ export async function completeVisit(formData: FormData) {
             tgFormData.append("caption", tgMessage);
             tgFormData.append("parse_mode", "HTML");
 
-            const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendPhoto`, {
+            tgRes = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendPhoto`, {
               method: "POST",
               body: tgFormData,
             });
 
-            if (!res.ok) throw new Error("Gagal upload foto via FormData"); 
+            if (!tgRes.ok) throw new Error("Gagal upload foto via FormData"); 
           } else {
             throw new Error("Server gagal mengambil foto dari R2");
           }
         } catch (err) {
-          await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+          tgRes = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID_COMPLETED, text: tgMessage, parse_mode: "HTML" })
@@ -244,13 +245,27 @@ export async function completeVisit(formData: FormData) {
         }
       } else {
         try {
-          await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+          tgRes = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID_COMPLETED, text: tgMessage, parse_mode: "HTML" })
           });
         } catch (err) {
           console.error("Gagal mengirim pesan teks telegram", err);
+        }
+      }
+
+      if (tgRes && tgRes.ok) {
+        try {
+          const tgData = await tgRes.json();
+          if (tgData && tgData.result && tgData.result.message_id) {
+            await prisma.visitorLog.update({
+              where: { id: updatedVisitor.id },
+              data: { tgCompletedMsgId: String(tgData.result.message_id) }
+            });
+          }
+        } catch (err) {
+          console.error("Gagal parsing response telegram:", err);
         }
       }
     }
@@ -494,6 +509,52 @@ export async function updateVisitorInfo(formData: FormData) {
     console.error("Gagal sinkron ke spreadsheet saat edit info:", sheetError);
   }
   // 👆 AKHIR SINKRONISASI 👆
+
+  revalidatePath("/admin");
+}
+
+export async function deleteVisitor(formData: FormData) {
+  const { session } = await getSessionAndFilter();
+  const id = String(formData.get("id") || "");
+
+  if (!id) return;
+
+  const visitor = await prisma.visitorLog.findUnique({ where: { id } });
+  if (!visitor) return;
+
+  if (session.role === "ADMIN" && visitor.region !== session.region) {
+    throw new Error("Akses ditolak.");
+  }
+
+  // 1. Delete from Telegram Completed Group if exists
+  const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+  const TELEGRAM_CHAT_ID_COMPLETED = process.env.TELEGRAM_CHAT_ID_COMPLETED; 
+  
+  if (TELEGRAM_BOT_TOKEN && TELEGRAM_CHAT_ID_COMPLETED && visitor.tgCompletedMsgId) {
+    try {
+      await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/deleteMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: TELEGRAM_CHAT_ID_COMPLETED,
+          message_id: visitor.tgCompletedMsgId
+        })
+      });
+    } catch (err) {
+      console.error("Gagal menghapus pesan telegram laporan:", err);
+    }
+  }
+
+  // 2. Delete from Spreadsheet
+  try {
+    const { deleteFromSpreadsheet } = await import("@/lib/sheets");
+    await deleteFromSpreadsheet(id);
+  } catch (err) {
+    console.error("Gagal memanggil deleteFromSpreadsheet:", err);
+  }
+
+  // 3. Delete from DB
+  await prisma.visitorLog.delete({ where: { id } });
 
   revalidatePath("/admin");
 }

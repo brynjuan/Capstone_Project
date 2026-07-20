@@ -54,6 +54,7 @@ model VisitorLog {
   // 4. TELEGRAM INTEGRATION
   tgMsgId        String?     @db.VarChar(50)
   tgChatId       String?     @db.VarChar(50)
+  tgCompletedMsgId String?   @db.VarChar(50) // Untuk pesan di grup laporan selesai
 
   // ========================================================
   // SISTEM ANTREAN CERDAS (SMART QUEUE)

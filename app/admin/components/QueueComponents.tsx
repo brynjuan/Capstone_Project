@@ -1,8 +1,8 @@
 // File: app/admin/components/QueueComponents.tsx
 
 import Link from "next/link";
-import { Search, UsersRound, Headset, CheckCircle2, PhoneCall, Clock3, RefreshCw, Pencil, Ban, RotateCcw, Building2 } from "lucide-react";
-import { cancelVisit, completeVisit, reopenVisit } from "../../actions/admin";
+import { Search, UsersRound, Headset, CheckCircle2, PhoneCall, Clock3, RefreshCw, Pencil, Ban, RotateCcw, Building2, Trash2 } from "lucide-react";
+import { cancelVisit, completeVisit, reopenVisit, deleteVisitor } from "../../actions/admin";
 import { formatTime, formatDate, durationSeconds, formatDurationClock, formatCompactDuration, visitorCode } from "../utils";
 import { VisitorAvatar, StatusBadge } from "./SharedUI";
 import { AdminVisitor } from "../types";
@@ -185,7 +185,17 @@ export function QueueRowActions({ visitor, onEdit }: any) {
       {["PENDING", "ON_PROGRESS"].includes(visitor.status) && (
         <form action={cancelVisit}>
           <input type="hidden" name="id" value={visitor.id} />
-          <button type="submit" onClick={(e) => e.stopPropagation()} className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-[#b3261e] transition hover:bg-[#fff0ed] hover:text-[#7a625e]"><Ban className="h-4 w-4" /></button>
+          <button type="submit" onClick={(e) => e.stopPropagation()} className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-[#b3261e] transition hover:bg-[#fff0ed] hover:text-[#7a625e]" title="Batalkan"><Ban className="h-4 w-4" /></button>
+        </form>
+      )}
+      {["SUCCESS", "CANCELLED"].includes(visitor.status) && (
+        <form action={deleteVisitor} onSubmit={(e) => {
+          if (!confirm("Apakah Anda yakin ingin menghapus data ini? Aksi ini akan menghapus data di database, spreadsheet, dan telegram laporan.")) {
+            e.preventDefault();
+          }
+        }}>
+          <input type="hidden" name="id" value={visitor.id} />
+          <button type="submit" onClick={(e) => e.stopPropagation()} className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-[#b3261e] transition hover:bg-[#fff0ed]" title="Hapus Riwayat"><Trash2 className="h-4 w-4" /></button>
         </form>
       )}
     </div>

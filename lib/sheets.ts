@@ -104,3 +104,48 @@ export async function syncToSpreadsheet(data: CustomerSheetData) {
     throw new Error("Gagal menyimpan ke Spreadsheet");
   }
 }
+
+export async function deleteFromSpreadsheet(dbId: string) {
+  try {
+    const spreadsheet = await sheets.spreadsheets.get({
+      spreadsheetId: SPREADSHEET_ID,
+    });
+    
+    const sheet = spreadsheet.data.sheets?.find(s => s.properties?.title === SHEET_NAME);
+    const sheetId = sheet?.properties?.sheetId || 0;
+
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${SHEET_NAME}!A:J`,
+    });
+
+    const rows = response.data.values || [];
+    const rowIndex = rows.findIndex((row) => row[9] === dbId);
+
+    if (rowIndex !== -1) {
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId: SPREADSHEET_ID,
+        requestBody: {
+          requests: [
+            {
+              deleteDimension: {
+                range: {
+                  sheetId: sheetId,
+                  dimension: "ROWS",
+                  startIndex: rowIndex,
+                  endIndex: rowIndex + 1,
+                }
+              }
+            }
+          ]
+        }
+      });
+      console.log("Baris berhasil dihapus dari Spreadsheet pada indeks:", rowIndex);
+      return true;
+    }
+    return false;
+  } catch (error) {
+    console.error("Gagal menghapus dari Spreadsheet:", error);
+    return false;
+  }
+}
