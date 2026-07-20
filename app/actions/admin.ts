@@ -119,11 +119,12 @@ export async function completeVisit(formData: FormData) {
     console.error("Gagal sinkron ke spreadsheet saat completeVisit:", sheetError);
   }
   // 👆 AKHIR SINKRONISASI 👆
-  // 3. --- NOTIFIKASI TELEGRAM OTOMATIS MENUJU GRUP ATASAN ---
+  // 3. --- NOTIFIKASI TELEGRAM OTOMATIS ---
   const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-  const TELEGRAM_CHAT_ID_ATASAN = getTelegramChatId(updatedVisitor.region, true); 
+  // Gunakan satu grup besar untuk laporan selesai (baik Palu maupun Gorontalo)
+  const TELEGRAM_CHAT_ID_COMPLETED = process.env.TELEGRAM_CHAT_ID_COMPLETED; 
   
-  if (TELEGRAM_BOT_TOKEN && TELEGRAM_CHAT_ID_ATASAN) {
+  if (TELEGRAM_BOT_TOKEN) {
     const now = new Date();
     const waktuSelesai = new Intl.DateTimeFormat('id-ID', {
       timeZone: 'Asia/Makassar',
@@ -131,43 +132,48 @@ export async function completeVisit(formData: FormData) {
       hour: '2-digit', minute: '2-digit', second: '2-digit', timeZoneName: 'short'
     }).format(now);
 
-    const start = updatedVisitor.serviceStartTime || updatedVisitor.checkInTime || now;
+    const checkIn = updatedVisitor.checkInTime || now;
+    const start = updatedVisitor.serviceStartTime || checkIn;
     const end = updatedVisitor.checkOutTime || now;
-    const durationSeconds = Math.max(0, Math.floor((end.getTime() - new Date(start).getTime()) / 1000));
     
-    let durasiLayanan = `${durationSeconds} detik`;
-    if (durationSeconds >= 60) {
-      const minutes = Math.floor(durationSeconds / 60);
-      const restSeconds = durationSeconds % 60;
-      durasiLayanan = `${minutes} menit ${restSeconds} detik`;
-      if (minutes >= 60) {
-        const hours = Math.floor(minutes / 60);
-        const restMinutes = minutes % 60;
-        durasiLayanan = `${hours} jam ${restMinutes} menit`;
-      }
-    }
+    const waitSeconds = Math.max(0, Math.floor((new Date(start).getTime() - new Date(checkIn).getTime()) / 1000));
+    const durationSeconds = Math.max(0, Math.floor((new Date(end).getTime() - new Date(start).getTime()) / 1000));
+    
+    const formatDur = (secs: number) => {
+      if (secs <= 0) return "0 detik";
+      if (secs < 60) return `${secs} detik`;
+      const m = Math.floor(secs / 60);
+      const s = secs % 60;
+      if (m < 60) return `${m} menit ${s} detik`;
+      const h = Math.floor(m / 60);
+      const rm = m % 60;
+      return `${h} jam ${rm} menit`;
+    };
+
+    const waktuTunggu = formatDur(waitSeconds);
+    const durasiLayanan = formatDur(durationSeconds);
 
     const tgMessage = `
-📈 <b>LAPORAN KUNJUNGAN SELESAI (${updatedVisitor.region || "Pusat"})</b> 📈
+🚨 <b>Pelanggan TELKOM Selesai (${updatedVisitor.region || "Palu"})</b> 🚨
 
 🗓 <b>Waktu Selesai:</b> ${waktuSelesai}
-⏱ <b>Durasi Pelayanan:</b> ${durasiLayanan}
-👤 <b>Petugas CS:</b> ${session.name}
+⏳ <b>Waktu Tunggu:</b> ${waktuTunggu}
+⏱ <b>Durasi Layanan:</b> ${durasiLayanan}
 
 🏢 <b>Instansi:</b> ${updatedVisitor.institution || '-'}
-👤 <b>Nama Pelanggan:</b> ${updatedVisitor.fullName}
+👤 <b>Nama:</b> ${updatedVisitor.fullName}
 📞 <b>No. HP:</b> ${updatedVisitor.phoneNumber || '-'}
 🌐 <b>No. Internet:</b> ${updatedVisitor.internetNumber || '-'}
 🏠 <b>Alamat:</b> ${updatedVisitor.address || '-'}
 
-🎯 <b>Kategori Kunjungan:</b> ${updatedVisitor.category || '-'}
-👩‍💼 <b>Bertemu Dengan:</b> ${updatedVisitor.hostName || '-'}
-📝 <b>Keperluan / Detail:</b>
+🎯 <b>Kategori:</b> ${updatedVisitor.category || '-'}
+👩‍💼 <b>Bertemu:</b> ${updatedVisitor.hostName || '-'}
+📝 <b>Keperluan:</b>
 <i>${updatedVisitor.purpose || "-"}</i>
 `;
 
+    // A. EDIT PESAN DI GRUP CS (JIKA ADA)
     if (updatedVisitor.tgMsgId && updatedVisitor.tgChatId) {
-      // JIKA ADA PESAN SEBELUMNYA -> EDIT PESAN
       if (updatedVisitor.photoUrl) {
         try {
           const editPayload = {
@@ -203,8 +209,10 @@ export async function completeVisit(formData: FormData) {
           body: JSON.stringify({ chat_id: updatedVisitor.tgChatId, message_id: updatedVisitor.tgMsgId, text: tgMessage, parse_mode: "HTML" })
         });
       }
-    } else {
-      // JIKA TIDAK ADA PESAN SEBELUMNYA -> KIRIM PESAN BARU
+    }
+
+    // B. KIRIM PESAN BARU KE GRUP BESAR (YANG MENGGABUNGKAN SEMUA CABANG)
+    if (TELEGRAM_CHAT_ID_COMPLETED) {
       if (updatedVisitor.photoUrl) {
         try {
           const imgFetch = await fetch(updatedVisitor.photoUrl);
@@ -213,7 +221,7 @@ export async function completeVisit(formData: FormData) {
             const blob = new Blob([arrayBuffer], { type: "image/jpeg" });
             
             const tgFormData = new FormData();
-            tgFormData.append("chat_id", TELEGRAM_CHAT_ID_ATASAN);
+            tgFormData.append("chat_id", TELEGRAM_CHAT_ID_COMPLETED);
             tgFormData.append("photo", blob, "visitor.jpg");
             tgFormData.append("caption", tgMessage);
             tgFormData.append("parse_mode", "HTML");
@@ -231,7 +239,7 @@ export async function completeVisit(formData: FormData) {
           await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID_ATASAN, text: tgMessage, parse_mode: "HTML" })
+            body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID_COMPLETED, text: tgMessage, parse_mode: "HTML" })
           });
         }
       } else {
@@ -239,7 +247,7 @@ export async function completeVisit(formData: FormData) {
           await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID_ATASAN, text: tgMessage, parse_mode: "HTML" })
+            body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID_COMPLETED, text: tgMessage, parse_mode: "HTML" })
           });
         } catch (err) {
           console.error("Gagal mengirim pesan teks telegram", err);
@@ -458,26 +466,30 @@ export async function updateVisitorInfo(formData: FormData) {
 
 // 👇 SINKRONISASI KE GOOGLE SPREADSHEET 👇
   try {
-    const now = new Date();
-    const timestamp = new Intl.DateTimeFormat('id-ID', {
-      timeZone: 'Asia/Makassar',
-      year: 'numeric', month: '2-digit', day: '2-digit',
-      hour: '2-digit', minute: '2-digit', second: '2-digit'
-    }).format(now).replace(/\./g, ':');
+    // HANYA sinkron ke sheet jika statusnya sudah selesai (SUCCESS)
+    // agar tidak membuat baris baru saat data diedit ketika masih diproses.
+    if (updatedVisitor.status === VisitStatus.SUCCESS) {
+      const now = new Date();
+      const timestamp = new Intl.DateTimeFormat('id-ID', {
+        timeZone: 'Asia/Makassar',
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', second: '2-digit'
+      }).format(now).replace(/\./g, ':');
 
-    await syncToSpreadsheet({
-      dbId: updatedVisitor.id,
-      timestamp: timestamp,
-      namaPelanggan: updatedVisitor.institution || "-",
-      namaPic: updatedVisitor.fullName,
-      // Tambahkan kutip tunggal (') sebelum nomor agar formatnya menjadi plain text (rata kiri)
-      nomorHpPic: updatedVisitor.phoneNumber ? `'${updatedVisitor.phoneNumber}` : "-",
-      nomorUser: updatedVisitor.internetNumber ? `'${updatedVisitor.internetNumber}` : "-",
-      alamat: updatedVisitor.address || "-",
-      kategori: updatedVisitor.category || "-",
-      hotda: updatedVisitor.region || "Witel Sulbagteng",
-      status: updatedVisitor.status, // Kirimkan status yang saat ini aktif
-    });
+      await syncToSpreadsheet({
+        dbId: updatedVisitor.id,
+        timestamp: timestamp,
+        namaPelanggan: updatedVisitor.institution || "-",
+        namaPic: updatedVisitor.fullName,
+        // Tambahkan kutip tunggal (') sebelum nomor agar formatnya menjadi plain text (rata kiri)
+        nomorHpPic: updatedVisitor.phoneNumber ? `'${updatedVisitor.phoneNumber}` : "-",
+        nomorUser: updatedVisitor.internetNumber ? `'${updatedVisitor.internetNumber}` : "-",
+        alamat: updatedVisitor.address || "-",
+        kategori: updatedVisitor.category || "-",
+        hotda: updatedVisitor.region || "Witel Sulbagteng",
+        status: "Selesai", 
+      });
+    }
   } catch (sheetError) {
     console.error("Gagal sinkron ke spreadsheet saat edit info:", sheetError);
   }

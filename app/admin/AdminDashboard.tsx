@@ -68,16 +68,14 @@ import { SuperadminPanel } from "./components/SuperadminPanel";
 
 // Konstanta Kategori untuk Form Buat PIN
 const KATEGORI_KUNJUNGAN = [
-  "Laporan Gangguan",
-  "Pasang Baru (PSB)",
-  "Pindah Alamat",
-  "Ubah Paket Layanan",
-  "Cabut Layanan",
-  "Penagihan",
-  "Administrasi (SPJ)",
-  "Pemeliharaan Kabel",
-  "Kunjungan Dinas",
-  "Lainnya"
+  "Lapor Gangguan",
+  "Permintaan Pasang Baru (PSB)",
+  "Permintaan Pindah Alamat",
+  "Permintaan Modify (Upgrade & Downgrade)",
+  "Permintaan Cabut (DO)",
+  "Invoicing",
+  "TTD SPJ",
+  "Benah Tiang / Kabel"
 ];
 
 type Props = {

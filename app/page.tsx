@@ -25,15 +25,14 @@ const slideVariants: Variants = {
 };
 
 const KATEGORI_KUNJUNGAN = [
-  { id: "gangguan", label: "Laporan Gangguan", icon: "⚠️" },
-  { id: "psb", label: "Pasang Baru (PSB)", icon: "🏠" },
-  { id: "pindah", label: "Pindah Alamat", icon: "🚚" },
-  { id: "modify", label: "Ubah Paket Layanan", icon: "📈" },
-  { id: "cabut", label: "Cabut Layanan", icon: "❌" },
-  { id: "invoice", label: "Penagihan", icon: "💳" },
-  { id: "spj", label: "Administrasi (SPJ)", icon: "📝" },
-  { id: "kabel", label: "Pemeliharaan Kabel", icon: "🛠️" },
-  { id: "lainnya", label: "Lainnya", icon: "✨" },
+  { id: "gangguan", label: "Lapor Gangguan", icon: "⚠️" },
+  { id: "psb", label: "Permintaan Pasang Baru (PSB)", icon: "🏠" },
+  { id: "pindah", label: "Permintaan Pindah Alamat", icon: "🚚" },
+  { id: "modify", label: "Permintaan Modify (Upgrade & Downgrade)", icon: "📈" },
+  { id: "cabut", label: "Permintaan Cabut (DO)", icon: "❌" },
+  { id: "invoice", label: "Invoicing", icon: "💳" },
+  { id: "spj", label: "TTD SPJ", icon: "📝" },
+  { id: "kabel", label: "Benah Tiang / Kabel", icon: "🛠️" }
 ];
 
 type KioskFormValues = {
