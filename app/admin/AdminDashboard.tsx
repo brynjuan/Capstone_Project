@@ -128,7 +128,15 @@ const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" |
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'visitor_logs' },
-        (payload) => { router.refresh(); }
+        (payload) => { 
+          if (payload.eventType === 'INSERT') {
+            // Mainkan suara notifikasi untuk admin
+            // Pastikan file 'notifikasi_admin.mp3' diletakkan di dalam folder 'public'
+            const audio = new Audio('/notifikasi_admin.mp3');
+            audio.play().catch(e => console.error("Gagal memutar notifikasi audio:", e));
+          }
+          router.refresh(); 
+        }
       )
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
