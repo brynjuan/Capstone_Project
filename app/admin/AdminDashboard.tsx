@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   Activity,
@@ -122,6 +122,18 @@ const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" |
     return () => clearInterval(timer);
   }, []);
 
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const playNotification = () => {
+    if (audioRef.current) {
+      audioRef.current.currentTime = 0;
+      audioRef.current.play().catch(e => {
+        console.error("Gagal memutar audio:", e);
+        showNotification("Gagal memutar suara. Pastikan file audio valid dan tidak diblokir browser.", "error");
+      });
+    }
+  };
+
   useEffect(() => {
     const channel = supabase
       .channel('visitor-queue-updates')
@@ -129,12 +141,8 @@ const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" |
         'postgres_changes',
         { event: '*', schema: 'public', table: 'visitor_logs' },
         (payload) => { 
-          if (payload.eventType === 'INSERT') {
-            // Mainkan suara notifikasi untuk admin
-            // Pastikan file 'notifikasi_admin.mp3' diletakkan di dalam folder 'public'
-            const audio = new Audio('/notifikasi_admin.mp3');
-            audio.play().catch(e => console.error("Gagal memutar notifikasi audio:", e));
-          }
+          // Kita sudah memindahkan trigger notifikasi ke state queueVisitors 
+          // agar lebih stabil dan mencakup tamu scan PIN (UPDATE).
           router.refresh(); 
         }
       )
@@ -169,6 +177,20 @@ const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" |
         }),
     [data.visitors],
   );
+
+  const [prevQueueCount, setPrevQueueCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (prevQueueCount === null) {
+      setPrevQueueCount(queueVisitors.length);
+      return;
+    }
+
+    if (queueVisitors.length > prevQueueCount) {
+      playNotification();
+    }
+    setPrevQueueCount(queueVisitors.length);
+  }, [queueVisitors.length, prevQueueCount]);
 
   const preRegisterVisitors = useMemo(() => {
     return data.visitors
@@ -315,6 +337,7 @@ const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" |
 
   return (
     <main className="min-h-screen overflow-hidden bg-[#fbf7f5] text-[#2b211f]">
+      <audio ref={audioRef} src="/notifikasi_admin.mp3" preload="auto" />
       <div className="fixed inset-0 -z-10">
         <div className="absolute inset-0 bg-[linear-gradient(135deg,#fffdfb_0%,#fbf4f1_52%,#fde9e4_100%)]" />
         <div className="absolute inset-0 bg-[linear-gradient(rgba(179,38,30,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(179,38,30,0.035)_1px,transparent_1px)] bg-[size:42px_42px] opacity-60" />
