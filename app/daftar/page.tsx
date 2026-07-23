@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { motion, AnimatePresence } from "framer-motion";
+import imageCompression from "browser-image-compression";
 import { registerMobileVisitorAction } from "../actions/kiosk";
 
 const KATEGORI_KUNJUNGAN = [
@@ -155,13 +156,24 @@ export default function MobileRegistration() {
                         <span>Ambil Selfie / Unggah Foto</span>
                       </div>
                       <input type="file" accept="image/*" capture="user" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                        onChange={(e) => {
+                        onChange={async (e) => {
                           const file = e.target.files?.[0];
                           if (file) {
-                            if (file.size > 5 * 1024 * 1024) return alert("Ukuran foto maksimal 5MB.");
-                            const reader = new FileReader();
-                            reader.onloadend = () => setPhotoBase64(reader.result as string);
-                            reader.readAsDataURL(file);
+                            if (file.size > 10 * 1024 * 1024) return alert("Ukuran foto maksimal 10MB sebelum kompresi.");
+                            try {
+                              const options = {
+                                maxSizeMB: 0.5,
+                                maxWidthOrHeight: 1024,
+                                useWebWorker: true,
+                              };
+                              const compressedFile = await imageCompression(file, options);
+                              const reader = new FileReader();
+                              reader.onloadend = () => setPhotoBase64(reader.result as string);
+                              reader.readAsDataURL(compressedFile);
+                            } catch (error) {
+                              console.error("Error compressing image:", error);
+                              alert("Terjadi kesalahan saat memproses gambar.");
+                            }
                           }
                         }}
                       />
