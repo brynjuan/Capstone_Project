@@ -82,9 +82,13 @@ export function ProblemPanel({ activeRange, onRangeChange, dailyData, monthlyDat
                     <g key={item.name}>
                       <polyline points={points} fill="none" stroke={colors[itemIndex % colors.length]} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
                       {item.data.map((point: any, index: number) => (
-                        <circle key={`${item.name}-${point.label}`} cx={xFor(index)} cy={yFor(point.value)} r="4" fill={colors[itemIndex % colors.length]} stroke="#ffffff" strokeWidth="2">
-                          <title>{point.value}</title>
-                        </circle>
+                        <g key={`${item.name}-${point.label}`} className="group cursor-pointer">
+                          <circle cx={xFor(index)} cy={yFor(point.value)} r="12" fill="transparent" />
+                          <circle cx={xFor(index)} cy={yFor(point.value)} r="4" fill={colors[itemIndex % colors.length]} stroke="#ffffff" strokeWidth="2" className="transition-all group-hover:r-[6px]" />
+                          <text x={xFor(index)} y={yFor(point.value) - 10} textAnchor="middle" className="pointer-events-none opacity-0 transition-opacity group-hover:opacity-100 text-[12px] font-bold" fill={colors[itemIndex % colors.length]}>
+                            {point.value}
+                          </text>
+                        </g>
                       ))}
                     </g>
                   );
