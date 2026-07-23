@@ -296,9 +296,17 @@ const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" |
       return acc + Math.max(0, waitTime);
     }, 0);
     
-    const avgWait = successOnly.length > 0 ? Math.round(waitSum / successOnly.length) : 0;
+    const serviceSum = successOnly.reduce((acc, v) => {
+      if (v.serviceStartTime && v.checkOutTime) {
+        return acc + Math.max(0, durationSeconds(v.serviceStartTime, v.checkOutTime));
+      }
+      return acc;
+    }, 0);
 
-    return { successCount: successOnly.length, avgRating, avgWait };
+    const avgWait = successOnly.length > 0 ? Math.round(waitSum / successOnly.length) : 0;
+    const avgService = successOnly.length > 0 ? Math.round(serviceSum / successOnly.length) : 0;
+
+    return { successCount: successOnly.length, avgRating, avgWait, avgService };
   }, [historyVisitors]);
 
   const viewCopy = {
@@ -790,7 +798,7 @@ const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" |
           
           {activeView === "history" && (
             <>
-              <div className="mt-6 grid grid-cols-3 gap-4">
+              <div className="mt-6 grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <Metric 
                   title={historyRange === "today" ? "Selesai Hari Ini" : historyRange === "month" ? "Selesai Bulan Ini" : historyRange === "year" ? "Selesai Tahun Ini" : "Total Selesai"} 
                   value={historyMetrics.successCount} 
@@ -805,6 +813,11 @@ const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" |
                   title="Waktu Tunggu Rata-rata" 
                   value={historyMetrics.avgWait ? formatCompactDuration(historyMetrics.avgWait) : "-"} 
                   icon={Clock3} tone="blue" 
+                />
+                <Metric 
+                  title="Waktu Layanan Rata-rata" 
+                  value={historyMetrics.avgService ? formatCompactDuration(historyMetrics.avgService) : "-"} 
+                  icon={Activity} tone="purple" 
                 />
               </div>
 

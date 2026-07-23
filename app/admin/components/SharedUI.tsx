@@ -12,7 +12,7 @@ export function SidebarItem({ icon: Icon, label, active, onClick, href }: any) {
 }
 
 export function Metric({ title, value, icon: Icon, tone }: any) {
-  const tones = { red: "bg-[#b3261e]/10 text-[#b3261e]", green: "bg-[#62b47d]/12 text-[#4e9b70]", blue: "bg-[#5865d9]/10 text-[#5865d9]", amber: "bg-[#e4a63a]/12 text-[#b07926]" } as any;
+  const tones = { red: "bg-[#b3261e]/10 text-[#b3261e]", green: "bg-[#62b47d]/12 text-[#4e9b70]", blue: "bg-[#5865d9]/10 text-[#5865d9]", amber: "bg-[#e4a63a]/12 text-[#b07926]", purple: "bg-[#a855f7]/12 text-[#9333ea]" } as any;
   return (
     <section className="rounded-xl border border-[#f0dfdb] bg-white p-4 shadow-sm">
       <div className="flex items-start justify-between gap-3">
