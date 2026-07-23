@@ -816,7 +816,7 @@ const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" |
                         {activeView === "history" ? "Daftar Riwayat" : "Daftar Antrean"}
                       </h3>
                     </div>
-                    <div className="flex flex-col flex-wrap gap-3 sm:flex-row sm:items-center xl:justify-end">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center xl:justify-end">
                       
                       <select
                         value={historyRange}
@@ -824,12 +824,12 @@ const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" |
                           setHistoryRange(event.target.value as "today" | "month" | "year" | "all");
                           setPage(1); 
                         }}
-                        className="h-11 rounded-xl border border-[#f0dfdb] bg-[#fff7f5] px-3 text-sm font-bold text-[#b3261e] outline-none focus:border-[#d23a2f]"
+                        className="h-9 rounded-lg border border-[#f0dfdb] bg-[#fff7f5] px-2 text-xs font-bold text-[#b3261e] outline-none focus:border-[#d23a2f]"
                       >
                         <option value="today">📅 Hari Ini</option>
                         <option value="month">📅 Bulan Ini</option>
                         <option value="year">📅 Tahun Ini</option>
-                        <option value="all">📅 Semua Waktu</option>
+                        <option value="all">📅 Semua</option>
                       </select>
 
                       <select
@@ -838,22 +838,22 @@ const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" |
                           setHistoryCategory(event.target.value);
                           setPage(1);
                         }}
-                        className="h-11 rounded-xl border border-[#f0dfdb] bg-[#fff7f5] px-3 text-sm font-bold text-[#b3261e] outline-none focus:border-[#d23a2f]"
+                        className="h-9 max-w-[140px] truncate rounded-lg border border-[#f0dfdb] bg-[#fff7f5] px-2 text-xs font-bold text-[#b3261e] outline-none focus:border-[#d23a2f]"
                       >
                         <option value="all">📁 Semua Kategori</option>
                         {KATEGORI_KUNJUNGAN.map(kat => <option key={kat} value={kat}>📁 {kat}</option>)}
                       </select>
 
                       <label className="relative block">
-                        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#a8918c]" />
+                        <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#a8918c]" />
                         <input
                           value={query}
                           onChange={(event) => {
                             setQuery(event.target.value);
                             setPage(1);
                           }}
-                          placeholder="Cari nama, instansi, nomor..."
-                          className="h-11 w-full rounded-xl border border-[#f0dfdb] bg-[#fff7f5] pl-9 pr-3 text-sm text-[#2b211f] outline-none placeholder:text-[#a8918c] focus:border-[#d23a2f] sm:w-72"
+                          placeholder="Cari..."
+                          className="h-9 w-full rounded-lg border border-[#f0dfdb] bg-[#fff7f5] pl-8 pr-2 text-xs text-[#2b211f] outline-none placeholder:text-[#a8918c] focus:border-[#d23a2f] sm:w-40 xl:w-48"
                         />
                       </label>
                       
@@ -863,7 +863,7 @@ const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" |
                           setStatusFilter(event.target.value as typeof statusFilter);
                           setPage(1);
                         }}
-                        className="h-11 rounded-xl border border-[#f0dfdb] bg-[#fff7f5] px-3 text-sm text-[#2b211f] outline-none focus:border-[#d23a2f]"
+                        className="h-9 rounded-lg border border-[#f0dfdb] bg-[#fff7f5] px-2 text-xs text-[#2b211f] outline-none focus:border-[#d23a2f]"
                       >
                         <option value="ALL">Status</option>
                         {activeView === "history" ? (
