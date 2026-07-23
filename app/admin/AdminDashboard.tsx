@@ -55,7 +55,7 @@ import {
 // Import Komponen UI yang sudah dipecah
 import { SidebarItem, Metric, StatusBadge, VisitorAvatar } from "./components/SharedUI";
 import { VisitorDetail, EditVisitorDialog, EditField, EditTextarea } from "./components/Modals"; // Tambahkan EditField & EditTextarea jika dipakai di form PIN
-import { TrafficPanel, ProblemPanel } from "./components/Charts";
+import { TrafficPanel, ProblemPanel, PeakHoursPanel, RatioPanel } from "./components/Charts";
 import { 
   QueueView, 
   QueueActiveSessionCard, 
@@ -94,6 +94,7 @@ export default function AdminDashboard({ data, admin }: Props) {
   const router = useRouter();
 const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" | "pin" | "status" | "preregister" | "superadmin">("dashboard");
   const [trafficRange, setTrafficRange] = useState<"daily" | "monthly" | "yearly">("daily");
+  const [problemRange, setProblemRange] = useState<"daily" | "monthly" | "yearly">("monthly");
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"ALL" | AdminVisitor["status"]>("ALL");
   const [selectedVisitorId, setSelectedVisitorId] = useState(data.visitors[0]?.id ?? "");
@@ -106,6 +107,7 @@ const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" |
   const [isGeneratingPin, startGeneratingPin] = useTransition();
   const [notification, setNotification] = useState<{ show: boolean; message: string; type: "success" | "error" } | null>(null);
   const [historyRange, setHistoryRange] = useState<"today" | "month" | "year" | "all">("today");
+  const [historyCategory, setHistoryCategory] = useState<string>("all");
 
   const showNotification = (message: string, type: "success" | "error" = "success") => {
     setNotification({ show: true, message, type });
@@ -220,6 +222,9 @@ const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" |
     return data.visitors
       .filter((visitor) => {
         if (!["SUCCESS", "CANCELLED"].includes(visitor.status)) return false;
+        
+        if (historyCategory !== "all" && visitor.category !== historyCategory) return false;
+
         if (historyRange === "all") return true;
 
         const compareDate = visitor.checkOutTime ? new Date(visitor.checkOutTime) : new Date(visitor.checkInTime || 0);
@@ -236,7 +241,7 @@ const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" |
         return true;
       })
       .sort((a, b) => new Date(b.checkOutTime || 0).getTime() - new Date(a.checkOutTime || 0).getTime());
-  }, [data.visitors, historyRange]); 
+  }, [data.visitors, historyRange, historyCategory]); 
 
   const tableSource = activeView === "history" ? historyVisitors : queueVisitors;
 
@@ -490,7 +495,15 @@ const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" |
                   monthlyData={data.monthlySeries}
                   yearlyData={data.yearlySeries}
                 />
-                <ProblemPanel series={data.categoryMonthlySeries} />
+                <ProblemPanel 
+                  activeRange={problemRange}
+                  onRangeChange={setProblemRange}
+                  dailyData={data.categoryDailySeries}
+                  monthlyData={data.categoryMonthlySeries}
+                  yearlyData={data.categoryYearlySeries}
+                />
+                <PeakHoursPanel series={data.peakHoursSeries} />
+                <RatioPanel ratio={data.completionRatio} />
               </div>
             </>
           )}
@@ -810,6 +823,18 @@ const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" |
                         <option value="month">📅 Bulan Ini</option>
                         <option value="year">📅 Tahun Ini</option>
                         <option value="all">📅 Semua Waktu</option>
+                      </select>
+
+                      <select
+                        value={historyCategory}
+                        onChange={(event) => {
+                          setHistoryCategory(event.target.value);
+                          setPage(1);
+                        }}
+                        className="h-11 rounded-xl border border-[#f0dfdb] bg-[#fff7f5] px-3 text-sm font-bold text-[#b3261e] outline-none focus:border-[#d23a2f]"
+                      >
+                        <option value="all">📁 Semua Kategori</option>
+                        {KATEGORI_KUNJUNGAN.map(kat => <option key={kat} value={kat}>📁 {kat}</option>)}
                       </select>
 
                       <label className="relative block">

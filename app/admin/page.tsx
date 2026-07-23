@@ -135,7 +135,7 @@ async function getDashboardData(admin: { role: string; region: string | null }):
       where: { ...regionFilter },
       _count: { category: true },
       orderBy: { _count: { category: "desc" } },
-      take: 5,
+      take: 8,
     });
 
     const dailySeries = [];
@@ -163,26 +163,68 @@ async function getDashboardData(admin: { role: string; region: string | null }):
     }
 
     const topCategories = categoryGroups.map((item) => item.category);
+    const categoryDailySeries = [];
     const categoryMonthlySeries = [];
+    const categoryYearlySeries = [];
     
     for (const category of topCategories) {
-      const data = [];
+      const dataDaily = [];
+      for (const range of dailyRanges) {
+        const count = await prisma.visitorLog.count({
+          where: { category, checkInTime: { gte: range.start, lt: range.end }, ...regionFilter },
+        });
+        dataDaily.push({ label: range.label, value: count });
+      }
+      categoryDailySeries.push({ name: category || "Tanpa kategori", data: dataDaily });
+
+      const dataMonthly = [];
       for (const range of monthlyRanges) {
         const count = await prisma.visitorLog.count({
-          where: {
-            category,
-            checkInTime: { gte: range.start, lt: range.end },
-            ...regionFilter
-          },
+          where: { category, checkInTime: { gte: range.start, lt: range.end }, ...regionFilter },
         });
-        data.push({ label: range.label, value: count });
+        dataMonthly.push({ label: range.label, value: count });
       }
-      
-      categoryMonthlySeries.push({
-        name: category || "Tanpa kategori",
-        data,
-      });
+      categoryMonthlySeries.push({ name: category || "Tanpa kategori", data: dataMonthly });
+
+      const dataYearly = [];
+      for (const range of yearlyRanges) {
+        const count = await prisma.visitorLog.count({
+          where: { category, checkInTime: { gte: range.start, lt: range.end }, ...regionFilter },
+        });
+        dataYearly.push({ label: range.label, value: count });
+      }
+      categoryYearlySeries.push({ name: category || "Tanpa kategori", data: dataYearly });
     }
+
+    const thirtyDaysAgo = startOfDayOffset(-30);
+    const allRecentVisits = await prisma.visitorLog.findMany({
+      where: { checkInTime: { gte: thirtyDaysAgo }, ...regionFilter },
+      select: { checkInTime: true }
+    });
+    
+    const peakHoursSeries = Array.from({ length: 11 }, (_, i) => {
+      const hour = i + 7;
+      return { label: `${String(hour).padStart(2, '0')}:00`, value: 0 };
+    });
+    
+    for (const visit of allRecentVisits) {
+      if (visit.checkInTime) {
+        const dateStr = visit.checkInTime.toLocaleString("en-US", { timeZone: "Asia/Makassar" });
+        const hour = new Date(dateStr).getHours();
+        if (hour >= 7 && hour <= 17) {
+          peakHoursSeries[hour - 7].value += 1;
+        }
+      }
+    }
+
+    const cancelledVisits = await prisma.visitorLog.count({
+      where: { status: VisitStatus.CANCELLED, ...regionFilter }
+    });
+
+    const completionRatio = {
+      success: successVisits,
+      cancelled: cancelledVisits
+    };
 
     // Ambil setting kiosk sesuai wilayah admin (jika Superadmin, default ke "global" atau region pertama yg di klik)
     const targetRegion = admin.region || "global";
@@ -227,7 +269,11 @@ async function getDashboardData(admin: { role: string; region: string | null }):
       dailySeries,
       monthlySeries,
       yearlySeries,
+      categoryDailySeries,
       categoryMonthlySeries,
+      categoryYearlySeries,
+      peakHoursSeries,
+      completionRatio,
       kioskStatus: {
         isBusy: kioskSetting?.isBusy ?? false,
         message: kioskSetting?.message ?? "",
@@ -239,7 +285,9 @@ async function getDashboardData(admin: { role: string; region: string | null }):
       connectionOk: false,
       visitors: [],
       metrics: { totalToday: 0, totalMonth: 0, totalYear: 0, pendingVisits: 0, onProgressVisits: 0, successVisits: 0, completedToday: 0, averageRating: null, },
-      categories: [], dailySeries: [], monthlySeries: [], yearlySeries: [], categoryMonthlySeries: [],
+      categories: [], dailySeries: [], monthlySeries: [], yearlySeries: [], 
+      categoryDailySeries: [], categoryMonthlySeries: [], categoryYearlySeries: [],
+      peakHoursSeries: [], completionRatio: { success: 0, cancelled: 0 },
       kioskStatus: { isBusy: false, message: "" }
     };
   }

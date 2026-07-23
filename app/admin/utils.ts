@@ -21,9 +21,10 @@ export const formatDate = (value: string | null) => {
   }).format(new Date(value));
 };
 
-export const elapsedLabel = (value: string | null) => {
+export const elapsedLabel = (value: string | null, endValue?: string | null) => {
   if (!value) return "-";
-  const minutes = Math.max(0, Math.round((Date.now() - new Date(value).getTime()) / 60000));
+  const endTime = endValue ? new Date(endValue).getTime() : Date.now();
+  const minutes = Math.max(0, Math.round((endTime - new Date(value).getTime()) / 60000));
   if (minutes < 60) return `${minutes} menit`;
   const hours = Math.floor(minutes / 60);
   const rest = minutes % 60;

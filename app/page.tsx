@@ -13,6 +13,7 @@ import "react-simple-keyboard/build/css/index.css";
 import { Scanner } from "@yudiel/react-qr-scanner";
 import { confirmMobileArrivalAction } from "./actions/kiosk";
 import NextImage from "next/image"; // Menggunakan alias 'NextImage'
+import imageCompression from "browser-image-compression";
 
 const ZegoCall = dynamic(() => import("./components/ZegoCall"), { 
   ssr: false 
@@ -309,22 +310,39 @@ const checkKioskLock = async () => {
 
       frameImg.onload = async () => {
         ctx?.drawImage(frameImg, 0, 0, canvas.width, canvas.height);
-        const finalImage = canvas.toDataURL("image/jpeg", 0.9);
+        let finalImage = canvas.toDataURL("image/jpeg", 0.9);
         
-        setPhotoboothResult(finalImage); 
-        setIsUploadingPhoto(true);
-        try {
-          const response = await uploadPhotoboothImage(finalImage);
-          if (response.success && response.url) {
-            setPhotoboothUrl(response.url);
-            playSuccessSound(); // Bunyi berhasil saat QR muncul
-          } else {
-            customAlert("error", "Gagal Mengunggah", "Tidak dapat menyimpan foto ke server Telkom.");
+        const processUpload = async (imgData: string) => {
+          setPhotoboothResult(imgData); 
+          setIsUploadingPhoto(true);
+          try {
+            const response = await uploadPhotoboothImage(imgData);
+            if (response.success && response.url) {
+              setPhotoboothUrl(response.url);
+              playSuccessSound(); // Bunyi berhasil saat QR muncul
+            } else {
+              customAlert("error", "Gagal Mengunggah", "Tidak dapat menyimpan foto ke server Telkom.");
+            }
+          } catch {
+            customAlert("error", "Gagal Mengunggah", "Terjadi kesalahan koneksi saat mengunggah foto.");
+          } finally {
+            setIsUploadingPhoto(false);
           }
-        } catch {
-          customAlert("error", "Gagal Mengunggah", "Terjadi kesalahan koneksi saat mengunggah foto.");
-        } finally {
-          setIsUploadingPhoto(false);
+        };
+
+        try {
+          const res = await fetch(finalImage);
+          const blob = await res.blob();
+          const options = { maxSizeMB: 0.5, maxWidthOrHeight: 1024, useWebWorker: true };
+          const compressedFile = await imageCompression(new File([blob], "photobooth.jpg", { type: "image/jpeg" }), options);
+          const reader = new FileReader();
+          reader.onloadend = async () => {
+            await processUpload(reader.result as string);
+          };
+          reader.readAsDataURL(compressedFile);
+        } catch (error) {
+          console.error("Error compressing image:", error);
+          await processUpload(finalImage);
         }
       };
       frameImg.src = "/frame-telkom.png"; 
@@ -494,13 +512,24 @@ useEffect(() => {
     };
   }, [startIdleTimer, step]);
 
-const capturePhoto = useCallback(() => {
+const capturePhoto = useCallback(async () => {
     if (previewWebcamRef.current) {
       const imageSrc = previewWebcamRef.current.getScreenshot();
       
       // Pastikan hasil jepretan benar-benar ada isinya (bukan sekadar "data:,")
       if (imageSrc && imageSrc.length > 100) {
-        setPhotoBase64(imageSrc);
+        try {
+          const res = await fetch(imageSrc);
+          const blob = await res.blob();
+          const options = { maxSizeMB: 0.5, maxWidthOrHeight: 1024, useWebWorker: true };
+          const compressedFile = await imageCompression(new File([blob], "photo.jpg", { type: "image/jpeg" }), options);
+          const reader = new FileReader();
+          reader.onloadend = () => setPhotoBase64(reader.result as string);
+          reader.readAsDataURL(compressedFile);
+        } catch (error) {
+          console.error("Error compressing image:", error);
+          setPhotoBase64(imageSrc);
+        }
       } else {
         setPhotoBase64(null);
         console.log("Kamera gagal mengambil frame yang valid.");
@@ -512,7 +541,7 @@ const capturePhoto = useCallback(() => {
   const handleNext = async () => {
     const isValid = await trigger(["fullName", "phoneNumber", "institution", "internetNumber"]);
     if (isValid) {
-      capturePhoto(); setStep(2); setKeyboardOpen(false);
+      await capturePhoto(); setStep(2); setKeyboardOpen(false);
     } else {
       customAlert("error", "Data Belum Lengkap", "Silakan lengkapi semua kolom yang memiliki tanda merah (*).");
     }

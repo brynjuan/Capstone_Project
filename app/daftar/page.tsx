@@ -152,8 +152,8 @@ export default function MobileRegistration() {
                   ) : (
                     <div className="relative overflow-hidden group">
                       <div className="w-full py-6 bg-white rounded-2xl text-red-600 font-bold text-center flex flex-col items-center justify-center gap-2 cursor-pointer border border-red-200 shadow-sm transition-all">
-                        <div className="flex gap-2 text-3xl mb-1">📸 <span className="text-gray-200">|</span> 📁</div>
-                        <span>Ambil Selfie / Unggah Foto</span>
+                        <div className="flex gap-2 text-3xl mb-1">📸</div>
+                        <span>Ambil Selfie Kunjungan</span>
                       </div>
                       <input type="file" accept="image/*" capture="user" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                         onChange={async (e) => {
@@ -233,7 +233,7 @@ export default function MobileRegistration() {
               <div className="bg-slate-50 border-2 border-slate-200 p-8 rounded-[2rem] w-full mb-8 shadow-sm relative overflow-hidden">
                 <div className="absolute top-0 left-0 w-full h-2 bg-red-500"></div>
                 <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-2">PIN Akses Anda</p>
-                <span className="text-6xl font-black tracking-widest text-slate-800 font-mono">{pinResult}</span>
+                <span className="text-4xl sm:text-5xl md:text-6xl font-black tracking-widest text-slate-800 font-mono break-all">{pinResult}</span>
               </div>
               <p className="text-sm text-slate-400">Anda tidak perlu mengisi data lagi. Langsung tekan menu <b>"Punya Janji Temu"</b> di Kiosk.</p>
             </motion.div>

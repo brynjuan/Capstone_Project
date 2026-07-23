@@ -40,10 +40,23 @@ export type AdminDashboardData = {
   dailySeries: Array<{ label: string; value: number }>;
   monthlySeries: Array<{ label: string; value: number }>;
   yearlySeries: Array<{ label: string; value: number }>;
+  categoryDailySeries: Array<{
+    name: string;
+    data: Array<{ label: string; value: number }>;
+  }>;
   categoryMonthlySeries: Array<{
     name: string;
     data: Array<{ label: string; value: number }>;
   }>;
+  categoryYearlySeries: Array<{
+    name: string;
+    data: Array<{ label: string; value: number }>;
+  }>;
+  peakHoursSeries: Array<{ label: string; value: number }>;
+  completionRatio: {
+    success: number;
+    cancelled: number;
+  };
   kioskStatus?: {
     isBusy: boolean;
     message: string;

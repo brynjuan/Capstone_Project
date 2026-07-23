@@ -6,6 +6,7 @@ import { X, UserRound, Clock3, Star } from "lucide-react";
 import { AdminVisitor } from "../types";
 import { elapsedLabel } from "../utils";
 import { StatusBadge } from "./SharedUI";
+import imageCompression from "browser-image-compression";
 
 export function VisitorDetail({ selectedVisitor, onPreview, onEdit, isHistory }: any) {
   return (
@@ -27,8 +28,28 @@ export function VisitorDetail({ selectedVisitor, onPreview, onEdit, isHistory }:
             </div>
           </div>
           <div className="grid gap-3 md:grid-cols-2">
-            <InfoTile icon={Clock3} label="Durasi" value={elapsedLabel(selectedVisitor.serviceStartTime || selectedVisitor.checkInTime)} />
-            <InfoTile icon={Star} label="Penilaian" value={selectedVisitor.rating ? `${selectedVisitor.rating}/5` : "-"} />
+            <InfoTile icon={Clock3} label="Durasi" value={elapsedLabel(selectedVisitor.checkInTime, selectedVisitor.checkOutTime)} />
+            <div className="rounded-xl border border-[#f0dfdb] bg-[#fff8f6] p-3">
+              <Star className="mb-2 h-4 w-4 text-[#b3261e]" />
+              <p className="text-xs font-semibold uppercase tracking-wide text-[#806762]">Penilaian</p>
+              <div className="mt-1 flex items-center gap-1">
+                {selectedVisitor.rating ? (
+                  <>
+                    <div className="flex">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <Star 
+                          key={star} 
+                          className={`h-4 w-4 ${star <= (selectedVisitor.rating as number) ? "fill-[#f59e0b] text-[#f59e0b]" : "fill-transparent text-[#d1d5db]"}`} 
+                        />
+                      ))}
+                    </div>
+                    <span className="ml-1 font-bold text-[#3c302d]">{selectedVisitor.rating}/5</span>
+                  </>
+                ) : (
+                  <span className="font-bold text-[#3c302d]">-</span>
+                )}
+              </div>
+            </div>
           </div>
 <div className="rounded-3xl border border-[#ece0dc] bg-[#fcf8f6] p-5 text-sm">
             <div className="grid gap-3 sm:grid-cols-2">
@@ -106,13 +127,24 @@ export function EditVisitorDialog({ visitor, isSaving, onClose, onSubmit }: any)
                 )}
                 <div className="flex-1">
                   <input type="file" accept="image/*" className="text-sm text-[#7a625d] file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-[#fff8f6] file:text-[#b3261e] hover:file:bg-[#ffece8] cursor-pointer outline-none transition focus:ring-2 focus:ring-[#d23a2f]"
-                    onChange={(e) => {
+                    onChange={async (e) => {
                       const file = e.target.files?.[0];
                       if (file) {
-                        if (file.size > 5 * 1024 * 1024) return alert("Ukuran foto maksimal 5MB.");
-                        const reader = new FileReader();
-                        reader.onloadend = () => setPhotoBase64(reader.result as string);
-                        reader.readAsDataURL(file);
+                        if (file.size > 10 * 1024 * 1024) return alert("Ukuran foto maksimal 10MB sebelum kompresi.");
+                        try {
+                          const options = {
+                            maxSizeMB: 0.5,
+                            maxWidthOrHeight: 1024,
+                            useWebWorker: true,
+                          };
+                          const compressedFile = await imageCompression(file, options);
+                          const reader = new FileReader();
+                          reader.onloadend = () => setPhotoBase64(reader.result as string);
+                          reader.readAsDataURL(compressedFile);
+                        } catch (error) {
+                          console.error("Error compressing image:", error);
+                          alert("Terjadi kesalahan saat memproses gambar.");
+                        }
                       }
                     }}
                   />
