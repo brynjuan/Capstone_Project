@@ -95,6 +95,7 @@ export default function AdminDashboard({ data, admin }: Props) {
 const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" | "pin" | "status" | "preregister" | "superadmin">("dashboard");
   const [trafficRange, setTrafficRange] = useState<"daily" | "monthly" | "yearly">("daily");
   const [problemRange, setProblemRange] = useState<"daily" | "monthly" | "yearly">("monthly");
+  const [peakHoursRange, setPeakHoursRange] = useState<"daily" | "monthly" | "yearly">("monthly");
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"ALL" | AdminVisitor["status"]>("ALL");
   const [selectedVisitorId, setSelectedVisitorId] = useState(data.visitors[0]?.id ?? "");
@@ -502,7 +503,13 @@ const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" |
                   monthlyData={data.categoryMonthlySeries}
                   yearlyData={data.categoryYearlySeries}
                 />
-                <PeakHoursPanel series={data.peakHoursSeries} />
+                <PeakHoursPanel 
+                  activeRange={peakHoursRange}
+                  onRangeChange={setPeakHoursRange}
+                  dailyData={data.peakHoursDailySeries}
+                  monthlyData={data.peakHoursMonthlySeries}
+                  yearlyData={data.peakHoursYearlySeries}
+                />
                 <RatioPanel ratio={data.completionRatio} />
               </div>
             </>
@@ -809,7 +816,7 @@ const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" |
                         {activeView === "history" ? "Daftar Riwayat" : "Daftar Antrean"}
                       </h3>
                     </div>
-                    <div className="flex flex-col gap-3 sm:flex-row">
+                    <div className="flex flex-col flex-wrap gap-3 sm:flex-row sm:items-center xl:justify-end">
                       
                       <select
                         value={historyRange}
@@ -925,21 +932,16 @@ const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" |
                           <td className="px-5 py-4 text-center">
                             {visitor.rating ? (
                               <div className="flex items-center justify-center gap-1">
-                                {(() => {
-                                  const ratingValue = Math.floor(visitor.rating);
-                                  return [...Array(5)].map((_, i) => (
-                                    <Star
-                                      key={i}
-                                      className={`h-4 w-4 ${
-                                        i < ratingValue
-                                          ? "fill-[#e4a63a] text-[#e4a63a]"
-                                          : i - ratingValue < 1
-                                            ? "fill-[#e4a63a] text-[#e4a63a]"
-                                            : "text-[#ddd]"
-                                      }`}
-                                    />
-                                  ));
-                                })()}
+                                {[1, 2, 3, 4, 5].map((star) => (
+                                  <Star
+                                    key={star}
+                                    className={`h-4 w-4 ${
+                                      star <= (visitor.rating as number)
+                                        ? "fill-[#f59e0b] text-[#f59e0b]"
+                                        : "fill-transparent text-[#d1d5db]"
+                                    }`}
+                                  />
+                                ))}
                               </div>
                             ) : (
                               <span className="text-[#806762]">-</span>

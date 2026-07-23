@@ -52,7 +52,9 @@ export type AdminDashboardData = {
     name: string;
     data: Array<{ label: string; value: number }>;
   }>;
-  peakHoursSeries: Array<{ label: string; value: number }>;
+  peakHoursDailySeries: Array<{ label: string; value: number }>;
+  peakHoursMonthlySeries: Array<{ label: string; value: number }>;
+  peakHoursYearlySeries: Array<{ label: string; value: number }>;
   completionRatio: {
     success: number;
     cancelled: number;

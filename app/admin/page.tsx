@@ -196,23 +196,31 @@ async function getDashboardData(admin: { role: string; region: string | null }):
       categoryYearlySeries.push({ name: category || "Tanpa kategori", data: dataYearly });
     }
 
-    const thirtyDaysAgo = startOfDayOffset(-30);
-    const allRecentVisits = await prisma.visitorLog.findMany({
-      where: { checkInTime: { gte: thirtyDaysAgo }, ...regionFilter },
+    const allVisitsThisYear = await prisma.visitorLog.findMany({
+      where: { checkInTime: { gte: year }, ...regionFilter },
       select: { checkInTime: true }
     });
     
-    const peakHoursSeries = Array.from({ length: 11 }, (_, i) => {
-      const hour = i + 7;
-      return { label: `${String(hour).padStart(2, '0')}:00`, value: 0 };
-    });
+    const peakHoursDailySeries = Array.from({ length: 11 }, (_, i) => ({ label: `${String(i + 7).padStart(2, '0')}:00`, value: 0 }));
+    const peakHoursMonthlySeries = Array.from({ length: 11 }, (_, i) => ({ label: `${String(i + 7).padStart(2, '0')}:00`, value: 0 }));
+    const peakHoursYearlySeries = Array.from({ length: 11 }, (_, i) => ({ label: `${String(i + 7).padStart(2, '0')}:00`, value: 0 }));
     
-    for (const visit of allRecentVisits) {
+    for (const visit of allVisitsThisYear) {
       if (visit.checkInTime) {
         const dateStr = visit.checkInTime.toLocaleString("en-US", { timeZone: "Asia/Makassar" });
         const hour = new Date(dateStr).getHours();
+        
         if (hour >= 7 && hour <= 17) {
-          peakHoursSeries[hour - 7].value += 1;
+          const index = hour - 7;
+          peakHoursYearlySeries[index].value += 1;
+          
+          if (visit.checkInTime >= month) {
+            peakHoursMonthlySeries[index].value += 1;
+          }
+          
+          if (visit.checkInTime >= today) {
+            peakHoursDailySeries[index].value += 1;
+          }
         }
       }
     }
@@ -272,7 +280,9 @@ async function getDashboardData(admin: { role: string; region: string | null }):
       categoryDailySeries,
       categoryMonthlySeries,
       categoryYearlySeries,
-      peakHoursSeries,
+      peakHoursDailySeries,
+      peakHoursMonthlySeries,
+      peakHoursYearlySeries,
       completionRatio,
       kioskStatus: {
         isBusy: kioskSetting?.isBusy ?? false,
@@ -287,7 +297,8 @@ async function getDashboardData(admin: { role: string; region: string | null }):
       metrics: { totalToday: 0, totalMonth: 0, totalYear: 0, pendingVisits: 0, onProgressVisits: 0, successVisits: 0, completedToday: 0, averageRating: null, },
       categories: [], dailySeries: [], monthlySeries: [], yearlySeries: [], 
       categoryDailySeries: [], categoryMonthlySeries: [], categoryYearlySeries: [],
-      peakHoursSeries: [], completionRatio: { success: 0, cancelled: 0 },
+      peakHoursDailySeries: [], peakHoursMonthlySeries: [], peakHoursYearlySeries: [], 
+      completionRatio: { success: 0, cancelled: 0 },
       kioskStatus: { isBusy: false, message: "" }
     };
   }

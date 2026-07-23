@@ -61,7 +61,7 @@ export function ProblemPanel({ activeRange, onRangeChange, dailyData, monthlyDat
     <section className="rounded-2xl border border-[#f0dfdb] bg-white p-5 shadow-[0_16px_42px_rgba(70,31,25,0.06)] backdrop-blur-2xl">
       <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-center gap-2">
-          <h3 className="text-lg font-bold">Permasalahan Sering</h3>
+          <h3 className="text-lg font-bold">Permasalahan</h3>
           <Activity className="h-5 w-5 text-[#b3261e]" />
         </div>
         <div className="grid h-10 grid-cols-3 rounded-xl bg-[#fdebe7] p-1 text-xs font-bold text-[#6f5752] sm:w-[280px]">
@@ -82,7 +82,9 @@ export function ProblemPanel({ activeRange, onRangeChange, dailyData, monthlyDat
                     <g key={item.name}>
                       <polyline points={points} fill="none" stroke={colors[itemIndex % colors.length]} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
                       {item.data.map((point: any, index: number) => (
-                        <circle key={`${item.name}-${point.label}`} cx={xFor(index)} cy={yFor(point.value)} r="4" fill={colors[itemIndex % colors.length]} stroke="#ffffff" strokeWidth="2" />
+                        <circle key={`${item.name}-${point.label}`} cx={xFor(index)} cy={yFor(point.value)} r="4" fill={colors[itemIndex % colors.length]} stroke="#ffffff" strokeWidth="2">
+                          <title>{point.value}</title>
+                        </circle>
                       ))}
                     </g>
                   );
@@ -104,9 +106,11 @@ export function ProblemPanel({ activeRange, onRangeChange, dailyData, monthlyDat
   );
 }
 
-export function PeakHoursPanel({ series }: { series: { label: string; value: number }[] }) {
+export function PeakHoursPanel({ activeRange, onRangeChange, dailyData, monthlyData, yearlyData }: any) {
+  const rangeOptions = [ { value: "daily", label: "Harian", data: dailyData }, { value: "monthly", label: "Bulanan", data: monthlyData }, { value: "yearly", label: "Tahunan", data: yearlyData } ] as const;
+  const series = rangeOptions.find((option) => option.value === activeRange)?.data ?? monthlyData;
   const chartWidth = 640; const chartHeight = 220; const paddingY = 28; const paddingX = 20;
-  const maxValue = Math.max(1, ...series.map((item) => item.value));
+  const maxValue = Math.max(1, ...series.map((item: any) => item.value));
   const barWidth = (chartWidth - paddingX * 2) / series.length * 0.6;
   const spacing = (chartWidth - paddingX * 2) / series.length;
   
@@ -114,22 +118,31 @@ export function PeakHoursPanel({ series }: { series: { label: string; value: num
 
   return (
     <section className="rounded-2xl border border-[#f0dfdb] bg-white p-5 shadow-[0_16px_42px_rgba(70,31,25,0.06)] backdrop-blur-2xl">
-      <div className="flex items-center justify-between">
-        <div><h3 className="text-lg font-bold">Jam Sibuk Kedatangan</h3></div>
-        <Clock className="h-5 w-5 text-[#b3261e]" />
+      <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex items-center gap-2">
+          <h3 className="text-lg font-bold">Jam Sibuk Kedatangan</h3>
+          <Clock className="h-5 w-5 text-[#b3261e]" />
+        </div>
+        <div className="grid h-10 grid-cols-3 rounded-xl bg-[#fdebe7] p-1 text-xs font-bold text-[#6f5752] sm:w-[280px]">
+          {rangeOptions.map((opt) => (
+            <button key={opt.value} type="button" onClick={() => onRangeChange(opt.value)} className={`rounded-lg transition ${activeRange === opt.value ? "bg-white text-[#b3261e] shadow-sm" : "hover:bg-white/45 hover:text-[#b3261e]"}`}>{opt.label}</button>
+          ))}
+        </div>
       </div>
       <div className="mt-6">
         <div className="overflow-hidden rounded-xl border border-[#f0dfdb] bg-[#fff8f6]">
           <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="h-64 w-full" role="img">
             {[0, 1, 2, 3].map((line) => ( <line key={`grid-${line}`} x1={paddingX} x2={chartWidth - paddingX} y1={paddingY + ((chartHeight - paddingY * 2) / 3) * line} y2={paddingY + ((chartHeight - paddingY * 2) / 3) * line} stroke="#f1dfdb" strokeWidth="1" /> ))}
             
-            {series.map((point, index) => {
+            {series.map((point: any, index: number) => {
               const x = paddingX + spacing * index + (spacing - barWidth) / 2;
               const y = yFor(point.value);
               const height = chartHeight - paddingY - y;
               return (
                 <g key={`bar-${index}`}>
-                  <rect x={x} y={y} width={barWidth} height={height} fill="#b3261e" rx="4" />
+                  <rect x={x} y={y} width={barWidth} height={height} fill="#b3261e" rx="4">
+                    <title>{point.value}</title>
+                  </rect>
                   {point.value > 0 && <text x={x + barWidth / 2} y={y - 8} textAnchor="middle" className="fill-[#b3261e] text-[12px] font-bold">{point.value}</text>}
                   <text x={x + barWidth / 2} y={chartHeight - 8} textAnchor="middle" className="fill-[#806762] text-[12px] font-bold">{point.label.split(":")[0]}</text>
                 </g>
