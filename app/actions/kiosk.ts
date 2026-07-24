@@ -415,8 +415,28 @@ export async function confirmMobileArrivalAction(inputPin: string) {
   }
 }
 
-export async function registerMobileVisitorAction(data: any, photoBase64: string | null) {
+export async function registerMobileVisitorAction(data: any, photoBase64: string | null, turnstileToken?: string) {
   try {
+    if (!turnstileToken) {
+      return { success: false, error: "Verifikasi CAPTCHA gagal. Silakan coba lagi." };
+    }
+
+    const secretKey = process.env.TURNSTILE_SECRET_KEY;
+    if (secretKey) {
+      const verifyRes = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: `secret=${encodeURIComponent(secretKey)}&response=${encodeURIComponent(turnstileToken)}`,
+      });
+
+      const verifyData = await verifyRes.json();
+      if (!verifyData.success) {
+        return { success: false, error: "Gagal memverifikasi CAPTCHA. Anda terdeteksi sebagai bot." };
+      }
+    }
+
     let photoUrl = null;
     if (photoBase64) {
       const uploadResult = await uploadPhotoboothImage(photoBase64); 

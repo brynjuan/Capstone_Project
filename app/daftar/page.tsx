@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { motion, AnimatePresence } from "framer-motion";
 import imageCompression from "browser-image-compression";
 import { registerMobileVisitorAction } from "../actions/kiosk";
+import { Turnstile } from "@marsidev/react-turnstile";
 
 const KATEGORI_KUNJUNGAN = [
   "Lapor Gangguan",
@@ -22,6 +23,7 @@ export default function MobileRegistration() {
   const [pinResult, setPinResult] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [photoBase64, setPhotoBase64] = useState<string | null>(null);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   
   // Tambahkan 'trigger' untuk memvalidasi step 1 sebelum lanjut ke step 2
   const { register, handleSubmit, formState: { errors }, watch, trigger } = useForm();
@@ -31,6 +33,11 @@ export default function MobileRegistration() {
       alert("Mohon sertakan Foto Kunjungan/Selfie Anda terlebih dahulu.");
       return;
     }
+    if (!turnstileToken) {
+      alert("Mohon selesaikan verifikasi keamanan (CAPTCHA) terlebih dahulu.");
+      return;
+    }
+
     setIsSubmitting(true);
     
     // Gabungkan gender dengan nama lengkap
@@ -40,12 +47,14 @@ export default function MobileRegistration() {
     };
 
     // Kirim data beserta foto ke server
-    const result = await registerMobileVisitorAction(payload, photoBase64);
+    const result = await registerMobileVisitorAction(payload, photoBase64, turnstileToken);
     if (result.success && result.pin) {
       setPinResult(result.pin);
       setStep(3); 
     } else {
-      alert("Terjadi kesalahan. Silakan coba lagi.");
+      alert(result.error || "Terjadi kesalahan. Silakan coba lagi.");
+      // Reset token so they have to solve it again if it failed
+      setTurnstileToken(null);
     }
     setIsSubmitting(false);
   };
@@ -197,8 +206,16 @@ export default function MobileRegistration() {
                 </div>
               </div>
 
+              {/* Cloudflare Turnstile CAPTCHA */}
+              <div className="mt-6 flex justify-center w-full">
+                <Turnstile 
+                  siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "1x00000000000000000000AA"} 
+                  onSuccess={(token) => setTurnstileToken(token)}
+                  options={{ theme: 'light' }}
+                />
+              </div>
 
-<div className="flex gap-4 mt-8 pb-8">
+<div className="flex gap-4 mt-6 pb-8">
   <button 
     onClick={() => setStep(1)} 
     className="w-1/3 bg-slate-100 text-slate-600 font-bold p-4 rounded-2xl active:scale-95 transition-all"
@@ -208,10 +225,10 @@ export default function MobileRegistration() {
   
   <button 
     onClick={handleSubmit(onSubmit)} 
-    // Syarat tombol aktif: Tidak sedang submit, ada foto, dan checkbox dicentang
-    disabled={isSubmitting || !photoBase64 || !watch("consent")} 
+    // Syarat tombol aktif: Tidak sedang submit, ada foto, ada turnstile token, dan checkbox dicentang
+    disabled={isSubmitting || !photoBase64 || !watch("consent") || !turnstileToken} 
     className={`w-2/3 font-bold p-4 rounded-2xl transition-all duration-300 ${
-      isSubmitting || !photoBase64 || !watch("consent")
+      isSubmitting || !photoBase64 || !watch("consent") || !turnstileToken
         ? "bg-slate-300 text-slate-500 cursor-not-allowed" // Warna abu-abu
         : "bg-red-600 text-white shadow-[0_10px_20px_rgba(220,38,38,0.3)] hover:bg-red-700 active:scale-95" // Warna merah
     }`}
