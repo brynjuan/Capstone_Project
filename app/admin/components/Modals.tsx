@@ -9,6 +9,8 @@ import { StatusBadge } from "./SharedUI";
 import imageCompression from "browser-image-compression";
 
 export function VisitorDetail({ selectedVisitor, onPreview, onEdit, isHistory }: any) {
+  const [isMapModalOpen, setIsMapModalOpen] = useState(false);
+
   return (
     <section className="w-full rounded-3xl bg-white p-6 shadow-lg">
       <div className="mb-6 flex items-center justify-between gap-4">
@@ -16,13 +18,37 @@ export function VisitorDetail({ selectedVisitor, onPreview, onEdit, isHistory }:
       </div>
       {selectedVisitor ? (
         <div className="space-y-6">
-          <div className="grid gap-4 md:grid-cols-[112px_1fr]">
-            <div className="flex items-center justify-center rounded-3xl bg-[#f7f3f1] p-4">
-              {selectedVisitor.photoUrl ? (
-                <button type="button" onClick={() => onPreview(selectedVisitor)} className="block overflow-hidden rounded-3xl"><Image src={selectedVisitor.photoUrl} alt="Foto" width={112} height={112} unoptimized className="h-28 w-28 object-cover" /></button>
-              ) : <div className="flex h-28 w-28 items-center justify-center rounded-3xl bg-white text-[#bba5a0]"><UserRound className="h-12 w-12" /></div>}
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex gap-4">
+              <div className="flex shrink-0 items-center justify-center rounded-3xl bg-[#f7f3f1] p-4">
+                {selectedVisitor.photoUrl ? (
+                  <button type="button" onClick={() => onPreview(selectedVisitor)} className="block overflow-hidden rounded-3xl"><Image src={selectedVisitor.photoUrl} alt="Foto" width={112} height={112} unoptimized className="h-28 w-28 object-cover" /></button>
+                ) : <div className="flex h-28 w-28 items-center justify-center rounded-3xl bg-white text-[#bba5a0]"><UserRound className="h-12 w-12" /></div>}
+              </div>
+              {selectedVisitor.institution && selectedVisitor.institution.trim() !== "-" && selectedVisitor.institution.trim() !== "" && (
+                <div className="flex shrink-0 items-center justify-center rounded-3xl bg-[#f7f3f1] p-4">
+                  <div 
+                    className="group relative h-28 w-28 cursor-pointer overflow-hidden rounded-3xl sm:w-32"
+                    onClick={() => setIsMapModalOpen(true)}
+                  >
+                    <div className="absolute inset-0 z-10 bg-transparent"></div>
+                    <iframe
+                      width="100%"
+                      height="100%"
+                      style={{ border: 0, pointerEvents: 'none' }}
+                      loading="lazy"
+                      allowFullScreen
+                      referrerPolicy="no-referrer-when-downgrade"
+                      src={`https://maps.google.com/maps?q=${encodeURIComponent(selectedVisitor.institution)}&t=k&z=17&ie=UTF8&iwloc=&output=embed`}
+                    ></iframe>
+                    <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
+                      <span className="text-xs font-bold text-white text-center px-2">Lihat Satelit</span>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
-            <div className="space-y-3">
+            <div className="space-y-3 flex-1 py-2">
               <div><p className="text-sm font-semibold text-[#7a625d]">{selectedVisitor.institution || "Tanpa instansi"}</p><h4 className="text-2xl font-bold text-[#2b211f]">{selectedVisitor.fullName}</h4></div>
               <StatusBadge status={selectedVisitor.status} />
             </div>
@@ -69,6 +95,33 @@ export function VisitorDetail({ selectedVisitor, onPreview, onEdit, isHistory }:
           <div><p className="mb-2 text-xs uppercase tracking-[0.2em] text-[#7a625d]">Keperluan</p><p className="rounded-3xl border border-[#ece0dc] bg-[#faf6f4] p-4 text-sm text-[#3c302d]">{selectedVisitor.purpose || "-"}</p></div>
         </div>
       ) : <p className="text-center text-sm text-[#7a625d]">Pilih salah satu tamu untuk melihat detail.</p>}
+
+      {isMapModalOpen && selectedVisitor && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-[#2b211f]/80 p-4 backdrop-blur-sm" onClick={() => setIsMapModalOpen(false)}>
+          <div className="relative w-full max-w-4xl overflow-hidden rounded-3xl bg-white shadow-2xl border border-[#f0dfdb]" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-[#f0dfdb] px-6 py-4 bg-[#fcf8f6]">
+              <div>
+                <h2 className="text-lg font-bold text-[#2b211f]">Peta Satelit</h2>
+                <p className="text-sm font-semibold text-[#7a625d]">{selectedVisitor.institution}</p>
+              </div>
+              <button type="button" onClick={() => setIsMapModalOpen(false)} className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#f0dfdb] text-[#806762] hover:bg-white hover:text-[#b3261e] transition-colors">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="h-[65vh] w-full bg-[#f7f3f1]">
+              <iframe
+                width="100%"
+                height="100%"
+                style={{ border: 0 }}
+                loading="lazy"
+                allowFullScreen
+                referrerPolicy="no-referrer-when-downgrade"
+                src={`https://maps.google.com/maps?q=${encodeURIComponent(selectedVisitor.institution)}&t=k&z=18&ie=UTF8&iwloc=&output=embed`}
+              ></iframe>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

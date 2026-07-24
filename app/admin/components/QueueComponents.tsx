@@ -1,7 +1,8 @@
 // File: app/admin/components/QueueComponents.tsx
 
 import Link from "next/link";
-import { Search, UsersRound, Headset, CheckCircle2, PhoneCall, Clock3, RefreshCw, Pencil, Ban, RotateCcw, Building2, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { Search, UsersRound, Headset, CheckCircle2, PhoneCall, Clock3, RefreshCw, Pencil, Ban, RotateCcw, Building2, Trash2, X } from "lucide-react";
 import { cancelVisit, completeVisit, reopenVisit, deleteVisitor } from "../../actions/admin";
 import { formatTime, formatDate, durationSeconds, formatDurationClock, formatCompactDuration, visitorCode } from "../utils";
 import { VisitorAvatar, StatusBadge } from "./SharedUI";
@@ -94,6 +95,8 @@ export function QueueView({
 }
 
 export function QueueActiveSessionCard({ visitor, visitorIndex, onPreview }: any) {
+  const [isMapModalOpen, setIsMapModalOpen] = useState(false);
+
   if (!visitor) {
     return (
       <section className="rounded-2xl border border-[#f0dfdb] bg-white p-7 shadow-[0_18px_48px_rgba(70,31,25,0.07)]">
@@ -121,8 +124,30 @@ export function QueueActiveSessionCard({ visitor, visitorIndex, onPreview }: any
         </div>
       </div>
       <div className="mt-7 flex flex-col gap-4 sm:flex-row sm:items-center">
-        <VisitorAvatar visitor={visitor} size="lg" onPreview={onPreview} />
-        <div className="min-w-0">
+        <div className="flex gap-4 items-center">
+          <VisitorAvatar visitor={visitor} size="lg" onPreview={onPreview} />
+          {visitor.institution && visitor.institution.trim() !== "-" && visitor.institution.trim() !== "" && (
+            <div 
+              className="group relative h-16 w-16 sm:h-20 sm:w-20 cursor-pointer overflow-hidden rounded-full shadow-sm"
+              onClick={() => setIsMapModalOpen(true)}
+            >
+              <div className="absolute inset-0 z-10 bg-transparent"></div>
+              <iframe
+                width="100%"
+                height="100%"
+                style={{ border: 0, pointerEvents: 'none' }}
+                loading="lazy"
+                allowFullScreen
+                referrerPolicy="no-referrer-when-downgrade"
+                src={`https://maps.google.com/maps?q=${encodeURIComponent(visitor.institution)}&t=k&z=17&ie=UTF8&iwloc=&output=embed`}
+              ></iframe>
+              <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
+                <span className="text-[10px] font-bold text-white text-center px-1">Satelit</span>
+              </div>
+            </div>
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
           <h4 className="truncate text-lg font-black text-[#3b302d]">{visitor.fullName}</h4>
           <p className="mt-1 text-sm font-bold text-[#7a625d]">{visitor.institution || "Instansi belum diisi"}</p>
         </div>
@@ -137,6 +162,33 @@ export function QueueActiveSessionCard({ visitor, visitorIndex, onPreview }: any
         </form>
         <Link href="/admin/live" className="inline-flex h-12 items-center justify-center rounded-xl border-2 border-[#d9b8b2] bg-white text-[#7a625d] transition hover:border-[#b3261e] hover:bg-[#fff3f1] hover:text-[#b3261e]"><PhoneCall className="h-5 w-5" /></Link>
       </div>
+
+      {isMapModalOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-[#2b211f]/80 p-4 backdrop-blur-sm" onClick={() => setIsMapModalOpen(false)}>
+          <div className="relative w-full max-w-4xl overflow-hidden rounded-3xl bg-white shadow-2xl border border-[#f0dfdb]" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-[#f0dfdb] px-6 py-4 bg-[#fcf8f6]">
+              <div>
+                <h2 className="text-lg font-bold text-[#2b211f]">Peta Satelit</h2>
+                <p className="text-sm font-semibold text-[#7a625d]">{visitor.institution}</p>
+              </div>
+              <button type="button" onClick={() => setIsMapModalOpen(false)} className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#f0dfdb] text-[#806762] hover:bg-white hover:text-[#b3261e] transition-colors">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="h-[65vh] w-full bg-[#f7f3f1]">
+              <iframe
+                width="100%"
+                height="100%"
+                style={{ border: 0 }}
+                loading="lazy"
+                allowFullScreen
+                referrerPolicy="no-referrer-when-downgrade"
+                src={`https://maps.google.com/maps?q=${encodeURIComponent(visitor.institution)}&t=k&z=18&ie=UTF8&iwloc=&output=embed`}
+              ></iframe>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
