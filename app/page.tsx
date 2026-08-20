@@ -144,15 +144,20 @@ export default function KioskPage() {
         // Hentikan suara yang sedang berjalan (kalau ada antrean beruntun)
         window.speechSynthesis.cancel();
         
-        const text = `Panggilan untuk pelanggan, atas nama ${name}, silahkan menuju ke ruang C S`;
+        const text = `Panggilan untuk pelanggan, atas nama ${name}, silahkan menuju ke ruang customer service`;
         const msg = new SpeechSynthesisUtterance(text);
         msg.lang = 'id-ID';
         msg.rate = 0.9; 
         msg.pitch = 1;
         
-        // Memaksa browser untuk memilih suara berlogat Indonesia
+        // Memaksa browser untuk memilih suara berlogat Indonesia (termasuk untuk Microsoft Edge)
         const voices = window.speechSynthesis.getVoices();
-        const idVoice = voices.find(v => v.lang === 'id-ID' || v.lang === 'id_ID' || v.lang.includes('id'));
+        const idVoice = voices.find(v => 
+          v.lang === 'id-ID' || 
+          v.lang === 'id_ID' || 
+          v.name.toLowerCase().includes('indonesia') ||
+          v.name.toLowerCase().includes('indonesian')
+        );
         if (idVoice) {
           msg.voice = idVoice;
         }
