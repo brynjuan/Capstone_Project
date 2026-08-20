@@ -304,7 +304,29 @@ const checkKioskLock = async () => {
   const { register, handleSubmit, formState: { errors }, reset, trigger, setValue, getValues, watch } = useForm<KioskFormValues>(); 
 
   useEffect(() => {
-    if (audioRef.current) { audioRef.current.volume = 0.3; audioRef.current.play().catch(() => {}); }
+    const playMusic = () => {
+      if (audioRef.current && audioRef.current.paused) {
+        audioRef.current.volume = 0.3;
+        audioRef.current.play().catch(() => {});
+      }
+      window.removeEventListener('click', playMusic);
+      window.removeEventListener('touchstart', playMusic);
+    };
+
+    // Coba putar langsung (mungkin diblokir browser)
+    if (audioRef.current) { 
+      audioRef.current.volume = 0.3; 
+      audioRef.current.play().catch(() => {
+        // Jika diblokir, tunggu interaksi pertama user
+        window.addEventListener('click', playMusic);
+        window.addEventListener('touchstart', playMusic);
+      }); 
+    }
+
+    return () => {
+      window.removeEventListener('click', playMusic);
+      window.removeEventListener('touchstart', playMusic);
+    };
   }, []);
 
   useEffect(() => {
