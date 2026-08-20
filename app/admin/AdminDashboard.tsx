@@ -168,7 +168,7 @@ const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" |
   const [kioskChannel, setKioskChannel] = useState<any>(null);
 
   useEffect(() => {
-    const channelName = `kiosk-commands-${admin.region || "Palu"}`;
+    const channelName = `kiosk-commands-${(admin.region || "Palu").toLowerCase()}`;
     const channel = supabase.channel(channelName);
     channel.subscribe();
     setKioskChannel(channel);

@@ -130,11 +130,16 @@ export default function KioskPage() {
   useEffect(() => {
     if (!kioskStatus?.region) return;
     
-    const channelName = `kiosk-commands-${kioskStatus.region}`;
+    const channelName = `kiosk-commands-${kioskStatus.region.toLowerCase()}`;
     const channel = supabase.channel(channelName);
     
     channel.on('broadcast', { event: 'call-customer' }, (payload) => {
       const name = payload.payload.name;
+      console.log("Menerima panggilan dari Supabase untuk:", name);
+      
+      // Menampilkan alert visual di layar Kiosk sebagai penanda bahwa sinyal masuk
+      customAlert("success", "Panggilan CS", `Atas nama ${name}, silakan ke meja CS`);
+
       if ('speechSynthesis' in window) {
         // Hentikan suara yang sedang berjalan (kalau ada antrean beruntun)
         window.speechSynthesis.cancel();
@@ -144,9 +149,26 @@ export default function KioskPage() {
         msg.lang = 'id-ID';
         msg.rate = 0.9; 
         msg.pitch = 1;
+        
+        const duckVolume = () => {
+          const bgm = document.querySelector('audio[src="/bg-music.mp3"]') as HTMLAudioElement;
+          if (bgm) bgm.volume = 0.03; // Volume sangat kecil
+        };
+
+        const restoreVolume = () => {
+          const bgm = document.querySelector('audio[src="/bg-music.mp3"]') as HTMLAudioElement;
+          if (bgm) bgm.volume = 0.3; // Kembalikan ke volume normal
+        };
+
+        msg.onstart = duckVolume;
+        msg.onend = restoreVolume;
+        msg.onerror = restoreVolume;
+
         window.speechSynthesis.speak(msg);
       }
-    }).subscribe();
+    }).subscribe((status) => {
+      console.log(`Status Kiosk Subscribe ke ${channelName}:`, status);
+    });
 
     return () => {
       supabase.removeChannel(channel);
