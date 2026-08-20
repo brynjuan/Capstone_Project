@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Search, UsersRound, Headset, CheckCircle2, PhoneCall, Clock3, RefreshCw, Pencil, Ban, RotateCcw, Building2, Trash2, X } from "lucide-react";
+import { Search, UsersRound, Headset, CheckCircle2, PhoneCall, Clock3, RefreshCw, Pencil, Ban, RotateCcw, Building2, Trash2, X, Volume2 } from "lucide-react";
 import { cancelVisit, completeVisit, reopenVisit, deleteVisitor } from "../../actions/admin";
 import { formatTime, formatDate, durationSeconds, formatDurationClock, formatCompactDuration, visitorCode } from "../utils";
 import { VisitorAvatar, StatusBadge } from "./SharedUI";
 import { AdminVisitor } from "../types";
 
 export function QueueView({
-  activeVisitor, activeVisitorIndex, averageWaitSeconds, connectionOk, filteredVisitors, onEdit, onNextPage, onPreviousPage, onPreview, onQueryChange, onSelectVisitor, onStatusFilterChange, page, pageSize, query, queueCapacity, queueOccupancy, queueOccupancyPercent, selectedVisitorId, statusFilter, totalPages,
+  activeVisitor, activeVisitorIndex, averageWaitSeconds, connectionOk, filteredVisitors, onEdit, onNextPage, onPreviousPage, onPreview, onQueryChange, onSelectVisitor, onStatusFilterChange, page, pageSize, query, queueCapacity, queueOccupancy, queueOccupancyPercent, selectedVisitorId, statusFilter, totalPages, onCallCustomer
 }: any) {
   const queueStatusOptions = [
     { value: "ALL" as const, label: "Semua" },
@@ -22,7 +22,7 @@ export function QueueView({
   return (
     <div className="mt-6 space-y-5">
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_390px]">
-        <QueueActiveSessionCard visitor={activeVisitor} visitorIndex={activeVisitorIndex} onPreview={onPreview} />
+        <QueueActiveSessionCard visitor={activeVisitor} visitorIndex={activeVisitorIndex} onPreview={onPreview} onCallCustomer={onCallCustomer} />
         <QueueStatsCard averageWaitSeconds={averageWaitSeconds} connectionOk={connectionOk} queueCapacity={queueCapacity} queueOccupancy={queueOccupancy} queueOccupancyPercent={queueOccupancyPercent} />
       </div>
 
@@ -94,7 +94,7 @@ export function QueueView({
   );
 }
 
-export function QueueActiveSessionCard({ visitor, visitorIndex, onPreview }: any) {
+export function QueueActiveSessionCard({ visitor, visitorIndex, onPreview, onCallCustomer }: any) {
   const [isMapModalOpen, setIsMapModalOpen] = useState(false);
 
   if (!visitor) {
@@ -153,13 +153,20 @@ export function QueueActiveSessionCard({ visitor, visitorIndex, onPreview }: any
         </div>
       </div>
       <div className="my-6 h-px bg-[#f5e8e4]" />
-      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_150px]">
+      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_150px]">
         <form action={completeVisit}>
           <input type="hidden" name="id" value={visitor.id} />
           <button type="submit" disabled={!canComplete} className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#b3261e] text-sm font-black text-white shadow-md transition hover:bg-[#cf3429] disabled:bg-[#d8c2bd]">
             <CheckCircle2 className="h-5 w-5" /> Tandai selesai
           </button>
         </form>
+        <button 
+          type="button" 
+          disabled={!canComplete} 
+          onClick={() => onCallCustomer(visitor.fullName)}
+          className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#3f6fb5] text-sm font-black text-white shadow-md transition hover:bg-[#2c538c] disabled:bg-[#a5b8d4]">
+          <Volume2 className="h-5 w-5" /> Panggil Pelanggan
+        </button>
         <Link href="/admin/live" className="inline-flex h-12 items-center justify-center rounded-xl border-2 border-[#d9b8b2] bg-white text-[#7a625d] transition hover:border-[#b3261e] hover:bg-[#fff3f1] hover:text-[#b3261e]"><PhoneCall className="h-5 w-5" /></Link>
       </div>
 

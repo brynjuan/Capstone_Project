@@ -165,6 +165,30 @@ const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" |
     };
   }, [router]);
 
+  const [kioskChannel, setKioskChannel] = useState<any>(null);
+
+  useEffect(() => {
+    const channelName = `kiosk-commands-${admin.region || "Palu"}`;
+    const channel = supabase.channel(channelName);
+    channel.subscribe();
+    setKioskChannel(channel);
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [admin.region]);
+
+  const handleCallCustomer = (visitorName: string) => {
+    if (kioskChannel) {
+      kioskChannel.send({
+        type: 'broadcast',
+        event: 'call-customer',
+        payload: { name: visitorName }
+      });
+      showNotification(`Memanggil pelanggan: ${visitorName}`, "success");
+    }
+  };
+
   const queueVisitors = useMemo(
     () =>
       data.visitors
@@ -548,6 +572,7 @@ const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" |
                 setStatusFilter(value as any);
                 setPage(1);
               }}
+              onCallCustomer={handleCallCustomer}
               page={page}
               pageSize={pageSize}
               query={query}

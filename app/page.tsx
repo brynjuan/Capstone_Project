@@ -14,6 +14,8 @@ import { Scanner } from "@yudiel/react-qr-scanner";
 import { confirmMobileArrivalAction } from "./actions/kiosk";
 import NextImage from "next/image"; // Menggunakan alias 'NextImage'
 import imageCompression from "browser-image-compression";
+import { supabase } from "@/lib/supabase";
+
 
 const ZegoCall = dynamic(() => import("./components/ZegoCall"), { 
   ssr: false 
@@ -104,7 +106,7 @@ export default function KioskPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // --- MULAI KODE BARU ---
-  const [kioskStatus, setKioskStatus] = useState<{ isBusy: boolean; message: string } | null>(null);
+  const [kioskStatus, setKioskStatus] = useState<{ isBusy: boolean; message: string; region?: string } | null>(null);
 
   useEffect(() => {
     const fetchStatus = async () => {
@@ -124,6 +126,32 @@ export default function KioskPage() {
     
     return () => clearInterval(intervalId);
   }, []);
+  
+  useEffect(() => {
+    if (!kioskStatus?.region) return;
+    
+    const channelName = `kiosk-commands-${kioskStatus.region}`;
+    const channel = supabase.channel(channelName);
+    
+    channel.on('broadcast', { event: 'call-customer' }, (payload) => {
+      const name = payload.payload.name;
+      if ('speechSynthesis' in window) {
+        // Hentikan suara yang sedang berjalan (kalau ada antrean beruntun)
+        window.speechSynthesis.cancel();
+        
+        const text = `Panggilan untuk pelanggan, atas nama ${name}, silahkan menuju ke ruang C S`;
+        const msg = new SpeechSynthesisUtterance(text);
+        msg.lang = 'id-ID';
+        msg.rate = 0.9; 
+        msg.pitch = 1;
+        window.speechSynthesis.speak(msg);
+      }
+    }).subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [kioskStatus?.region]);
   // --- AKHIR KODE BARU ---
 
   const openFinpayPopup = () => {

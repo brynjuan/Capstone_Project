@@ -474,16 +474,16 @@ export async function registerMobileVisitorAction(data: any, photoBase64: string
 export async function getKioskStatusAction() {
   try {
     const session = await getAdminSession();
-    if (!session || !session.region) return { isBusy: false, message: "" };
+    if (!session || !session.region) return { isBusy: false, message: "", region: "Palu" };
 
     const status = await prisma.kioskSetting.findUnique({ 
       where: { id: session.region } // <-- PERBAIKAN: Cek status Kiosk sesuai daerah
     }); 
     
-    if (status) return { isBusy: status.isBusy, message: status.message };
-    return { isBusy: false, message: "" }; 
+    if (status) return { isBusy: status.isBusy, message: status.message, region: session.region };
+    return { isBusy: false, message: "", region: session.region }; 
   } catch (error) {
-    return { isBusy: false, message: "" };
+    return { isBusy: false, message: "", region: "Palu" };
   }
 }
 
