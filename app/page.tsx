@@ -150,6 +150,13 @@ export default function KioskPage() {
         msg.rate = 0.9; 
         msg.pitch = 1;
         
+        // Memaksa browser untuk memilih suara berlogat Indonesia
+        const voices = window.speechSynthesis.getVoices();
+        const idVoice = voices.find(v => v.lang === 'id-ID' || v.lang === 'id_ID' || v.lang.includes('id'));
+        if (idVoice) {
+          msg.voice = idVoice;
+        }
+        
         const duckVolume = () => {
           const bgm = document.querySelector('audio[src="/bg-music.mp3"]') as HTMLAudioElement;
           if (bgm) bgm.volume = 0.03; // Volume sangat kecil
