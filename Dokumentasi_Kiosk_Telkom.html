@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dokumentasi Kiosk Telkom</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px;
+        }
+        h1 {
+            color: #E20613; /* Warna merah Telkom */
+            text-align: center;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #333;
+            margin-top: 30px;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 5px;
+        }
+        h3 {
+            color: #555;
+            margin-top: 20px;
+        }
+        ul, ol {
+            padding-left: 20px;
+        }
+        li {
+            margin-bottom: 8px;
+        }
+        strong {
+            color: #000;
+        }
+        code {
+            background-color: #f1f1f1;
+            padding: 2px 4px;
+            border-radius: 4px;
+            font-family: Consolas, monospace;
+            color: #d63384;
+        }
+        .footer {
+            margin-top: 50px;
+            text-align: center;
+            font-style: italic;
+            font-size: 0.9em;
+            color: #777;
+            border-top: 1px solid #eee;
+            padding-top: 20px;
+        }
+        @media print {
+            body { padding: 0; }
+            .no-print { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="no-print" style="background-color: #f8f9fa; padding: 15px; border-left: 5px solid #007bff; margin-bottom: 30px;">
+        <strong>Cara Simpan ke PDF:</strong> Tekan tombol <strong>Ctrl + P</strong> di keyboard Anda, lalu ubah opsi Printer (Destination) menjadi <strong>"Save as PDF"</strong>. Setelah itu tekan tombol Save.
+    </div>
+
+    <h1>Dokumentasi Sistem Kiosk Pelayanan Pintar (Telkom)</h1>
+
+    <h2>1. Deskripsi Umum Proyek</h2>
+    <p>Proyek ini adalah sistem <strong>Kiosk Pelayanan Mandiri (Self-Service Kiosk)</strong> berbasis layar sentuh (<em>touchscreen</em>) yang diperuntukkan bagi ruang tunggu Plasa Telkom. 
+    Sistem ini bertujuan mendigitalisasi buku tamu tradisional menjadi <strong>Smart Queue System</strong> (Sistem Antrean Cerdas). Ketika pengunjung datang, Kiosk tidak hanya mendata identitas, tetapi juga mampu membaca KTP secara otomatis (AI), mengambil foto pengunjung, dan secara <em>real-time</em> memberikan notifikasi langsung kepada tim Customer Service (CS) melalui Telegram.</p>
+
+    <h3>1.1 Konsep Multi-Regional (Satu Web, Banyak Lokasi)</h3>
+    <p>Keunggulan utama dari arsitektur proyek ini adalah kemampuannya berjalan sebagai <strong>Multi-Tenant / Multi-Regional Application</strong>. Meskipun hanya ada <strong>1 buah website (1 codebase & 1 database)</strong>, sistem ini secara cerdas mampu melayani beberapa lokasi fisik Kiosk yang berbeda secara bersamaan (misalnya: Plasa Telkom Palu dan Plasa Telkom Gorontalo).</p>
+    <ul>
+        <li><strong>Isolasi Kiosk & Admin:</strong> Kiosk fisik di Palu akan <em>login</em> menggunakan akun Kiosk-Palu, dan Admin CS di Palu akan <em>login</em> menggunakan akun Admin-Palu.</li>
+        <li><strong>Isolasi Antrean:</strong> Pengunjung yang mendaftar di Kiosk Palu hanya akan masuk ke dalam antrean Palu. Nomor antrean dan data pengunjung tidak akan bocor/tercampur dengan layar Kiosk di Gorontalo.</li>
+        <li><strong>Isolasi Notifikasi:</strong> Pesan notifikasi Telegram akan didistribusikan ke grup CS yang berbeda sesuai dengan lokasi (Region) tamu tersebut mendaftar.</li>
+    </ul>
+
+    <h2>2. Arsitektur & Teknologi Utama</h2>
+    <p>Aplikasi ini dikembangkan dengan arsitektur web modern yang memastikan performa, keamanan, dan fungsionalitas tingkat tinggi.</p>
+
+    <h3>A. Core Framework & Bahasa</h3>
+    <ul>
+        <li><strong>Next.js (App Router):</strong> Framework React.js modern yang menangani <em>Server-Side Rendering</em> (SSR) dan <em>Server Actions</em>.</li>
+        <li><strong>TypeScript:</strong> Digunakan untuk memberikan struktur kode yang kuat (type-safe).</li>
+    </ul>
+
+    <h3>B. Database & Backend</h3>
+    <ul>
+        <li><strong>PostgreSQL:</strong> Database relasional yang kuat untuk menyimpan semua data.</li>
+        <li><strong>Prisma ORM:</strong> Digunakan sebagai jembatan untuk memanipulasi data di PostgreSQL dengan sangat mudah.</li>
+    </ul>
+
+    <h3>C. Antarmuka (Front-End) & Animasi</h3>
+    <ul>
+        <li><strong>Tailwind CSS:</strong> Framework CSS yang digunakan untuk mendesain antarmuka Kiosk.</li>
+        <li><strong>Framer Motion:</strong> Pustaka animasi tingkat lanjut untuk memberikan efek transisi yang sangat mulus layaknya aplikasi <em>Native Mobile</em>.</li>
+        <li><strong>React Hook Form:</strong> Mengelola <em>state</em> formulir pendaftaran pengunjung agar cepat dan ringan.</li>
+    </ul>
+
+    <h3>D. Layanan Eksternal (Third-Party Cloud Services)</h3>
+    <ul>
+        <li><strong>Cloudflare R2 (S3 Compatible):</strong> Layanan penyimpanan awan (<em>Cloud Storage</em>) super cepat untuk menyimpan foto KTP dan wajah.</li>
+        <li><strong>Telegram Bot API:</strong> Mesin notifikasi yang akan mengirimkan peringatan instan ke grup CS sesuai Region.</li>
+        <li><strong>Google Vision API (AI OCR):</strong> Kecerdasan buatan dari Google untuk memindai foto KTP fisik.</li>
+        <li><strong>Supabase (Real-time Channels):</strong> Menggunakan fitur WebSockets (<em>Pub/Sub</em>) untuk komunikasi <em>Real-time</em> antara Dashboard CS dan Kiosk.</li>
+        <li><strong>Cloudflare Turnstile:</strong> Sistem pelindung anti-bot modern (pengganti CAPTCHA jadul).</li>
+        <li><strong>ZegoCloud (Intercom):</strong> Teknologi WebRTC terintegrasi yang memungkinkan Kiosk digunakan sebagai sarana <em>Video/Voice Call</em> darurat ke CS.</li>
+        <li><strong>Finpay Widget:</strong> Integrasi eksternal untuk melayani pembayaran mandiri layanan Telkom (Indibiz).</li>
+        <li><strong>Google Sheets API:</strong> Mekanisme <em>backup</em> otomatis dan <em>reporting</em> harian (via Service Account).</li>
+    </ul>
+
+    <h2>3. Alur Kerja Sistem (User Flow)</h2>
+
+    <h3>A. Pendaftaran Langsung di Kiosk (<em>Walk-In</em>)</h3>
+    <ol>
+        <li><strong>Interaksi Awal:</strong> Layar Kiosk menampilkan <em>video background</em> interaktif. Sentuhan pertama memunculkan formulir.</li>
+        <li><strong>Scan KTP / Input Manual:</strong> Pengunjung memindai KTP via Webcam, AI otomatis mengisi form.</li>
+        <li><strong>Capture Rahasia (Background Camera):</strong> Saat pengunjung fokus mengisi formulir, Kiosk secara diam-diam otomatis mengambil foto wajah pengunjung melalui <em>webcam</em> sebagai bukti administrasi/keamanan tanpa mengganggu alur pengisian.</li>
+        <li><strong>Data Disubmit (Fire-and-Forget):</strong> 
+            <ul>
+                <li>Data diri masuk ke Database dengan label <code>Region</code> lokasi Kiosk tersebut.</li>
+                <li>Server merespons "SUKSES" secara kilat (kurang dari 1 detik).</li>
+                <li>Di <em>background</em>, foto diunggah ke Cloudflare R2 dan Telegram Bot mengirim pesan ke Grup CS (Region spesifik).</li>
+            </ul>
+        </li>
+        <li><strong>Sukses:</strong> Kiosk menampilkan posisi antrean sesuai lokasi.</li>
+    </ol>
+
+    <h3>B. Prapendaftaran Mobile (Pindai QR)</h3>
+    <ol>
+        <li><strong>Daftar Jarak Jauh:</strong> Pengunjung memindai QR code via HP (Mobile).</li>
+        <li><strong>Form HP:</strong> Pengunjung mengisi form, memilih lokasi tujuan, dan mendapatkan <strong>6 Digit PIN</strong> (Status <code>PRE_REGISTER</code>).</li>
+        <li><strong>Validasi di Kiosk:</strong> Setibanya di Plasa Telkom, pengunjung mengetik 6 digit PIN.</li>
+        <li><strong>Check-in Berhasil:</strong> Kiosk akan mencaplok pengunjung tersebut ke dalam antrean Region-nya dan memicu notifikasi Telegram.</li>
+    </ol>
+
+    <h3>C. Alur Pelayanan Admin/CS</h3>
+    <ol>
+        <li><strong>Dashboard Monitoring:</strong> Admin <em>login</em>. Sistem membaca kolom <code>Region</code> milik Admin dan hanya menampilkan antrean dari daerah tersebut.</li>
+        <li><strong>Fitur Panggil:</strong> Admin menekan tombol "Panggil". Dashboard mengirim <em>ping</em> Real-time ke Supabase.</li>
+        <li><strong>Web Speech API:</strong> Kiosk di daerah tersebut menerima <em>ping</em>, dan menyuarakan Text-to-Speech: <em>"Panggilan untuk pelanggan..."</em>.</li>
+        <li><strong>Penyelesaian:</strong> Admin menekan tombol selesai. Sistem cerdas otomatis memanggil antrean berikutnya. Di saat bersamaan, data ditambahkan otomatis ke Google Spreadsheet.</li>
+    </ol>
+
+    <h2>4. Mekanisme Optimalisasi (Anti-Lag & Kestabilan)</h2>
+    <ul>
+        <li><strong>Smart Polling (Anti-Bottleneck):</strong> Pengecekan status <em>lock/busy</em> Kiosk ke server menggunakan <em>recursive setTimeout</em>. Ini mencegah antrean request bertumpuk (<em>network jam</em>) saat koneksi lambat.</li>
+        <li><strong>Debounce Validation:</strong> Validasi pada <em>Virtual Keyboard</em> tidak membebani memori CPU di setiap ketikan huruf.</li>
+        <li><strong>Fire and Forget Process:</strong> Proses berat seperti API ke Telegram tidak memblokir antarmuka UI.</li>
+        <li><strong>Memory Management:</strong> Foto dari WebCam dikompresi otomatis (<em>browser-image-compression</em>) hingga 90% sebelum diunggah.</li>
+    </ul>
+
+    <h2>5. Skema Database (Prisma Schema)</h2>
+    <p>Sistem ini menggunakan struktur relasional untuk memisahkan data antrean dan autentikasi. Berikut adalah representasi skema utamanya:</p>
+
+    <h3>Tabel <code>Admin</code> (<code>admins</code>)</h3>
+    <p>Menyimpan akun pengguna, baik untuk petugas Customer Service, Manager, maupun mesin Kiosk itu sendiri.</p>
+    <ul>
+        <li><code>id</code> (String, PK)</li>
+        <li><code>email</code>, <code>name</code>, <code>password</code> (Credentials - Di-hash menggunakan <strong>Bcryptjs</strong>)</li>
+        <li><code>role</code> (Enum): <code>SUPERADMIN</code>, <code>ADMIN</code>, <code>KIOSK</code></li>
+        <li><code>region</code> (String): Mengunci Admin/Kiosk pada satu wilayah tertentu (Contoh: "Palu", "Gorontalo").</li>
+    </ul>
+
+    <h3>Tabel <code>VisitorLog</code> (<code>visitor_logs</code>)</h3>
+    <p>Menyimpan seluruh rekam jejak, data, dan status kunjungan pelanggan.</p>
+    <ul>
+        <li><strong>Data Diri:</strong> <code>fullName</code>, <code>phoneNumber</code>, <code>institution</code>, <code>internetNumber</code>, <code>address</code></li>
+        <li><strong>Detail Kunjungan:</strong> <code>category</code>, <code>purpose</code>, <code>hostName</code></li>
+        <li><strong>Media:</strong> <code>photoUrl</code> (URL dari Cloudflare R2)</li>
+        <li><strong>Multi-Region:</strong> <code>region</code> (Mengikat data ke lokasi Kiosk tertentu)</li>
+        <li><strong>Telegram Data:</strong> <code>tgMsgId</code>, <code>tgChatId</code>, <code>tgCompletedMsgId</code></li>
+        <li><strong>Manajemen Waktu & Status:</strong> <code>status</code>, <code>checkInTime</code>, <code>serviceStartTime</code>, <code>checkOutTime</code></li>
+        <li><strong>Lainnya:</strong> <code>adminId</code> (CS yang melayani tamu), <code>rating</code> (Penilaian dari tamu).</li>
+    </ul>
+
+    <h3>Tabel <code>KioskSetting</code> (<code>kiosk_settings</code>)</h3>
+    <p>Mengontrol status global mesin Kiosk secara jarak jauh (Remote Control).</p>
+    <ul>
+        <li><code>id</code> (String, PK): Menggunakan nama <em>Region</em> (misal: "Palu").</li>
+        <li><code>isBusy</code> (Boolean): Jika <code>true</code>, layar Kiosk akan terkunci (Lock-down).</li>
+    </ul>
+
+    <h2>6. Fitur Pendukung Kritis (Detail Tersembunyi)</h2>
+    <p>Selain alur utama di atas, proyek ini menyimpan beberapa logika krusial di sisi <em>Backend</em> dan <em>Frontend</em> yang sangat penting bagi operasional <em>Self-Service Kiosk</em>:</p>
+    
+    <h3>6.1 Sinkronisasi Otomatis (Database, Telegram, & Google Sheets)</h3>
+    <p>Terdapat fitur sinkronisasi <em>real-time</em> yang memastikan konsistensi data di semua platform. Apabila Admin melakukan perubahan data (Edit) atau pembatalan/penghapusan data (Delete) melalui Dashboard Admin, sistem tidak hanya mengubahnya di <em>Database</em>, melainkan secara otomatis menyinkronkannya ke dua saluran lain:</p>
+    <ul>
+        <li><strong>Google Sheets (<code>lib/sheets.ts</code>):</strong> Setiap aksi kunjungan selesai, data dikirim ke Google Sheets (Sebagai Laporan & Backup). Luar biasanya, jika Admin mengedit data tamu atau menghapus data tamu di Dashboard, <em>backend</em> akan secara cerdas mencari baris (<em>row</em>) yang bersangkutan di Google Sheets dan ikut mengedit atau menghapusnya secara otomatis.</li>
+        <li><strong>Telegram Bot (Sistem Notifikasi Berjenjang):</strong> Sistem perpesanan Telegram didesain menggunakan hierarki dua lapis, yaitu <strong>Grup CS (Operasional)</strong> untuk notifikasi <em>real-time</em> saat tamu datang, dan <strong>Grup Manager/Atasan (Eksekutif)</strong> untuk pelaporan tamu VIP atau rekap durasi waktu saat layanan telah selesai (<code>TELEGRAM_CHAT_ID_COMPLETED</code>). Hebatnya lagi, setiap perubahan status tamu tidak akan menumpuk pesan baru (<em>spamming</em>) di Grup CS. <em>Backend</em> menggunakan fitur API <em>EditMessageMedia</em> untuk mengubah isi pesan (<em>update</em> status) dari foto yang sama secara <em>real-time</em>.</li>
+    </ul>
+
+    <h3>6.2 Sistem Auto-Reset (Idle Timeout Hapus Data)</h3>
+    <p>Jika seorang pengunjung mulai mendaftar namun tiba-tiba membatalkan niatnya lalu pergi (meninggalkan layar Kiosk menyala berisi isian KTP dan Nomor HP mereka), sistem memiliki <strong>Detektor Idle</strong>. Jika tidak ada aktivitas sentuhan selama <strong>60 detik</strong>, Kiosk akan memunculkan hitung mundur peringatan 10 detik sebelum akhirnya menghapus seluruh isian (<em>Clear Form Data</em>) dan kembali ke layar beranda untuk melindungi privasi pengunjung sebelumnya.</p>
+
+    <h3>6.3 Intercom ZegoCloud (Komunikasi Darurat)</h3>
+    <p>Terdapat integrasi <em>Dynamic Import</em> pustaka <code>@zegocloud/zego-uikit-prebuilt</code>. Ini adalah sebuah <em>widget WebRTC</em> yang memungkinkan layar Kiosk difungsikan sebagai "Telepon Intercom" darurat (<em>Voice/Video Call</em>). Jika tamu kebingungan saat mendaftar, mereka dapat memanggil CS secara langsung melalui mesin Kiosk tanpa harus meninggalkan posisinya.</p>
+
+    <h3>6.4 Integrasi Finpay (Payment Gateway Mandiri)</h3>
+    <p>Kiosk juga difungsikan sebagai alat bantu transaksi mandiri. Pengunjung dapat membuka pop-up <strong>Widget Finpay</strong> (<code>live.finpay.id/widgetpg</code>) secara langsung di layar Kiosk untuk membayar tagihan IndiBiz/Telkom tanpa antre ke meja Customer Service.</p>
+
+    <h3>6.5 Keamanan Akses Mesin (Device Authentication)</h3>
+    <p>Meskipun Kiosk berjalan menggunakan antarmuka Web biasa (URL), sistem ini memiliki lapisan <em>Role-based Middleware</em>. Jika URL Kiosk dibuka secara sembarangan dari HP/Laptop luar, akses akan ditolak. Sistem akan memaksa <em>redirect</em> ke halaman Login sampai perangkat tersebut memiliki izin otorisasi <code>Role = KIOSK</code>.</p>
+
+    <h3>6.6 Remote Control & Lockdown Kiosk (Jarak Jauh)</h3>
+    <p>Admin CS dibekali tombol ajaib di dalam Dashboard untuk mengontrol fisik mesin Kiosk di depan. Melalui manipulasi tabel <code>KioskSetting</code>, Admin dapat mengirim perintah <em>Lock-down</em> (Kunci Layar) beserta pesan kustom (Contoh: <em>"Mohon maaf, pelayanan sedang istirahat sholat Jumat"</em>). Layar Kiosk akan langsung terkunci secara seketika (<em>real-time</em> via Supabase) dan pengunjung tidak dapat menyentuh layar apa pun hingga Admin membukanya kembali.</p>
+
+    <h3>6.7 Prapendaftaran VIP (Admin-Generated PIN)</h3>
+    <p>Selain pengunjung mendaftar via QR Code, Admin juga memiliki wewenang untuk mencetak 6-Digit PIN secara manual (Generasi PIN VIP). Fitur ini sangat berguna jika ada tamu penting (Manajer, Pejabat) yang akan datang, sehingga Admin dapat mendaftarkannya terlebih dahulu dari belakang meja, lalu mengirimkan PIN tersebut via WhatsApp ke tamu VIP. Saat tamu datang, mereka tidak perlu repot mengisi form lagi.</p>
+
+    <h3>6.8 Multimedia & Aksesibilitas Suara (Web Speech API)</h3>
+    <p>Kiosk dirancang tidak kaku. Layar beranda memutar <em>Video Loop</em> Telkom yang elegan untuk menarik perhatian. Menariknya, sistem ini dilengkapi <strong>Voice Greeting & Guidance</strong>. Berbekal <em>Web Speech API</em>, mesin Kiosk secara aktif dapat "berbicara" dalam bahasa Indonesia (contoh: <em>"Selamat datang di prapendaftaran..."</em>) untuk memandu tamu, serta otomatis menurunkan (<em>ducking</em>) volume musik latar setiap kali membunyikan suara panggilan dari CS.</p>
+
+    <h3>6.9 Panel Superadmin (CRUD & Manajemen Multi-Tenant)</h3>
+    <p>Sistem ini memfasilitasi peran tertinggi yaitu <strong>SUPERADMIN</strong>. Superadmin tidak hanya berfungsi untuk melihat dan memantau keseluruhan data pengunjung dari seluruh cabang, tetapi juga bertindak sebagai <strong>Pusat Manajemen Akun (Account Management)</strong>. Melalui Panel Superadmin, pengguna dapat melakukan <strong>CRUD (Create, Read, Update, Delete)</strong> terhadap akun-akun bawahan:</p>
+    <ol>
+        <li><code>SUPERADMIN</code> (Kendali Penuh, bisa melihat data semua region).</li>
+        <li><code>ADMIN</code> (Hanya bisa melihat dan memanggil antrean di Region spesifiknya, contoh: Admin Palu).</li>
+        <li><code>KIOSK</code> (Akun khusus yang ditanamkan ke PC Kiosk agar PC tersebut terkunci hanya untuk menampilkan UI Region miliknya).</li>
+    </ol>
+
+    <h3>6.10 Analitik & Metrik Performa Otomatis (Admin Dashboard)</h3>
+    <p>Berbeda dengan buku tamu konvensional, halaman <em>Dashboard Admin</em> bukan sekadar menampilkan tabel antrean, melainkan berfungsi penuh sebagai pusat analitik (<em>Command Center</em>). Di belakang layar, sistem secara otomatis menghitung dan memvisualisasikan:</p>
+    <ul>
+        <li><strong>Analisis Jam Sibuk (Peak Hours):</strong> Sistem merekam tren pada jam berapa saja pengunjung paling padat.</li>
+        <li><strong>Rata-Rata Waktu (SLA):</strong> Terdapat algoritma yang menghitung <em>Average Wait Time</em> (Rata-rata tamu menunggu panggilan) dan <em>Average Service Time</em> (Rata-rata waktu CS melayani tamu di meja) dalam hitungan detik.</li>
+        <li><strong>Visualisasi Keluhan:</strong> Grafik distribusi kategori masalah (Gangguan, Pasang Baru, Invoicing).</li>
+        <li><strong>Sapu Bersih Anti-Spam:</strong> Admin dibekali fitur "Sapu Bersih PIN" (Menghanguskan semua antrean <em>Pre-Register</em> tamu fiktif/batal dalam satu kali klik).</li>
+    </ul>
+
+    <h3>6.11 UI/UX Khusus Layar Sentuh (QR Code & Virtual Keyboard)</h3>
+    <p>Mengingat aplikasi Kiosk dioperasikan melalui <em>Touchscreen</em> fisik, antarmuka (<em>frontend</em>) dibekali dengan <strong>Virtual Keyboard</strong> bawaan aplikasi (menggunakan <em>react-simple-keyboard</em>). Hal ini mencegah sistem memunculkan <em>keyboard</em> bawaan OS (seperti Windows On-Screen Keyboard) yang seringkali menutupi layar dan terlihat tidak profesional. Selain itu, mesin Kiosk secara dinamis membuatkan gambar <strong>QR Code Prapendaftaran</strong> di pojok layar, memungkinkan pengunjung memindainya dan mengisi formulir dari HP mereka sendiri tanpa harus menyentuh layar Kiosk sama sekali.</p>
+
+    <h3>6.12 Interaktif Photobooth & Souvenir QR Code</h3>
+    <p>Ini adalah salah satu fitur inovatif (<em>gamification</em>) untuk meningkatkan kepuasan pengunjung (<em>Customer Experience</em>). Setelah pengunjung selesai mendaftar, layar Kiosk akan menawarkan fitur <strong>"Foto Kenangan" (Photobooth)</strong>.</p>
+    <p>Jika dipilih, Kiosk akan menyalakan <em>webcam</em>, menumpuk gambar pengunjung dengan bingkai/ <em>frame</em> desain elegan khas Telkom. Setelah difoto, sistem akan otomatis mengunggah gambar tersebut ke <em>Cloud Server</em> (R2) dan <strong>menampilkan QR Code</strong>. Pengunjung dapat memindai QR Code tersebut menggunakan <em>smartphone</em> mereka untuk mengunduh foto kenangan dari Plasa Telkom secara instan!</p>
+
+    <div class="footer">
+        Dokumen ini disusun untuk mempermudah pemahaman arsitektur sistem (High-Level Architecture) kepada developer, stakeholder, atau pihak manajemen.
+    </div>
+
+</body>
+</html>
