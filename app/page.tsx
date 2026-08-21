@@ -4,7 +4,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { motion, AnimatePresence, Variants } from "framer-motion";
 import Webcam from "react-webcam";
-import { Headset,Search, Hash, Star, User, Building, Target, CheckCircle, ChevronRight, ChevronLeft, ChevronDown, Phone, MapPin, Tag, Contact, QrCode, Volume2, VolumeX, XCircle, AlertTriangle, Smartphone, X,} from "lucide-react";
+import { Headset, Search, Hash, Star, User, Building, Target, CheckCircle, ChevronRight, ChevronLeft, ChevronDown, Phone, MapPin, Tag, Contact, QrCode, Volume2, VolumeX, XCircle, AlertTriangle, Smartphone, X, } from "lucide-react";
 import { getVisitorByPinAction, submitVisitorData, performOCR, submitVisitorRating, uploadPhotoboothImage } from "./actions/kiosk";
 import dynamic from "next/dynamic";
 import { QRCodeCanvas } from "qrcode.react";
@@ -17,8 +17,8 @@ import imageCompression from "browser-image-compression";
 import { supabase } from "@/lib/supabase";
 
 
-const ZegoCall = dynamic(() => import("./components/ZegoCall"), { 
-  ssr: false 
+const ZegoCall = dynamic(() => import("./components/ZegoCall"), {
+  ssr: false
 });
 
 const slideVariants: Variants = {
@@ -56,7 +56,7 @@ type TouchKeyboardRef = {
 
 const formatPhone = (val: string) => {
   if (!val) return "";
-  const raw = val.replace(/\D/g, ''); 
+  const raw = val.replace(/\D/g, '');
   const match = raw.match(/^(\d{0,4})(\d{0,4})(\d{0,5})$/);
   if (match) {
     return !match[2] ? match[1] : `${match[1]}-${match[2]}` + (match[3] ? `-${match[3]}` : '');
@@ -81,7 +81,7 @@ const ClockWidget = () => {
     };
   }, []);
 
-  if (!time) return null; 
+  if (!time) return null;
 
   const timeString = time.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
   const dateString = time.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
@@ -101,7 +101,7 @@ const ClockWidget = () => {
 };
 
 export default function KioskPage() {
-  const [step, setStep] = useState(0); 
+  const [step, setStep] = useState(0);
   const [photoBase64, setPhotoBase64] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -121,47 +121,47 @@ export default function KioskPage() {
       }
     };
 
-    fetchStatus(); 
-    const intervalId = setInterval(fetchStatus, 3000); 
-    
+    fetchStatus();
+    const intervalId = setInterval(fetchStatus, 3000);
+
     return () => clearInterval(intervalId);
   }, []);
-  
+
   useEffect(() => {
     if (!kioskStatus?.region) return;
-    
+
     const channelName = `kiosk-commands-${kioskStatus.region.toLowerCase()}`;
     const channel = supabase.channel(channelName);
-    
+
     channel.on('broadcast', { event: 'call-customer' }, (payload) => {
       const name = payload.payload.name;
       console.log("Menerima panggilan dari Supabase untuk:", name);
-      
+
       // Menampilkan alert visual di layar Kiosk sebagai penanda bahwa sinyal masuk
       customAlert("success", "Panggilan CS", `Atas nama ${name}, silakan ke meja CS`);
 
       if ('speechSynthesis' in window) {
         // Hentikan suara yang sedang berjalan (kalau ada antrean beruntun)
         window.speechSynthesis.cancel();
-        
+
         const text = `Panggilan untuk pelanggan, atas nama ${name}, silahkan menuju ke ruang customer service`;
         const msg = new SpeechSynthesisUtterance(text);
         msg.lang = 'id-ID';
-        msg.rate = 0.9; 
+        msg.rate = 0.9;
         msg.pitch = 1;
-        
+
         // Memaksa browser untuk memilih suara berlogat Indonesia (termasuk untuk Microsoft Edge)
         const voices = window.speechSynthesis.getVoices();
-        const idVoice = voices.find(v => 
-          v.lang === 'id-ID' || 
-          v.lang === 'id_ID' || 
+        const idVoice = voices.find(v =>
+          v.lang === 'id-ID' ||
+          v.lang === 'id_ID' ||
           v.name.toLowerCase().includes('indonesia') ||
           v.name.toLowerCase().includes('indonesian')
         );
         if (idVoice) {
           msg.voice = idVoice;
         }
-        
+
         const duckVolume = () => {
           const bgm = document.querySelector('audio[src="/bg-music.mp3"]') as HTMLAudioElement;
           if (bgm) bgm.volume = 0.03; // Volume sangat kecil
@@ -169,7 +169,7 @@ export default function KioskPage() {
 
         const restoreVolume = () => {
           const bgm = document.querySelector('audio[src="/bg-music.mp3"]') as HTMLAudioElement;
-          if (bgm) bgm.volume = 0.6; // Kembalikan ke volume normal
+          if (bgm) bgm.volume = 0.7; // Kembalikan ke volume normal
         };
 
         msg.onstart = duckVolume;
@@ -192,11 +192,11 @@ export default function KioskPage() {
     // Mengatur ukuran popup
     const width = 600;
     const height = 700;
-    
+
     // Menghitung posisi agar popup berada di tengah layar
     const left = (window.innerWidth / 2) - (width / 2);
     const top = (window.innerHeight / 2) - (height / 2);
-    
+
     // Membuka popup
     window.open(
       "https://live.finpay.id/widgetpg/001001/indibiz",
@@ -220,31 +220,31 @@ export default function KioskPage() {
   const [photoboothCameraKey, setPhotoboothCameraKey] = useState(0);
   const [showMobileQR, setShowMobileQR] = useState(false);
   const [showFinpayModal, setShowFinpayModal] = useState(false);
-  
+
   const previewWebcamRef = useRef<Webcam>(null);
   const photoboothWebcamRef = useRef<Webcam>(null);
-  const audioRef = useRef<HTMLAudioElement>(null); 
+  const audioRef = useRef<HTMLAudioElement>(null);
   const voiceRef = useRef<HTMLAudioElement>(null);
   const successVoiceRef = useRef<HTMLAudioElement>(null);
   const scanVoiceRef = useRef<HTMLAudioElement>(null);
-  
+
   // ================= SISTEM AUDIO EFEK (BARU) =================
   const beepAudioRef = useRef<HTMLAudioElement | null>(null);
   const errorAudioRef = useRef<HTMLAudioElement | null>(null);
   const successAudioRef = useRef<HTMLAudioElement | null>(null);
 
-// FUNGSI PLAYBEEP SUPER CEPAT (TANPA LATENSI)
+  // FUNGSI PLAYBEEP SUPER CEPAT (TANPA LATENSI)
   const playBeep = () => {
     if (isMuted) return; // Jangan putar jika Kiosk sedang mode hening
-    
+
     // Kita buat objek memori baru setiap kali ditekan agar bisa bertumpuk instan!
     const beep = new Audio("/sounds/beep.mp3");
     beep.volume = 0.3; // Volume kita buat 50% agar tidak memekakkan telinga jika diketik cepat
     beep.play().catch((err) => console.log("Audio terblokir:", err));
   };
   const playErrorSound = () => {
-   if (isMuted) return; // Jangan putar jika Kiosk sedang mode hening
-    
+    if (isMuted) return; // Jangan putar jika Kiosk sedang mode hening
+
     // Kita buat objek memori baru setiap kali ditekan agar bisa bertumpuk instan!
     const beep = new Audio("/sounds/error.mp3");
     beep.volume = 1; // Volume kita buat 50% agar tidak memekakkan telinga jika diketik cepat
@@ -252,7 +252,7 @@ export default function KioskPage() {
   };
   const playSuccessSound = () => {
     if (isMuted) return; // Jangan putar jika Kiosk sedang mode hening
-    
+
     // Kita buat objek memori baru setiap kali ditekan agar bisa bertumpuk instan!
     const beep = new Audio("/sounds/succes.mp3");
     beep.volume = 1; // Volume kita buat 50% agar tidak memekakkan telinga jika diketik cepat
@@ -278,22 +278,22 @@ export default function KioskPage() {
 
   const keyboardRef = useRef<TouchKeyboardRef | null>(null);
   const [keyboardOpen, setKeyboardOpen] = useState(false);
-  const [activeInput, setActiveInput] = useState<keyof KioskFormValues | "vipPin">("fullName"); 
-  const [keyboardLayoutName, setKeyboardLayoutName] = useState("default"); 
-  const [isMuted, setIsMuted] = useState(false); 
-  const [ripples, setRipples] = useState<{ id: number, x: number, y: number }[]>([]); 
+  const [activeInput, setActiveInput] = useState<keyof KioskFormValues | "vipPin">("fullName");
+  const [keyboardLayoutName, setKeyboardLayoutName] = useState("default");
+  const [isMuted, setIsMuted] = useState(false);
+  const [ripples, setRipples] = useState<{ id: number, x: number, y: number }[]>([]);
 
   const [selectedCategory, setSelectedCategory] = useState<string>("");
-  const [isAgreed, setIsAgreed] = useState(false); 
+  const [isAgreed, setIsAgreed] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [isCsBusy, setIsCsBusy] = useState<boolean>(false);
   const [busyMessage, setBusyMessage] = useState<string>("");
 
-const checkKioskLock = async () => {
+  const checkKioskLock = async () => {
     // 👇 UBAH IMPORT DARI "./actions/admin" MENJADI "./actions/kiosk"
     const { getKioskStatusAction } = await import("./actions/kiosk");
     const status = await getKioskStatusAction();
-    
+
     // Gunakan status?.isBusy (tambahkan tanda tanya agar lebih aman)
     if (status?.isBusy) {
       setBusyMessage(status.message);
@@ -301,7 +301,7 @@ const checkKioskLock = async () => {
       // Mainkan suara error agar Kiosk memberi sinyal penolakan
       if (errorAudioRef.current && !isMuted) {
         errorAudioRef.current.currentTime = 0;
-        errorAudioRef.current.play().catch(() => {});
+        errorAudioRef.current.play().catch(() => { });
       }
       return true; // Terkunci
     }
@@ -313,26 +313,26 @@ const checkKioskLock = async () => {
   const idleTimerRef = useRef<NodeJS.Timeout | null>(null);
   const countdownTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  const { register, handleSubmit, formState: { errors }, reset, trigger, setValue, getValues, watch } = useForm<KioskFormValues>(); 
+  const { register, handleSubmit, formState: { errors }, reset, trigger, setValue, getValues, watch } = useForm<KioskFormValues>();
 
   useEffect(() => {
     const playMusic = () => {
       if (audioRef.current && audioRef.current.paused) {
         audioRef.current.volume = 0.6;
-        audioRef.current.play().catch(() => {});
+        audioRef.current.play().catch(() => { });
       }
       window.removeEventListener('click', playMusic);
       window.removeEventListener('touchstart', playMusic);
     };
 
     // Coba putar langsung (mungkin diblokir browser)
-    if (audioRef.current) { 
-      audioRef.current.volume = 0.6; 
+    if (audioRef.current) {
+      audioRef.current.volume = 0.6;
       audioRef.current.play().catch(() => {
         // Jika diblokir, tunggu interaksi pertama user
         window.addEventListener('click', playMusic);
         window.addEventListener('touchstart', playMusic);
-      }); 
+      });
     }
 
     return () => {
@@ -346,7 +346,7 @@ const checkKioskLock = async () => {
     if (voiceRef.current) voiceRef.current.muted = isMuted;
     if (successVoiceRef.current) successVoiceRef.current.muted = isMuted;
     if (scanVoiceRef.current) scanVoiceRef.current.muted = isMuted;
-    if (beepAudioRef.current) beepAudioRef.current.muted = isMuted; 
+    if (beepAudioRef.current) beepAudioRef.current.muted = isMuted;
     if (errorAudioRef.current) errorAudioRef.current.muted = isMuted; // Sync Mute
     if (successAudioRef.current) successAudioRef.current.muted = isMuted; // Sync Mute
   }, [isMuted]);
@@ -395,9 +395,9 @@ const checkKioskLock = async () => {
       frameImg.onload = async () => {
         ctx?.drawImage(frameImg, 0, 0, canvas.width, canvas.height);
         let finalImage = canvas.toDataURL("image/jpeg", 0.9);
-        
+
         const processUpload = async (imgData: string) => {
-          setPhotoboothResult(imgData); 
+          setPhotoboothResult(imgData);
           setIsUploadingPhoto(true);
           try {
             const response = await uploadPhotoboothImage(imgData);
@@ -429,12 +429,12 @@ const checkKioskLock = async () => {
           await processUpload(finalImage);
         }
       };
-      frameImg.src = "/frame-telkom.png"; 
+      frameImg.src = "/frame-telkom.png";
     };
     webcamImg.src = webcamImageSrc;
   };
 
-const checkVipPin = async () => {
+  const checkVipPin = async () => {
     if (!vipPin) return;
 
     try {
@@ -445,20 +445,20 @@ const checkVipPin = async () => {
         setValue("fullName", result.data.fullName);
         setValue("institution", result.data.institution || "Umum");
         setValue("phoneNumber", result.data.phoneNumber || "");
-        
-        setCurrentVisitorId(result.data.id); 
-        setQueueNumber(result.queueNumber); 
 
-        setStep(3); 
-        
+        setCurrentVisitorId(result.data.id);
+        setQueueNumber(result.queueNumber);
+
+        setStep(3);
+
         setShowPinInput(false);
         setKeyboardOpen(false);
         setVipPin("");
         if (keyboardRef.current) keyboardRef.current.setInput("");
-        
+
         if (successVoiceRef.current && !isMuted) {
           successVoiceRef.current.currentTime = 0;
-          successVoiceRef.current.play().catch(() => {});
+          successVoiceRef.current.play().catch(() => { });
         }
         customAlert("success", "Prapendaftaran Terkonfirmasi", `Selamat datang, ${result.data.fullName}! Antrean Anda mulai berjalan.`);
 
@@ -470,14 +470,14 @@ const checkVipPin = async () => {
     } catch (error) {
       customAlert("error", "Koneksi Terputus", "Gagal menghubungi server database.");
       setVipPin("");
-    } 
+    }
   };
 
   const handleScanKTP = async () => {
     if (!previewWebcamRef.current) return;
     setIsOcrLoading(true);
     const imageSrc = previewWebcamRef.current.getScreenshot();
-    
+
     if (imageSrc) {
       try {
         const result = await performOCR(imageSrc);
@@ -501,7 +501,7 @@ const checkVipPin = async () => {
 
           if (extractedName) setValue("fullName", extractedName, { shouldValidate: true, shouldDirty: true });
           if (extractedAddress) setValue("address", extractedAddress, { shouldValidate: true, shouldDirty: true });
-          
+
           if (extractedName || extractedAddress) customAlert("success", "KTP Terdeteksi", "Sebagian data berhasil diekstrak. Silakan lengkapi sisanya.");
           else customAlert("error", "KTP Kurang Jelas", "KTP terlalu gelap atau buram. Silakan dekatkan ke kamera atau ketik manual.");
         } else {
@@ -521,10 +521,10 @@ const checkVipPin = async () => {
     setTimeout(() => setRipples(prev => prev.filter(r => r.id !== newRipple.id)), 600);
   };
 
-const startIdleTimer = useCallback(() => {
+  const startIdleTimer = useCallback(() => {
     if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
     if (countdownTimerRef.current) clearInterval(countdownTimerRef.current);
-    
+
     setShowTimeoutWarning(false);
     isWarningRef.current = false; // Update detektif
     setCountdown(10);
@@ -539,10 +539,10 @@ const startIdleTimer = useCallback(() => {
           setCountdown((prev) => {
             if (prev <= 1) {
               if (countdownTimerRef.current) clearInterval(countdownTimerRef.current);
-              setStep(0); 
-              reset(); 
-              setKeyboardOpen(false); 
-              setIsScanning(false); 
+              setStep(0);
+              reset();
+              setKeyboardOpen(false);
+              setIsScanning(false);
               setShowTimeoutWarning(false);
               isWarningRef.current = false;
               setVipPin("");
@@ -573,9 +573,9 @@ const startIdleTimer = useCallback(() => {
     verifyKioskAccess();
   }, []);
 
-useEffect(() => {
+  useEffect(() => {
     startIdleTimer();
-    
+
     const handleActivity = () => {
       // Baca status dari Ref bayangan, bukan dari state yang memicu re-render
       if (!isWarningRef.current && step > 0 && step < 3) {
@@ -596,10 +596,10 @@ useEffect(() => {
     };
   }, [startIdleTimer, step]);
 
-const capturePhoto = useCallback(async () => {
+  const capturePhoto = useCallback(async () => {
     if (previewWebcamRef.current) {
       const imageSrc = previewWebcamRef.current.getScreenshot();
-      
+
       // Pastikan hasil jepretan benar-benar ada isinya (bukan sekadar "data:,")
       if (imageSrc && imageSrc.length > 100) {
         try {
@@ -631,18 +631,18 @@ const capturePhoto = useCallback(async () => {
     }
   };
 
-const onSubmit = async (data: KioskFormValues) => {
+  const onSubmit = async (data: KioskFormValues) => {
     setIsSubmitting(true); setKeyboardOpen(false);
-    
+
     // 1. TAMBAHKAN PROPERTI "pin" KE DALAM OBJEK DATA
     const finalData = {
       ...data,
-      pin: vipPin || null 
+      pin: vipPin || null
     };
 
     // 2. KIRIM FINAL DATA (BUKAN DATA BAWAAN FORM)
     const result = await submitVisitorData(finalData, photoBase64);
-    
+
     if (result.success) {
       if (result.visitorId) setCurrentVisitorId(result.visitorId);
       if (result.queueNumber) setQueueNumber(result.queueNumber);
@@ -650,12 +650,12 @@ const onSubmit = async (data: KioskFormValues) => {
       if (successVoiceRef.current && !isMuted) {
         successVoiceRef.current.currentTime = 0;
         successVoiceRef.current.volume = 1.0;
-        successVoiceRef.current.play().catch(() => {});
+        successVoiceRef.current.play().catch(() => { });
       }
       playSuccessSound(); // Bunyi ting success
       setStep(3); setIsSubmitting(false);
     } else {
-      setIsSubmitting(false); 
+      setIsSubmitting(false);
       customAlert("error", "Koneksi Terputus", "Terjadi kesalahan saat menyimpan data. Mohon coba lagi.");
     }
   };
@@ -665,16 +665,16 @@ const onSubmit = async (data: KioskFormValues) => {
     customAlert("error", "Tujuan Belum Jelas", "Mohon pilih kategori kunjungan Anda terlebih dahulu.");
   };
 
-const handleStartKiosk = async () => {
+  const handleStartKiosk = async () => {
     const locked = await checkKioskLock();
     if (locked) return; // Hentikan fungsi jika terkunci!
 
-    setStep(1); 
+    setStep(1);
     if (audioRef.current) audioRef.current.volume = 0.1;
     if (voiceRef.current && !isMuted) {
       voiceRef.current.currentTime = 0;
-      voiceRef.current.volume = 1.0; 
-      voiceRef.current.play().catch(() => {});
+      voiceRef.current.volume = 1.0;
+      voiceRef.current.play().catch(() => { });
     }
   };
 
@@ -693,7 +693,7 @@ const handleStartKiosk = async () => {
           if (voiceRef.current && !isMuted) { voiceRef.current.currentTime = 0; voiceRef.current.play(); }
           customAlert("success", "QR Berhasil Dipindai", `Selamat datang kembali, ${data.nama}!`);
         }
-      } catch { 
+      } catch {
         customAlert("error", "QR Tidak Valid", "Kode QR yang Anda pindai tidak dikenali oleh sistem.");
       }
     }
@@ -704,12 +704,12 @@ const handleStartKiosk = async () => {
       const formatted = formatPhone(input);
       setValue(activeInput, formatted, { shouldValidate: true });
       if (keyboardRef.current) keyboardRef.current.setInput(formatted);
-    } 
+    }
     else if (activeInput === "institution" || activeInput === "fullName" || activeInput === "hostName") {
       const titleCased = toTitleCase(input);
       setValue(activeInput, titleCased, { shouldValidate: true });
       if (keyboardRef.current) keyboardRef.current.setInput(titleCased);
-    } 
+    }
     else if (activeInput === "vipPin") {
       setVipPin(input);
       if (keyboardRef.current) keyboardRef.current.setInput(input);
@@ -722,36 +722,36 @@ const handleStartKiosk = async () => {
   const onKeyboardKeyPress = (button: string) => {
     playBeep();
     if (button === "{shift}" || button === "{lock}") setKeyboardLayoutName(keyboardLayoutName === "default" ? "shift" : "default");
-    if (button === "{enter}") setKeyboardOpen(false); 
+    if (button === "{enter}") setKeyboardOpen(false);
   };
 
   const customKeyboardLayouts = {
-    default: [ "1 2 3 4 5 6 7 8 9 0 - {bksp}", "q w e r t y u i o p", "a s d f g h j k l", "{shift} z x c v b n m , .", "{space} {enter}" ],
-    shift: [ "! @ # $ % ^ & * ( ) _ {bksp}", "Q W E R T Y U I O P", "A S D F G H J K L", "{shift} Z X C V B N M < >", "{space} {enter}" ],
-    numeric: [ "1 2 3", "4 5 6", "7 8 9", "- 0 {bksp}", "{enter}" ]
+    default: ["1 2 3 4 5 6 7 8 9 0 - {bksp}", "q w e r t y u i o p", "a s d f g h j k l", "{shift} z x c v b n m , .", "{space} {enter}"],
+    shift: ["! @ # $ % ^ & * ( ) _ {bksp}", "Q W E R T Y U I O P", "A S D F G H J K L", "{shift} Z X C V B N M < >", "{space} {enter}"],
+    numeric: ["1 2 3", "4 5 6", "7 8 9", "- 0 {bksp}", "{enter}"]
   };
 
   const isNumericInput = ["phoneNumber", "internetNumber", "vipPin"].includes(activeInput);
   const currentLayoutName = isNumericInput ? "numeric" : keyboardLayoutName;
 
-let shiftY = 0;
+  let shiftY = 0;
   if (keyboardOpen) {
     // Menambahkan institution dan memperbesar angka minus agar form naik lebih tinggi
     if (activeInput === "institution") shiftY = -80;
-    if (activeInput === "fullName") shiftY = -220; 
-    
+    if (activeInput === "fullName") shiftY = -220;
+
     // Perbesar dari -120 menjadi -160 agar No HP & Internet lebih naik
-    if (activeInput === "internetNumber" || activeInput === "phoneNumber") shiftY = -160; 
-    if (activeInput === "address") shiftY = -220; 
-    
+    if (activeInput === "internetNumber" || activeInput === "phoneNumber") shiftY = -160;
+    if (activeInput === "address") shiftY = -220;
+
     // Penyesuaian sekalian untuk Step 2 agar tidak terhalang
     if (activeInput === "hostName") shiftY = -10;
-    if (activeInput === "purpose") shiftY = -150; 
+    if (activeInput === "purpose") shiftY = -150;
   }
 
   return (
     <div onPointerDown={handlePointerDown} className="relative w-full h-screen overflow-hidden bg-black flex items-center justify-center font-sans select-none">
-      
+
       {/* ================= MODAL CUSTOM ALERT (TOAST) ================= */}
       <AnimatePresence>
         {alertData.show && (
@@ -785,9 +785,9 @@ let shiftY = 0;
       <audio ref={voiceRef} src="/welcome-voice.mp3" />
       <audio ref={successVoiceRef} src="/success-voice.mp3" />
       <audio ref={scanVoiceRef} src="/scan-instruction.mp3" />
-      
+
       {/* Hidden webcam untuk capture foto/form OCR, tanpa menampilkan preview aktif ke pengguna */}
-{/* Kamera Tersembunyi: Diletakkan tepat di belakang background video Telkom (z-[-1]) agar 
+      {/* Kamera Tersembunyi: Diletakkan tepat di belakang background video Telkom (z-[-1]) agar 
           browser mengira kamera tampil penuh di layar dan tidak mem-pause videonya. */}
       {step > 0 && !isScanning && !showIntercom && !showPhotobooth && (
         <div className="absolute inset-0 z-[-1] flex items-center justify-center overflow-hidden">
@@ -847,40 +847,39 @@ let shiftY = 0;
       </AnimatePresence>
 
       <AnimatePresence mode="wait">
-        
+
         {step === 0 && (
           <motion.div key="idle" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 flex flex-col items-center justify-end pb-24 z-20">
-<motion.div 
-  animate={{ scale: [1, 1.05, 1], y: [0, -10, 0] }} 
-  transition={{ repeat: Infinity, duration: 2 }} 
-  className="px-10 py-5 
+            <motion.div
+              animate={{ scale: [1, 1.05, 1], y: [0, -10, 0] }}
+              transition={{ repeat: Infinity, duration: 2 }}
+              className="px-10 py-5 
              bg-red-600/60 backdrop-blur-lg 
              border border-red-400/60 
              text-white rounded-full text-2xl font-bold 
              shadow-[0_0_40px_rgba(220,38,38,0.5)] 
              flex items-center gap-3 cursor-pointer"
-  onClick={handleStartKiosk}
->
-  Sentuh layar untuk memulai <ChevronRight className="w-8 h-8" />
-</motion.div>
+              onClick={handleStartKiosk}
+            >
+              Sentuh layar untuk memulai <ChevronRight className="w-8 h-8" />
+            </motion.div>
 
-<button 
-      onClick={openFinpayPopup}
-      className="flex items-center justify-center mt-4 px-6 py-3 border border-gray-600 rounded-full bg-black/50 text-white hover:bg-black/70 transition-all"
-    >
-      <Search className="w-5 h-5 mr-2 text-green-400" />
-      Cek Nomor Pelanggan Indibiz
-    </button>
+            <button
+              onClick={openFinpayPopup}
+              className="flex items-center justify-center mt-4 px-6 py-3 border border-gray-600 rounded-full bg-black/50 text-white hover:bg-black/70 transition-all"
+            >
+              <Search className="w-5 h-5 mr-2 text-green-400" />
+              Cek Nomor Pelanggan Indibiz
+            </button>
 
-<div className="flex gap-4 mt-6">
-              <motion.button 
-                onClick={() => { setShowPinInput(true); setActiveInput("vipPin"); }} 
+            <div className="flex gap-4 mt-6">
+              <motion.button
+                onClick={() => { setShowPinInput(true); setActiveInput("vipPin"); }}
                 disabled={kioskStatus?.isBusy}
-                className={`px-6 py-3 backdrop-blur-md border rounded-full text-lg font-semibold flex items-center gap-3 transition-all ${
-                  kioskStatus?.isBusy 
+                className={`px-6 py-3 backdrop-blur-md border rounded-full text-lg font-semibold flex items-center gap-3 transition-all ${kioskStatus?.isBusy
                     ? "bg-white/5 border-white/10 text-white/40 cursor-not-allowed" // Tampilan saat dikunci Admin
                     : "bg-amber-500/20 border-amber-500/50 text-amber-400 hover:bg-amber-500/30" // Tampilan normal
-                }`}
+                  }`}
               >
                 {kioskStatus?.isBusy ? (
                   <>🔒 Layanan Jeda</>
@@ -893,83 +892,83 @@ let shiftY = 0;
             <AnimatePresence>
               {showPinInput && (
                 <motion.div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/90 backdrop-blur-md">
-                  
+
                   <motion.div animate={{ y: keyboardOpen && activeInput === "vipPin" ? -220 : 0 }} transition={{ type: "spring", stiffness: 300, damping: 30 }} className="bg-white/10 p-10 rounded-[40px] border border-white/20 text-center w-[400px]">
-                      
-                      {/* Lapis Keamanan 2: Jika Admin mengunci saat tamu sedang mengetik PIN */}
-                      {kioskStatus?.isBusy ? (
-                        <div className="animate-in fade-in zoom-in duration-300">
-                          <div className="text-5xl mb-4">🔒</div>
-                          <h2 className="text-2xl font-bold text-white mb-2">Layanan Sedang Jeda</h2>
-                          <p className="text-white/70 mb-8">
-                            {kioskStatus.message || "Petugas sedang tidak berada di tempat."}
-                          </p>
-                          <button 
-                            onClick={() => { setShowPinInput(false); setVipPin(""); setKeyboardOpen(false); if(keyboardRef.current) keyboardRef.current.setInput(""); }} 
-                            className="w-full py-4 bg-white/20 hover:bg-white/30 transition-all text-white rounded-full font-bold"
-                          >
-                            Kembali ke Awal
-                          </button>
+
+                    {/* Lapis Keamanan 2: Jika Admin mengunci saat tamu sedang mengetik PIN */}
+                    {kioskStatus?.isBusy ? (
+                      <div className="animate-in fade-in zoom-in duration-300">
+                        <div className="text-5xl mb-4">🔒</div>
+                        <h2 className="text-2xl font-bold text-white mb-2">Layanan Sedang Jeda</h2>
+                        <p className="text-white/70 mb-8">
+                          {kioskStatus.message || "Petugas sedang tidak berada di tempat."}
+                        </p>
+                        <button
+                          onClick={() => { setShowPinInput(false); setVipPin(""); setKeyboardOpen(false); if (keyboardRef.current) keyboardRef.current.setInput(""); }}
+                          className="w-full py-4 bg-white/20 hover:bg-white/30 transition-all text-white rounded-full font-bold"
+                        >
+                          Kembali ke Awal
+                        </button>
+                      </div>
+                    ) : (
+                      // Tampilan Input PIN Normal
+                      <div className="animate-in fade-in zoom-in duration-300">
+                        <h2 className="text-2xl font-bold text-white mb-6">Masukkan PIN VIP</h2>
+                        <input type="password" value={vipPin} onFocus={() => { setActiveInput("vipPin"); setKeyboardOpen(true); }} onKeyDown={playBeep} onChange={(e) => { setVipPin(e.target.value); if (keyboardRef.current && activeInput === "vipPin") keyboardRef.current.setInput(e.target.value); }} className="w-full bg-white/5 border border-white/20 rounded-2xl p-4 text-white text-3xl text-center mb-6 focus:border-amber-500 outline-none transition-all" placeholder="******" inputMode="none" />
+                        <div className="flex gap-4">
+                          <button onClick={() => { setShowPinInput(false); setVipPin(""); setKeyboardOpen(false); if (keyboardRef.current) keyboardRef.current.setInput(""); }} className="flex-1 py-3 bg-white/10 hover:bg-white/20 transition-all text-white rounded-full">Batal</button>
+                          <button onClick={checkVipPin} className="flex-1 py-3 bg-amber-500 hover:bg-amber-400 text-black font-bold rounded-full transition-all">Masuk</button>
                         </div>
-                      ) : (
-                        // Tampilan Input PIN Normal
-                        <div className="animate-in fade-in zoom-in duration-300">
-                          <h2 className="text-2xl font-bold text-white mb-6">Masukkan PIN VIP</h2>
-                          <input type="password" value={vipPin} onFocus={() => { setActiveInput("vipPin"); setKeyboardOpen(true); }} onKeyDown={playBeep} onChange={(e) => { setVipPin(e.target.value); if (keyboardRef.current && activeInput === "vipPin") keyboardRef.current.setInput(e.target.value); }} className="w-full bg-white/5 border border-white/20 rounded-2xl p-4 text-white text-3xl text-center mb-6 focus:border-amber-500 outline-none transition-all" placeholder="******" inputMode="none" />
-                          <div className="flex gap-4">
-                            <button onClick={() => { setShowPinInput(false); setVipPin(""); setKeyboardOpen(false); if(keyboardRef.current) keyboardRef.current.setInput(""); }} className="flex-1 py-3 bg-white/10 hover:bg-white/20 transition-all text-white rounded-full">Batal</button>
-                            <button onClick={checkVipPin} className="flex-1 py-3 bg-amber-500 hover:bg-amber-400 text-black font-bold rounded-full transition-all">Masuk</button>
-                          </div>
-                        </div>
-                      )}
+                      </div>
+                    )}
 
                   </motion.div>
                 </motion.div>
               )}
             </AnimatePresence>
 
-<motion.button 
-  onClick={async (e) => { 
-    e.stopPropagation(); 
-    const locked = await checkKioskLock();
-    if (locked) return; // Hentikan fungsi jika terkunci!
-    
-    setIsScanning(true); 
-    if (scanVoiceRef.current && !isMuted) scanVoiceRef.current.play(); 
-  }} 
-  className="mt-6 px-6 py-3 bg-black/40 backdrop-blur-md border border-white/20 text-white rounded-full text-lg font-semibold flex items-center gap-3 hover:bg-black/60 transition-all cursor-pointer"
->
-  <QrCode className="w-6 h-6 text-red-400" /> Punya kode QR? Pindai di sini
-</motion.button>
-{/* --- TOMBOL BARU UNTUK QR MOBILE --- */}
-        <button 
-          onClick={() => setShowMobileQR(true)}
-          className="flex items-center justify-center mt-4 px-6 py-3 border border-gray-600 rounded-full bg-black/50 text-white hover:bg-black/70 transition-all"
-        >
-          <Smartphone className="w-5 h-5 mr-2 text-blue-400" />
-          Akses via Mobile
-        </button>
+            <motion.button
+              onClick={async (e) => {
+                e.stopPropagation();
+                const locked = await checkKioskLock();
+                if (locked) return; // Hentikan fungsi jika terkunci!
+
+                setIsScanning(true);
+                if (scanVoiceRef.current && !isMuted) scanVoiceRef.current.play();
+              }}
+              className="mt-6 px-6 py-3 bg-black/40 backdrop-blur-md border border-white/20 text-white rounded-full text-lg font-semibold flex items-center gap-3 hover:bg-black/60 transition-all cursor-pointer"
+            >
+              <QrCode className="w-6 h-6 text-red-400" /> Punya kode QR? Pindai di sini
+            </motion.button>
+            {/* --- TOMBOL BARU UNTUK QR MOBILE --- */}
+            <button
+              onClick={() => setShowMobileQR(true)}
+              className="flex items-center justify-center mt-4 px-6 py-3 border border-gray-600 rounded-full bg-black/50 text-white hover:bg-black/70 transition-all"
+            >
+              <Smartphone className="w-5 h-5 mr-2 text-blue-400" />
+              Akses via Mobile
+            </button>
           </motion.div>
         )}
 
         {step === 1 && (
           <motion.div key="step1" variants={slideVariants} initial="hidden" animate="visible" exit="exit" className="w-full max-w-5xl z-20">
             <motion.div animate={{ y: shiftY }} transition={{ type: "spring", stiffness: 300, damping: 30 }} className="bg-white/10 backdrop-blur-2xl border border-white/20 p-12 rounded-[40px] shadow-2xl">
-              
+
               <div className="mb-8 pb-4 border-b-2 border-red-500/50 flex justify-between items-end">
                 <div><h2 className="text-3xl font-bold text-white tracking-tight">{greeting}, silakan isi data Anda</h2></div>
                 <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} type="button" onClick={handleScanKTP} disabled={isOcrLoading} className={`px-6 py-3 rounded-xl flex items-center gap-3 font-bold transition-all border ${isOcrLoading ? "bg-gray-600/50 text-gray-300 border-gray-400/30 cursor-not-allowed" : "bg-blue-600/80 hover:bg-blue-500 text-white border-blue-400/50 shadow-[0_0_20px_rgba(37,99,235,0.5)]"}`}>
-                  {isOcrLoading ? (<div className="animate-spin w-6 h-6 border-4 border-white border-t-transparent rounded-full"></div>) : (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><rect width="10" height="8" x="7" y="8" rx="1"/><path d="M7 12h10"/></svg>)}
+                  {isOcrLoading ? (<div className="animate-spin w-6 h-6 border-4 border-white border-t-transparent rounded-full"></div>) : (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2" /><path d="M17 3h2a2 2 0 0 1 2 2v2" /><path d="M21 17v2a2 2 0 0 1-2 2h-2" /><path d="M7 21H5a2 2 0 0 1-2-2v-2" /><rect width="10" height="8" x="7" y="8" rx="1" /><path d="M7 12h10" /></svg>)}
                   {isOcrLoading ? "Membaca KTP..." : "Pindai KTP Otomatis"}
                 </motion.button>
               </div>
-              
+
               <div className="grid grid-cols-2 gap-x-10 gap-y-8">
                 <div className="space-y-8">
                   <div>
                     <label className="text-xl font-semibold text-gray-200 flex items-center gap-3 mb-3"><Building className="w-6 h-6 text-red-400" /> Nama Instansi <span className="text-red-500">*</span></label>
                     <motion.div animate={errors.institution ? { x: [-8, 8, -5, 5, 0], transition: { duration: 0.4 } } : {}}>
-                      <input {...register("institution", { required: true })} onFocus={() => { setActiveInput("institution"); setKeyboardOpen(true); }} onKeyDown={playBeep} value={watch("institution") || ""} className={`w-full text-2xl p-5 bg-black/30 backdrop-blur-sm border rounded-xl outline-none text-white transition-all ${errors.institution ? 'border-red-500 bg-red-500/10' : 'border-white/20 focus:border-red-500'}`} placeholder="Contoh: Telkom" autoComplete="off" inputMode="none"/>
+                      <input {...register("institution", { required: true })} onFocus={() => { setActiveInput("institution"); setKeyboardOpen(true); }} onKeyDown={playBeep} value={watch("institution") || ""} className={`w-full text-2xl p-5 bg-black/30 backdrop-blur-sm border rounded-xl outline-none text-white transition-all ${errors.institution ? 'border-red-500 bg-red-500/10' : 'border-white/20 focus:border-red-500'}`} placeholder="Contoh: Telkom" autoComplete="off" inputMode="none" />
                     </motion.div>
                   </div>
                   <div>
@@ -982,7 +981,7 @@ let shiftY = 0;
                         <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-400 pointer-events-none" />
                       </div>
                       <motion.div animate={errors.fullName ? { x: [-8, 8, -5, 5, 0], transition: { duration: 0.4 } } : {}} className="flex-1">
-                        <input {...register("fullName", { required: true })} onFocus={() => { setActiveInput("fullName"); setKeyboardOpen(true); }} onKeyDown={playBeep} value={watch("fullName") || ""} className={`w-full text-2xl p-5 bg-black/30 backdrop-blur-sm border rounded-xl outline-none text-white ${errors.fullName ? 'border-red-500 bg-red-500/10' : 'border-white/20 focus:border-red-500'}`} placeholder="Contoh: Nita" autoComplete="off" inputMode="none"/>
+                        <input {...register("fullName", { required: true })} onFocus={() => { setActiveInput("fullName"); setKeyboardOpen(true); }} onKeyDown={playBeep} value={watch("fullName") || ""} className={`w-full text-2xl p-5 bg-black/30 backdrop-blur-sm border rounded-xl outline-none text-white ${errors.fullName ? 'border-red-500 bg-red-500/10' : 'border-white/20 focus:border-red-500'}`} placeholder="Contoh: Nita" autoComplete="off" inputMode="none" />
                       </motion.div>
                     </div>
                   </div>
@@ -999,13 +998,13 @@ let shiftY = 0;
                     <div>
                       <label className="text-xl font-semibold text-gray-200 flex items-center gap-3 mb-3"><Hash className="w-6 h-6 text-red-400" /> Nomor Internet <span className="text-red-500">*</span></label>
                       <motion.div animate={errors.internetNumber ? { x: [-8, 8, -5, 5, 0], transition: { duration: 0.4 } } : {}}>
-                        <input type="text" {...register("internetNumber", { required: true })} onFocus={() => { setActiveInput("internetNumber"); setKeyboardOpen(true); }} onKeyDown={playBeep} value={watch("internetNumber") || ""} className={`w-full text-2xl p-5 bg-black/30 border border-white/20 rounded-xl outline-none text-white ${errors.internetNumber ? 'border-red-500 bg-red-500/10' : 'focus:border-red-500'}`} placeholder="Contoh: 1412..." autoComplete="off" inputMode="none"/>
+                        <input type="text" {...register("internetNumber", { required: true })} onFocus={() => { setActiveInput("internetNumber"); setKeyboardOpen(true); }} onKeyDown={playBeep} value={watch("internetNumber") || ""} className={`w-full text-2xl p-5 bg-black/30 border border-white/20 rounded-xl outline-none text-white ${errors.internetNumber ? 'border-red-500 bg-red-500/10' : 'focus:border-red-500'}`} placeholder="Contoh: 1412..." autoComplete="off" inputMode="none" />
                       </motion.div>
                     </div>
                   </div>
                   <div>
                     <label className="text-xl font-semibold text-gray-200 flex items-center gap-3 mb-3"><MapPin className="w-6 h-6 text-red-400" /> Alamat Pelanggan</label>
-                    <input type="text" {...register("address")} onFocus={() => { setActiveInput("address"); setKeyboardOpen(true); }} onKeyDown={playBeep} value={watch("address") || ""} className="w-full text-2xl p-5 bg-black/30 backdrop-blur-sm border border-white/20 rounded-xl outline-none text-white focus:border-red-500 transition-all" placeholder="Jl. Cik Ditiro" autoComplete="off" inputMode="none"/>
+                    <input type="text" {...register("address")} onFocus={() => { setActiveInput("address"); setKeyboardOpen(true); }} onKeyDown={playBeep} value={watch("address") || ""} className="w-full text-2xl p-5 bg-black/30 backdrop-blur-sm border border-white/20 rounded-xl outline-none text-white focus:border-red-500 transition-all" placeholder="Jl. Cik Ditiro" autoComplete="off" inputMode="none" />
                   </div>
                 </div>
               </div>
@@ -1020,72 +1019,72 @@ let shiftY = 0;
         )}
 
         {/* --- OVERLAY & MODAL GLASSMORPHISM --- */}
-      {showMobileQR && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-300">
-          
-          {/* Container Glassmorphism */}
-          <div className="relative flex flex-col items-center p-8 rounded-3xl max-w-sm w-full shadow-[0_8px_32px_0_rgba(0,0,0,0.3)] bg-white/10 backdrop-blur-md border border-white/20">
-            
-            {/* Tombol Close */}
-            <button 
-              onClick={() => setShowMobileQR(false)}
-              className="absolute top-4 right-4 p-2 rounded-full bg-black/20 text-white/80 hover:text-white hover:bg-black/40 transition-all"
-            >
-              <X className="w-5 h-5" />
-            </button>
+        {showMobileQR && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-300">
 
-            <h3 className="text-2xl font-bold text-white mb-2 drop-shadow-md">Akses Mobile</h3>
-            <p className="text-sm text-gray-200 text-center mb-6 drop-shadow-sm">
-              Gunakan kamera HP Anda untuk memindai QR code ini dan melanjutkan via mobile.
-            </p>
+            {/* Container Glassmorphism */}
+            <div className="relative flex flex-col items-center p-8 rounded-3xl max-w-sm w-full shadow-[0_8px_32px_0_rgba(0,0,0,0.3)] bg-white/10 backdrop-blur-md border border-white/20">
 
-            {/* Area QR Code (Background solid agar QR mudah discan) */}
-            <div className="p-4 bg-white rounded-2xl shadow-inner">
-              <NextImage 
-                src="/qr-mobile1.png" 
-                alt="QR Code Mobile" 
-                width={200} 
-                height={200} 
-                className="rounded-xl"
-              />
+              {/* Tombol Close */}
+              <button
+                onClick={() => setShowMobileQR(false)}
+                className="absolute top-4 right-4 p-2 rounded-full bg-black/20 text-white/80 hover:text-white hover:bg-black/40 transition-all"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <h3 className="text-2xl font-bold text-white mb-2 drop-shadow-md">Akses Mobile</h3>
+              <p className="text-sm text-gray-200 text-center mb-6 drop-shadow-sm">
+                Gunakan kamera HP Anda untuk memindai QR code ini dan melanjutkan via mobile.
+              </p>
+
+              {/* Area QR Code (Background solid agar QR mudah discan) */}
+              <div className="p-4 bg-white rounded-2xl shadow-inner">
+                <NextImage
+                  src="/qr-mobile1.png"
+                  alt="QR Code Mobile"
+                  width={200}
+                  height={200}
+                  className="rounded-xl"
+                />
+              </div>
+
             </div>
 
           </div>
-          
-        </div>
-      )}
-      {/* --- AKHIR MODAL --- */}
+        )}
+        {/* --- AKHIR MODAL --- */}
 
-      {/* --- MODAL IFRAME FINPAY --- */}
-      {showFinpayModal && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-6 animate-in fade-in duration-300">
-          
-          {/* Container Glassmorphism yang lebih besar */}
-          <div className="relative flex flex-col w-full max-w-5xl h-[85vh] p-3 rounded-3xl shadow-[0_8px_32px_0_rgba(0,0,0,0.5)] bg-white/10 backdrop-blur-md border border-white/20">
-            
-            {/* Tombol Close (Dibuat lebih besar & mencolok untuk Kiosk) */}
-            <button 
-              onClick={() => setShowFinpayModal(false)}
-              className="absolute -top-5 -right-5 p-4 rounded-full bg-red-600 text-white shadow-xl hover:bg-red-700 transition-all z-[70]"
-            >
-              <X className="w-8 h-8" />
-            </button>
+        {/* --- MODAL IFRAME FINPAY --- */}
+        {showFinpayModal && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-6 animate-in fade-in duration-300">
 
-            {/* Area Iframe */}
-            <div className="w-full h-full bg-white rounded-2xl overflow-hidden shadow-inner">
-              <iframe 
-                src="https://live.finpay.id/widgetpg/001001/indibiz"
-                className="w-full h-full border-none"
-                title="Portal Finpay Indibiz"
-                allow="clipboard-write"
-              />
+            {/* Container Glassmorphism yang lebih besar */}
+            <div className="relative flex flex-col w-full max-w-5xl h-[85vh] p-3 rounded-3xl shadow-[0_8px_32px_0_rgba(0,0,0,0.5)] bg-white/10 backdrop-blur-md border border-white/20">
+
+              {/* Tombol Close (Dibuat lebih besar & mencolok untuk Kiosk) */}
+              <button
+                onClick={() => setShowFinpayModal(false)}
+                className="absolute -top-5 -right-5 p-4 rounded-full bg-red-600 text-white shadow-xl hover:bg-red-700 transition-all z-[70]"
+              >
+                <X className="w-8 h-8" />
+              </button>
+
+              {/* Area Iframe */}
+              <div className="w-full h-full bg-white rounded-2xl overflow-hidden shadow-inner">
+                <iframe
+                  src="https://live.finpay.id/widgetpg/001001/indibiz"
+                  className="w-full h-full border-none"
+                  title="Portal Finpay Indibiz"
+                  allow="clipboard-write"
+                />
+              </div>
+
             </div>
 
           </div>
-          
-        </div>
-      )}
-      {/* --- AKHIR MODAL IFRAME --- */}
+        )}
+        {/* --- AKHIR MODAL IFRAME --- */}
 
         {step === 2 && (
           <motion.div key="step2" variants={slideVariants} initial="hidden" animate="visible" exit="exit" className="w-full max-w-6xl z-20">
@@ -1101,16 +1100,16 @@ let shiftY = 0;
                       </motion.div>
                     ))}
                   </motion.div>
-                  <input type="hidden" {...register("category", { required: true })} inputMode="none"/>
+                  <input type="hidden" {...register("category", { required: true })} inputMode="none" />
                 </div>
                 <div className="col-span-5 space-y-6">
-                  <div><label className="text-xl font-semibold text-gray-200 flex items-center gap-3 mb-3"><Contact className="w-6 h-6 text-red-400" /> Petugas yang Dituju</label><input {...register("hostName")} onFocus={() => { setActiveInput("hostName"); setKeyboardOpen(true); }} onKeyDown={playBeep} value={watch("hostName") || ""} className="w-full text-xl p-5 bg-black/30 border border-white/10 rounded-2xl outline-none text-white focus:border-red-500" placeholder="Nita Wulandari" autoComplete="off" inputMode="none"/></div>
+                  <div><label className="text-xl font-semibold text-gray-200 flex items-center gap-3 mb-3"><Contact className="w-6 h-6 text-red-400" /> Petugas yang Dituju</label><input {...register("hostName")} onFocus={() => { setActiveInput("hostName"); setKeyboardOpen(true); }} onKeyDown={playBeep} value={watch("hostName") || ""} className="w-full text-xl p-5 bg-black/30 border border-white/10 rounded-2xl outline-none text-white focus:border-red-500" placeholder="Nita Wulandari" autoComplete="off" inputMode="none" /></div>
                   <div><label className="text-xl font-semibold text-gray-200 flex items-center gap-3 mb-3"><Target className="w-6 h-6 text-red-400" /> Detail Kunjungan</label><textarea {...register("purpose")} onFocus={() => { setActiveInput("purpose"); setKeyboardOpen(true); }} onKeyDown={playBeep} value={watch("purpose") || ""} className="w-full text-lg p-5 bg-black/30 border border-white/10 rounded-2xl outline-none text-white min-h-[160px] resize-none focus:border-red-500" placeholder="Silakan jelaskan detail kunjungan Anda" inputMode="none" /></div>
                 </div>
               </div>
               <div className="mt-8 p-4 bg-black/20 rounded-2xl border border-white/5">
                 <label className="flex items-start gap-4 cursor-pointer group">
-                  <input type="checkbox" checked={isAgreed} onChange={(e) => setIsAgreed(e.target.checked)} className="h-7 w-7 rounded-lg border-2 border-white/20 bg-black/40 accent-red-600 cursor-pointer" inputMode="none"/>
+                  <input type="checkbox" checked={isAgreed} onChange={(e) => setIsAgreed(e.target.checked)} className="h-7 w-7 rounded-lg border-2 border-white/20 bg-black/40 accent-red-600 cursor-pointer" inputMode="none" />
                   <p className="text-gray-300 text-lg leading-snug">Saya setuju data saya digunakan untuk administrasi di <span className="text-red-400 font-bold">Telkom Witel Sulbagteng</span>.</p>
                 </label>
               </div>
@@ -1131,17 +1130,17 @@ let shiftY = 0;
 
                 {/* 👇 KOTAK NOMOR ANTREAN BARU 👇 */}
                 {queueNumber && (
-<motion.div 
-  initial={{ scale: 0.8, opacity: 0 }} 
-  animate={{ scale: 1, opacity: 1 }} 
-  transition={{ delay: 0.3 }} 
-  className="my-4 px-6 py-4 bg-black/40 border border-amber-500/30 rounded-2xl shadow-[0_0_20px_rgba(245,158,11,0.15)] inline-block"
->
-  <p className="text-amber-400 font-semibold uppercase tracking-widest mb-1 text-xs">
-    Nomor Antrean Anda
-  </p>
-  <p className="text-5xl font-black text-white">{queueNumber}</p>
-</motion.div>
+                  <motion.div
+                    initial={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ delay: 0.3 }}
+                    className="my-4 px-6 py-4 bg-black/40 border border-amber-500/30 rounded-2xl shadow-[0_0_20px_rgba(245,158,11,0.15)] inline-block"
+                  >
+                    <p className="text-amber-400 font-semibold uppercase tracking-widest mb-1 text-xs">
+                      Nomor Antrean Anda
+                    </p>
+                    <p className="text-5xl font-black text-white">{queueNumber}</p>
+                  </motion.div>
 
                 )}
 
@@ -1156,7 +1155,7 @@ let shiftY = 0;
                 <h3 className="text-2xl font-bold text-white mb-2">Sering Berkunjung?</h3>
                 <p className="text-sm text-gray-400 mb-8">Pindai dan simpan kode QR ini untuk pendaftaran instan pada kunjungan berikutnya.</p>
                 <div className="p-4 bg-white rounded-2xl shadow-[0_0_30px_rgba(255,255,255,0.2)]">
-                <QRCodeCanvas value={JSON.stringify({ inst: getValues("institution"), nama: getValues("fullName"), hp: getValues("phoneNumber"), inet: getValues("internetNumber"), alamat: getValues("address") })} size={180} level="H" />
+                  <QRCodeCanvas value={JSON.stringify({ inst: getValues("institution"), nama: getValues("fullName"), hp: getValues("phoneNumber"), inet: getValues("internetNumber"), alamat: getValues("address") })} size={180} level="H" />
                 </div>
               </div>
             </div>
@@ -1171,7 +1170,7 @@ let shiftY = 0;
                   <h2 className="text-4xl font-bold text-white mb-4">Langkah Terakhir</h2>
                   <h3 className="text-xl text-gray-300 mb-12">Bagaimana pengalaman Anda menggunakan layanan kiosk ini?</h3>
                   <div className="flex justify-center gap-8">
-                    {[ { score: 1, emoji: "😡", label: "Buruk" }, { score: 2, emoji: "🙁", label: "Kurang" }, { score: 3, emoji: "😐", label: "Cukup" }, { score: 4, emoji: "🙂", label: "Baik" }, { score: 5, emoji: "😍", label: "Sangat Baik" }].map((item) => (
+                    {[{ score: 1, emoji: "😡", label: "Buruk" }, { score: 2, emoji: "🙁", label: "Kurang" }, { score: 3, emoji: "😐", label: "Cukup" }, { score: 4, emoji: "🙂", label: "Baik" }, { score: 5, emoji: "😍", label: "Sangat Baik" }].map((item) => (
                       <motion.button key={item.score} whileHover={{ scale: 1.2, y: -10 }} whileTap={{ scale: 0.9 }} onClick={async () => { setRatingSubmitted(true); playSuccessSound(); await submitVisitorRating(currentVisitorId, item.score); setTimeout(() => { setStep(0); setRatingSubmitted(false); setCurrentVisitorId(""); reset(); setPhotoBase64(null); setIsAgreed(false); setSelectedCategory(""); }, 3000); }} className="flex flex-col items-center gap-4 group">
                         <span className="text-7xl filter grayscale opacity-70 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-300">{item.emoji}</span><span className="text-lg font-medium text-gray-400 group-hover:text-white transition-colors">{item.label}</span>
                       </motion.button>
@@ -1211,7 +1210,7 @@ let shiftY = 0;
                       screenshotFormat="image/jpeg"
                       videoConstraints={{ width: 640, height: 480, facingMode: "user" }}
                       className="w-[640px] h-[480px]"
-                      
+
                     />
                     <img src="/frame-telkom.png" alt="frame" className="absolute inset-0 w-full h-full object-cover pointer-events-none z-10" />
                   </>
@@ -1221,8 +1220,8 @@ let shiftY = 0;
                 <h2 className="text-3xl font-bold text-white mb-4">Foto Kenangan Telkom</h2><p className="text-gray-400 mb-8">Abadikan kenang-kenangan kunjungan Anda hari ini.</p>
                 {!photoboothResult ? (
                   <div className="flex flex-col gap-4">
-                     <button onClick={handleCapturePhotobooth} className="py-6 bg-red-600 text-white font-bold text-2xl rounded-2xl shadow-lg shadow-red-900/30 hover:bg-red-500 transition-all">📸 Ambil Foto</button>
-                     <button onClick={() => setShowPhotobooth(false)} className="py-4 bg-white/10 text-white rounded-2xl hover:bg-white/20 transition-all">Batal/Tutup</button>
+                    <button onClick={handleCapturePhotobooth} className="py-6 bg-red-600 text-white font-bold text-2xl rounded-2xl shadow-lg shadow-red-900/30 hover:bg-red-500 transition-all">📸 Ambil Foto</button>
+                    <button onClick={() => setShowPhotobooth(false)} className="py-4 bg-white/10 text-white rounded-2xl hover:bg-white/20 transition-all">Batal/Tutup</button>
                   </div>
                 ) : (
                   <div className="flex flex-col items-center gap-6">
@@ -1248,13 +1247,13 @@ let shiftY = 0;
         )}
       </AnimatePresence>
 
-{/* 4. TOMBOL PANGGILAN INTERKOM (POJOK KANAN BAWAH) */}
+      {/* 4. TOMBOL PANGGILAN INTERKOM (POJOK KANAN BAWAH) */}
       {step < 2 && !showIntercom && (
-        <motion.button 
-          initial={{ scale: 0 }} 
-          animate={{ scale: 1 }} 
-          whileHover={kioskStatus?.isBusy ? {} : { scale: 1.1 }} 
-          whileTap={kioskStatus?.isBusy ? {} : { scale: 0.9 }} 
+        <motion.button
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          whileHover={kioskStatus?.isBusy ? {} : { scale: 1.1 }}
+          whileTap={kioskStatus?.isBusy ? {} : { scale: 0.9 }}
           onClick={async () => {
             // Jika sedang sibuk, tampilkan modal peringatan dari checkKioskLock
             if (kioskStatus?.isBusy) {
@@ -1262,12 +1261,11 @@ let shiftY = 0;
               return;
             }
             setShowIntercom(true);
-          }} 
-          className={`fixed bottom-10 right-10 z-50 p-6 rounded-full flex items-center justify-center group transition-all ${
-            kioskStatus?.isBusy 
-              ? "bg-gray-600/50 backdrop-blur-md border border-white/10 cursor-not-allowed opacity-60" 
+          }}
+          className={`fixed bottom-10 right-10 z-50 p-6 rounded-full flex items-center justify-center group transition-all ${kioskStatus?.isBusy
+              ? "bg-gray-600/50 backdrop-blur-md border border-white/10 cursor-not-allowed opacity-60"
               : "bg-red-600 shadow-[0_0_30px_rgba(220,38,38,0.6)] cursor-pointer"
-          }`}
+            }`}
         >
           <Headset className={`w-10 h-10 text-white ${kioskStatus?.isBusy ? "" : "animate-pulse group-hover:animate-none"}`} />
         </motion.button>
@@ -1293,24 +1291,24 @@ let shiftY = 0;
 
       <AnimatePresence>
         {keyboardOpen && ((step > 0 && step < 3) || showPinInput) && (
-        <motion.div 
-            initial={{ y: 80, opacity: 0 }} 
-            animate={{ y: 0, opacity: 1 }} 
-            exit={{ y: 80, opacity: 0 }} 
-            transition={{ type: "tween", duration: 0.25, ease: "easeOut" }} 
+          <motion.div
+            initial={{ y: 80, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 80, opacity: 0 }}
+            transition={{ type: "tween", duration: 0.25, ease: "easeOut" }}
             className={`absolute bottom-0 z-[250] p-6 bg-white/5 backdrop-blur-3xl border-t border-x border-white/20 rounded-t-[40px] shadow-[0_-20px_50px_rgba(0,0,0,0.5)] transition-all ${isNumericInput ? 'w-full max-w-md' : 'w-full max-w-6xl'}`}
           >
             <div className="flex justify-between items-center mb-4 px-6">
               <div className="flex items-center gap-3"><div className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div><span className="text-white/60 font-semibold text-sm uppercase tracking-widest">{isNumericInput ? "Keyboard Angka" : "Keyboard Layar Sentuh"}</span></div>
               <button onClick={() => setKeyboardOpen(false)} className="text-white font-bold px-6 py-2 bg-red-600/80 hover:bg-red-600 rounded-full transition-all shadow-lg text-sm border border-red-400/50">TUTUP</button>
             </div>
-            
+
             <div className={`glass-keyboard-container rounded-3xl overflow-hidden p-2 ${isNumericInput ? 'numpad-style' : ''}`}>
-              <Keyboard 
+              <Keyboard
                 keyboardRef={(r) => {
                   keyboardRef.current = r;
-                }} 
-                layoutName={currentLayoutName} 
+                }}
+                layoutName={currentLayoutName}
                 layout={customKeyboardLayouts}
                 display={{
                   "{bksp}": "Hapus",
@@ -1318,10 +1316,10 @@ let shiftY = 0;
                   "{shift}": "Kapital",
                   "{space}": "Spasi"
                 }}
-                onChange={onKeyboardChange} 
-                onKeyPress={onKeyboardKeyPress} 
-                inputName={activeInput} 
-                theme="hg-theme-default hg-layout-default custom-glass-theme" 
+                onChange={onKeyboardChange}
+                onKeyPress={onKeyboardKeyPress}
+                inputName={activeInput}
+                theme="hg-theme-default hg-layout-default custom-glass-theme"
               />
             </div>
           </motion.div>
@@ -1340,8 +1338,8 @@ let shiftY = 0;
       {/* MODAL PENOLAKAN KARENA CS SIBUK */}
       {isCsBusy && (
         <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/80 p-6 backdrop-blur-xl">
-          <motion.div 
-            initial={{ scale: 0.9, opacity: 0, y: 20 }} 
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             className="bg-gradient-to-b from-red-950 to-black p-12 rounded-[40px] border border-red-500/50 text-center max-w-3xl shadow-[0_0_50px_rgba(220,38,38,0.3)] flex flex-col items-center"
           >
@@ -1350,7 +1348,7 @@ let shiftY = 0;
             </div>
             <h2 className="text-4xl font-black text-white mb-2 uppercase tracking-wide">Pendaftaran Dijeda</h2>
             <p className="text-lg text-red-300 mb-8 font-semibold">Petugas Customer Service sedang tidak berada di meja.</p>
-            
+
             {/* INI ADALAH PESAN ASLI KETIKAN CS */}
             <div className="bg-white/10 p-8 rounded-3xl border border-white/20 mb-10 w-full relative">
               <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-red-600 px-4 py-1 rounded-full text-xs font-bold text-white uppercase tracking-wider">
@@ -1361,7 +1359,7 @@ let shiftY = 0;
               </p>
             </div>
 
-            <button 
+            <button
               onClick={() => setIsCsBusy(false)}
               className="px-10 py-5 bg-white/10 hover:bg-white/20 text-white font-bold rounded-2xl transition-all border border-white/20 shadow-lg active:scale-95"
             >
