@@ -283,7 +283,10 @@ export async function submitVisitorData(formData: any, photoBase64: string | nul
       }
     }
 
-    await Promise.all([r2Task, telegramTask]);
+    // Biarkan R2 & Telegram berjalan di background tanpa menahan response (Fire and Forget)
+    Promise.all([r2Task, telegramTask]).catch((err) => {
+      console.error("Background task error:", err);
+    });
 
     // 5. HITUNG NOMOR ANTREAN (Hanya untuk region Kiosk ini)
     const currentQueueCount = await prisma.visitorLog.count({

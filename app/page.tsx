@@ -109,22 +109,31 @@ export default function KioskPage() {
   const [kioskStatus, setKioskStatus] = useState<{ isBusy: boolean; message: string; region?: string } | null>(null);
 
   useEffect(() => {
+    let isMounted = true;
+    let timeoutId: NodeJS.Timeout;
+
     const fetchStatus = async () => {
       try {
         const { getKioskStatusAction } = await import("./actions/kiosk");
         const status = await getKioskStatusAction();
-        if (status) {
+        if (isMounted && status) {
           setKioskStatus(status);
         }
       } catch (error) {
         console.error("Gagal mengambil status Kiosk:", error);
+      } finally {
+        if (isMounted) {
+          timeoutId = setTimeout(fetchStatus, 3000);
+        }
       }
     };
 
     fetchStatus();
-    const intervalId = setInterval(fetchStatus, 3000);
 
-    return () => clearInterval(intervalId);
+    return () => {
+      isMounted = false;
+      clearTimeout(timeoutId);
+    };
   }, []);
 
   useEffect(() => {
@@ -214,6 +223,7 @@ export default function KioskPage() {
   const [currentVisitorId, setCurrentVisitorId] = useState<string>("");
   const [queueNumber, setQueueNumber] = useState<number | null>(null);
   const [isOcrLoading, setIsOcrLoading] = useState(false);
+  const [isCheckingPin, setIsCheckingPin] = useState(false);
   const [showPinInput, setShowPinInput] = useState(false);
   const [vipPin, setVipPin] = useState("");
   const [previewCameraKey, setPreviewCameraKey] = useState(0);
@@ -436,6 +446,7 @@ export default function KioskPage() {
 
   const checkVipPin = async () => {
     if (!vipPin) return;
+    setIsCheckingPin(true);
 
     try {
       // Kiosk HANYA mengirimkan PIN. Sangat ringan dan instan!
@@ -470,6 +481,8 @@ export default function KioskPage() {
     } catch (error) {
       customAlert("error", "Koneksi Terputus", "Gagal menghubungi server database.");
       setVipPin("");
+    } finally {
+      setIsCheckingPin(false);
     }
   };
 
@@ -702,12 +715,12 @@ export default function KioskPage() {
   const onKeyboardChange = (input: string) => {
     if (activeInput === "phoneNumber") {
       const formatted = formatPhone(input);
-      setValue(activeInput, formatted, { shouldValidate: true });
+      setValue(activeInput, formatted);
       if (keyboardRef.current) keyboardRef.current.setInput(formatted);
     }
     else if (activeInput === "institution" || activeInput === "fullName" || activeInput === "hostName") {
       const titleCased = toTitleCase(input);
-      setValue(activeInput, titleCased, { shouldValidate: true });
+      setValue(activeInput, titleCased);
       if (keyboardRef.current) keyboardRef.current.setInput(titleCased);
     }
     else if (activeInput === "vipPin") {
@@ -715,7 +728,7 @@ export default function KioskPage() {
       if (keyboardRef.current) keyboardRef.current.setInput(input);
     }
     else {
-      setValue(activeInput, input, { shouldValidate: true });
+      setValue(activeInput, input);
     }
   };
 
@@ -751,6 +764,19 @@ export default function KioskPage() {
 
   return (
     <div onPointerDown={handlePointerDown} className="relative w-full h-screen overflow-hidden bg-black flex items-center justify-center font-sans select-none">
+
+      {/* ================= FULLSCREEN LOADING OVERLAY ================= */}
+      <AnimatePresence>
+        {(isOcrLoading || isCheckingPin) && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 z-[10000] bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center">
+            <div className="animate-spin w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full mb-4 shadow-[0_0_20px_rgba(59,130,246,0.6)]"></div>
+            <h2 className="text-2xl font-bold text-white tracking-wider animate-pulse">
+              {isOcrLoading ? "Sedang Membaca KTP..." : "Sedang Memeriksa PIN..."}
+            </h2>
+            <p className="text-gray-400 mt-2">Mohon tunggu sebentar</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ================= MODAL CUSTOM ALERT (TOAST) ================= */}
       <AnimatePresence>
