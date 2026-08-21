@@ -169,7 +169,7 @@ export default function KioskPage() {
 
         const restoreVolume = () => {
           const bgm = document.querySelector('audio[src="/bg-music.mp3"]') as HTMLAudioElement;
-          if (bgm) bgm.volume = 0.3; // Kembalikan ke volume normal
+          if (bgm) bgm.volume = 0.6; // Kembalikan ke volume normal
         };
 
         msg.onstart = duckVolume;
@@ -318,7 +318,7 @@ const checkKioskLock = async () => {
   useEffect(() => {
     const playMusic = () => {
       if (audioRef.current && audioRef.current.paused) {
-        audioRef.current.volume = 0.3;
+        audioRef.current.volume = 0.6;
         audioRef.current.play().catch(() => {});
       }
       window.removeEventListener('click', playMusic);
@@ -327,7 +327,7 @@ const checkKioskLock = async () => {
 
     // Coba putar langsung (mungkin diblokir browser)
     if (audioRef.current) { 
-      audioRef.current.volume = 0.3; 
+      audioRef.current.volume = 0.6; 
       audioRef.current.play().catch(() => {
         // Jika diblokir, tunggu interaksi pertama user
         window.addEventListener('click', playMusic);
