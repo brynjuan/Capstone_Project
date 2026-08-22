@@ -173,12 +173,12 @@ export default function KioskPage() {
 
         const duckVolume = () => {
           const bgm = document.querySelector('audio[src="/bg-music.mp3"]') as HTMLAudioElement;
-          if (bgm) bgm.volume = 0.03; // Volume sangat kecil
+          if (bgm) bgm.volume = 0.3; // Volume mengecil menjadi 30%
         };
 
         const restoreVolume = () => {
           const bgm = document.querySelector('audio[src="/bg-music.mp3"]') as HTMLAudioElement;
-          if (bgm) bgm.volume = 0.7; // Kembalikan ke volume normal
+          if (bgm) bgm.volume = 0.7; // Kembalikan ke volume 60%
         };
 
         msg.onstart = duckVolume;
@@ -249,7 +249,7 @@ export default function KioskPage() {
 
     // Kita buat objek memori baru setiap kali ditekan agar bisa bertumpuk instan!
     const beep = new Audio("/sounds/beep.mp3");
-    beep.volume = 0.3; // Volume kita buat 50% agar tidak memekakkan telinga jika diketik cepat
+    beep.volume = 0.4; // Volume 40% untuk kenyamanan mengetik berulang
     beep.play().catch((err) => console.log("Audio terblokir:", err));
   };
   const playErrorSound = () => {
@@ -257,7 +257,7 @@ export default function KioskPage() {
 
     // Kita buat objek memori baru setiap kali ditekan agar bisa bertumpuk instan!
     const beep = new Audio("/sounds/error.mp3");
-    beep.volume = 1; // Volume kita buat 50% agar tidak memekakkan telinga jika diketik cepat
+    beep.volume = 0.7; // Volume 70% agar jelas namun tidak mengagetkan
     beep.play().catch((err) => console.log("Audio terblokir:", err));
   };
   const playSuccessSound = () => {
@@ -265,7 +265,7 @@ export default function KioskPage() {
 
     // Kita buat objek memori baru setiap kali ditekan agar bisa bertumpuk instan!
     const beep = new Audio("/sounds/succes.mp3");
-    beep.volume = 1; // Volume kita buat 50% agar tidak memekakkan telinga jika diketik cepat
+    beep.volume = 0.7; // Volume 70% agar jelas namun tidak mengagetkan
     beep.play().catch((err) => console.log("Audio terblokir:", err));
   };
 
@@ -659,7 +659,6 @@ export default function KioskPage() {
     if (result.success) {
       if (result.visitorId) setCurrentVisitorId(result.visitorId);
       if (result.queueNumber) setQueueNumber(result.queueNumber);
-      if (audioRef.current) audioRef.current.volume = 0.1;
       if (successVoiceRef.current && !isMuted) {
         successVoiceRef.current.currentTime = 0;
         successVoiceRef.current.volume = 1.0;
@@ -683,7 +682,6 @@ export default function KioskPage() {
     if (locked) return; // Hentikan fungsi jika terkunci!
 
     setStep(1);
-    if (audioRef.current) audioRef.current.volume = 0.1;
     if (voiceRef.current && !isMuted) {
       voiceRef.current.currentTime = 0;
       voiceRef.current.volume = 1.0;
@@ -808,9 +806,9 @@ export default function KioskPage() {
 
       <video autoPlay loop muted playsInline src="/video-telkom.mp4" className="absolute inset-0 w-full h-full object-cover z-0" />
       <audio ref={audioRef} src="/bg-music.mp3" loop />
-      <audio ref={voiceRef} src="/welcome-voice.mp3" />
-      <audio ref={successVoiceRef} src="/success-voice.mp3" />
-      <audio ref={scanVoiceRef} src="/scan-instruction.mp3" />
+      <audio ref={voiceRef} src="/welcome-voice.mp3" onPlay={() => { if (audioRef.current) audioRef.current.volume = 0.3; }} onEnded={() => { if (audioRef.current) audioRef.current.volume = 0.6; }} />
+      <audio ref={successVoiceRef} src="/success-voice.mp3" onPlay={() => { if (audioRef.current) audioRef.current.volume = 0.3; }} onEnded={() => { if (audioRef.current) audioRef.current.volume = 0.6; }} />
+      <audio ref={scanVoiceRef} src="/scan-instruction.mp3" onPlay={() => { if (audioRef.current) audioRef.current.volume = 0.3; }} onEnded={() => { if (audioRef.current) audioRef.current.volume = 0.6; }} />
 
       {/* Hidden webcam untuk capture foto/form OCR, tanpa menampilkan preview aktif ke pengguna */}
       {/* Kamera Tersembunyi: Diletakkan tepat di belakang background video Telkom (z-[-1]) agar 
@@ -903,8 +901,8 @@ export default function KioskPage() {
                 onClick={() => { setShowPinInput(true); setActiveInput("vipPin"); }}
                 disabled={kioskStatus?.isBusy}
                 className={`px-6 py-3 backdrop-blur-md border rounded-full text-lg font-semibold flex items-center gap-3 transition-all ${kioskStatus?.isBusy
-                    ? "bg-white/5 border-white/10 text-white/40 cursor-not-allowed" // Tampilan saat dikunci Admin
-                    : "bg-amber-500/20 border-amber-500/50 text-amber-400 hover:bg-amber-500/30" // Tampilan normal
+                  ? "bg-white/5 border-white/10 text-white/40 cursor-not-allowed" // Tampilan saat dikunci Admin
+                  : "bg-amber-500/20 border-amber-500/50 text-amber-400 hover:bg-amber-500/30" // Tampilan normal
                   }`}
               >
                 {kioskStatus?.isBusy ? (
@@ -1289,8 +1287,8 @@ export default function KioskPage() {
             setShowIntercom(true);
           }}
           className={`fixed bottom-10 right-10 z-50 p-6 rounded-full flex items-center justify-center group transition-all ${kioskStatus?.isBusy
-              ? "bg-gray-600/50 backdrop-blur-md border border-white/10 cursor-not-allowed opacity-60"
-              : "bg-red-600 shadow-[0_0_30px_rgba(220,38,38,0.6)] cursor-pointer"
+            ? "bg-gray-600/50 backdrop-blur-md border border-white/10 cursor-not-allowed opacity-60"
+            : "bg-red-600 shadow-[0_0_30px_rgba(220,38,38,0.6)] cursor-pointer"
             }`}
         >
           <Headset className={`w-10 h-10 text-white ${kioskStatus?.isBusy ? "" : "animate-pulse group-hover:animate-none"}`} />
