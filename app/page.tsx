@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { motion, AnimatePresence, Variants } from "framer-motion";
 import Webcam from "react-webcam";
 import { Headset, Search, Hash, Star, User, Building, Target, CheckCircle, ChevronRight, ChevronLeft, ChevronDown, Phone, MapPin, Tag, Contact, QrCode, Volume2, VolumeX, XCircle, AlertTriangle, Smartphone, X, } from "lucide-react";
-import { getVisitorByPinAction, submitVisitorData, performOCR, submitVisitorRating, uploadPhotoboothImage } from "./actions/kiosk";
+import { getVisitorByPinAction, submitVisitorData, performOCR, submitVisitorRating, uploadPhotoboothImage, getKioskStatusAction, checkKioskAuthAction } from "./actions/kiosk";
 import dynamic from "next/dynamic";
 import { QRCodeCanvas } from "qrcode.react";
 import Keyboard from "react-simple-keyboard";
@@ -114,7 +114,6 @@ export default function KioskPage() {
 
     const fetchStatus = async () => {
       try {
-        const { getKioskStatusAction } = await import("./actions/kiosk");
         const status = await getKioskStatusAction();
         if (isMounted && status) {
           setKioskStatus(status);
@@ -123,7 +122,7 @@ export default function KioskPage() {
         console.error("Gagal mengambil status Kiosk:", error);
       } finally {
         if (isMounted) {
-          timeoutId = setTimeout(fetchStatus, 3000);
+          timeoutId = setTimeout(fetchStatus, 10000); // Diperbesar ke 10 detik agar tidak membebani server
         }
       }
     };
@@ -300,8 +299,6 @@ export default function KioskPage() {
   const [busyMessage, setBusyMessage] = useState<string>("");
 
   const checkKioskLock = async () => {
-    // 👇 UBAH IMPORT DARI "./actions/admin" MENJADI "./actions/kiosk"
-    const { getKioskStatusAction } = await import("./actions/kiosk");
     const status = await getKioskStatusAction();
 
     // Gunakan status?.isBusy (tambahkan tanda tanya agar lebih aman)
@@ -573,7 +570,6 @@ export default function KioskPage() {
   useEffect(() => {
     const verifyKioskAccess = async () => {
       try {
-        const { checkKioskAuthAction } = await import("./actions/kiosk");
         const session = await checkKioskAuthAction();
         // Jika tidak ada sesi atau role-nya bukan KIOSK, usir ke halaman login!
         if (!session) {
