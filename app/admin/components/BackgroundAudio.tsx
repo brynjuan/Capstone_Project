@@ -35,12 +35,14 @@ export default function BackgroundAudio({ role = "admin", channel }: { role?: "a
   // ADMIN: Request initial state and listen to Kiosk state updates
   useEffect(() => {
     if (role === "admin" && channel) {
-      // Minta status awal ke Kiosk
-      channel.send({
-        type: 'broadcast',
-        event: 'music-request-state',
-        payload: {}
-      });
+      // Beri jeda 1 detik agar channel Supabase selesai melakukan koneksi (SUBSCRIBED)
+      const timer = setTimeout(() => {
+        channel.send({
+          type: 'broadcast',
+          event: 'music-request-state',
+          payload: {}
+        }).catch(() => {});
+      }, 1500);
 
       // Dengarkan update status dari Kiosk (sinkronisasi dua arah)
       channel.on('broadcast', { event: 'music-state' }, (payload: any) => {
@@ -50,6 +52,8 @@ export default function BackgroundAudio({ role = "admin", channel }: { role?: "a
         setIsMuted(newMuted);
         setCurrentTrackIndex(newIndex);
       });
+
+      return () => clearTimeout(timer);
     }
   }, [role, channel]);
 
