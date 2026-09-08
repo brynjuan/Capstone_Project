@@ -172,15 +172,7 @@ export default function KioskPage() {
           msg.voice = idVoice;
         }
 
-        const duckVolume = () => {
-          const bgm = document.querySelector('audio.kiosk-bg-audio') as HTMLAudioElement;
-          if (bgm) bgm.volume = 0.1; // Volume mengecil drastis agar pesan terdengar
-        };
 
-        const restoreVolume = () => {
-          const bgm = document.querySelector('audio.kiosk-bg-audio') as HTMLAudioElement;
-          if (bgm) bgm.volume = 0.5; // Kembalikan ke volume
-        };
 
         msg.onstart = duckVolume;
         msg.onend = restoreVolume;
@@ -243,6 +235,16 @@ export default function KioskPage() {
   const beepAudioRef = useRef<HTMLAudioElement | null>(null);
   const errorAudioRef = useRef<HTMLAudioElement | null>(null);
   const successAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  const duckVolume = () => {
+    const bgm = document.querySelector('audio.kiosk-bg-audio') as HTMLAudioElement;
+    if (bgm) bgm.volume = 0.1; // Volume mengecil drastis agar pesan terdengar
+  };
+
+  const restoreVolume = () => {
+    const bgm = document.querySelector('audio.kiosk-bg-audio') as HTMLAudioElement;
+    if (bgm) bgm.volume = 0.5; // Kembalikan ke volume
+  };
 
   // FUNGSI PLAYBEEP SUPER CEPAT (TANPA LATENSI)
   const playBeep = () => {
