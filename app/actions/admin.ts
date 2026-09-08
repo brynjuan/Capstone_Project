@@ -12,12 +12,12 @@ import { uploadPhotoboothImage } from "./kiosk";
 // ============================================================================
 async function getSessionAndFilter() {
   const session = await requireAdminSession();
-  
+
   // Usir akun KIOSK jika mencoba menjalankan fungsi Admin
   if (session.role === "KIOSK") {
     throw new Error("Akses ditolak. Mesin Kiosk tidak memiliki izin mengakses fungsi Admin.");
   }
-  
+
   const regionFilter = session.role === "SUPERADMIN" ? {} : { region: session.region || "" };
   return { session, regionFilter };
 }
@@ -55,7 +55,7 @@ export async function completeVisit(formData: FormData) {
   const existingVisitor = await prisma.visitorLog.findUnique({ where: { id } });
   if (!existingVisitor) return;
   if (existingVisitor.status === VisitStatus.SUCCESS || existingVisitor.status === VisitStatus.CANCELLED) return;
-  
+
   if (session.role === "ADMIN" && existingVisitor.region !== session.region) {
     throw new Error("Akses ditolak. Ini bukan data wilayah Anda.");
   }
@@ -91,7 +91,7 @@ export async function completeVisit(formData: FormData) {
     return visitor;
   });
 
-// 👇 SINKRONISASI KE GOOGLE SPREADSHEET 👇
+  // 👇 SINKRONISASI KE GOOGLE SPREADSHEET 👇
   try {
     const now = new Date();
     const timestamp = new Intl.DateTimeFormat('id-ID', {
@@ -105,11 +105,11 @@ export async function completeVisit(formData: FormData) {
       timestamp: timestamp,
       namaPelanggan: updatedVisitor.institution || "-",
       namaPic: updatedVisitor.fullName,
-      
+
       // Tambahkan kutip tunggal (') sebelum nomor jika datanya ada
       nomorHpPic: updatedVisitor.phoneNumber ? `'${updatedVisitor.phoneNumber}` : "-",
       nomorUser: updatedVisitor.internetNumber ? `'${updatedVisitor.internetNumber}` : "-",
-      
+
       alamat: updatedVisitor.address || "-",
       kategori: updatedVisitor.category || "-",
       hotda: updatedVisitor.region || "Witel Sulbagteng",
@@ -122,8 +122,8 @@ export async function completeVisit(formData: FormData) {
   // 3. --- NOTIFIKASI TELEGRAM OTOMATIS ---
   const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
   // Gunakan satu grup besar untuk laporan selesai (baik Palu maupun Gorontalo)
-  const TELEGRAM_CHAT_ID_COMPLETED = process.env.TELEGRAM_CHAT_ID_COMPLETED; 
-  
+  const TELEGRAM_CHAT_ID_COMPLETED = process.env.TELEGRAM_CHAT_ID_COMPLETED;
+
   if (TELEGRAM_BOT_TOKEN) {
     const now = new Date();
     const waktuSelesai = new Intl.DateTimeFormat('id-ID', {
@@ -135,10 +135,10 @@ export async function completeVisit(formData: FormData) {
     const checkIn = updatedVisitor.checkInTime || now;
     const start = updatedVisitor.serviceStartTime || checkIn;
     const end = updatedVisitor.checkOutTime || now;
-    
+
     const waitSeconds = Math.max(0, Math.floor((new Date(start).getTime() - new Date(checkIn).getTime()) / 1000));
     const durationSeconds = Math.max(0, Math.floor((new Date(end).getTime() - new Date(start).getTime()) / 1000));
-    
+
     const formatDur = (secs: number) => {
       if (secs <= 0) return "0 detik";
       if (secs < 60) return `${secs} detik`;
@@ -186,13 +186,13 @@ export async function completeVisit(formData: FormData) {
               parse_mode: "HTML"
             })
           };
-          
+
           const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/editMessageMedia`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(editPayload)
           });
-          
+
           if (!res.ok) throw new Error("Gagal editMessageMedia");
         } catch (err) {
           // Fallback edit text if editing media fails
@@ -220,7 +220,7 @@ export async function completeVisit(formData: FormData) {
           if (imgFetch.ok) {
             const arrayBuffer = await imgFetch.arrayBuffer();
             const blob = new Blob([arrayBuffer], { type: "image/jpeg" });
-            
+
             const tgFormData = new FormData();
             tgFormData.append("chat_id", TELEGRAM_CHAT_ID_COMPLETED);
             tgFormData.append("photo", blob, "visitor.jpg");
@@ -232,7 +232,7 @@ export async function completeVisit(formData: FormData) {
               body: tgFormData,
             });
 
-            if (!tgRes.ok) throw new Error("Gagal upload foto via FormData"); 
+            if (!tgRes.ok) throw new Error("Gagal upload foto via FormData");
           } else {
             throw new Error("Server gagal mengambil foto dari R2");
           }
@@ -289,7 +289,7 @@ export async function reopenVisit(formData: FormData) {
   const hasActiveVisit = await prisma.visitorLog.count({
     where: { status: VisitStatus.ON_PROGRESS, region: visitor.region }, // Filter area yang sama
   });
-  
+
   const status = hasActiveVisit > 0 ? VisitStatus.PENDING : VisitStatus.ON_PROGRESS;
 
   await prisma.visitorLog.update({
@@ -311,9 +311,9 @@ export async function cancelVisit(formData: FormData) {
 
   if (!id) return;
 
-  const existingVisitor = await prisma.visitorLog.findUnique({ where: { id }});
+  const existingVisitor = await prisma.visitorLog.findUnique({ where: { id } });
   if (!existingVisitor || existingVisitor.status === VisitStatus.SUCCESS || existingVisitor.status === VisitStatus.CANCELLED) return;
-  
+
   if (session.role === "ADMIN" && existingVisitor.region !== session.region) {
     throw new Error("Akses ditolak.");
   }
@@ -374,7 +374,7 @@ export async function generateVisitorPin(formData: FormData) {
         internetNumber,
         address,
         pin,
-        purpose: "Pre-registrasi (Kunjungan Terjadwal)", 
+        purpose: "Pre-registrasi (Kunjungan Terjadwal)",
         status: VisitStatus.PRE_REGISTER,
         region: session.region || "Palu", // <-- KUNCI: Sesuaikan dengan region admin pembuat
       },
@@ -398,7 +398,7 @@ export async function updateKioskStatus(isBusy: boolean, message: string) {
       update: { isBusy, message },
       create: { id: regionId, isBusy, message },
     });
-    
+
     revalidatePath("/admin");
     revalidatePath("/");
     return { success: true };
@@ -411,7 +411,7 @@ export async function getKioskStatus() {
   try {
     const { session } = await getSessionAndFilter();
     const regionId = session.region || "global"; // <-- KUNCI: Ambil status per wilayah
-    
+
     const setting = await prisma.kioskSetting.findUnique({
       where: { id: regionId },
     });
@@ -446,7 +446,7 @@ export async function updateVisitorInfo(formData: FormData) {
   if (!id || !fullName || !purpose) return;
 
   // Lapis keamanan wilayah
-  const visitor = await prisma.visitorLog.findUnique({ where: { id }});
+  const visitor = await prisma.visitorLog.findUnique({ where: { id } });
   if (!visitor) return;
   if (session.role === "ADMIN" && visitor.region !== session.region) {
     throw new Error("Akses ditolak.");
@@ -455,7 +455,7 @@ export async function updateVisitorInfo(formData: FormData) {
   // 👇 Cek apakah ada foto baru yang diunggah 👇
   let photoUrl = visitor.photoUrl;
   const photoBase64 = formData.get("photoBase64") as string | null;
-  
+
   if (photoBase64) {
     const uploadResult = await uploadPhotoboothImage(photoBase64);
     if (uploadResult.success && uploadResult.url) {
@@ -479,7 +479,7 @@ export async function updateVisitorInfo(formData: FormData) {
     },
   });
 
-// 👇 SINKRONISASI KE GOOGLE SPREADSHEET 👇
+  // 👇 SINKRONISASI KE GOOGLE SPREADSHEET 👇
   try {
     // HANYA sinkron ke sheet jika statusnya sudah selesai (SUCCESS)
     // agar tidak membuat baris baru saat data diedit ketika masih diproses.
@@ -496,13 +496,13 @@ export async function updateVisitorInfo(formData: FormData) {
         timestamp: timestamp,
         namaPelanggan: updatedVisitor.institution || "-",
         namaPic: updatedVisitor.fullName,
-        // Tambahkan kutip tunggal (') sebelum nomor agar formatnya menjadi plain text (rata kiri)
+        // ambahkan kutip tunggal (') sebelum nomor agar formatnya menjadi plain text (rata kiri)
         nomorHpPic: updatedVisitor.phoneNumber ? `'${updatedVisitor.phoneNumber}` : "-",
         nomorUser: updatedVisitor.internetNumber ? `'${updatedVisitor.internetNumber}` : "-",
         alamat: updatedVisitor.address || "-",
         kategori: updatedVisitor.category || "-",
         hotda: updatedVisitor.region || "Witel Sulbagteng",
-        status: "Selesai", 
+        status: "Selesai",
       });
     }
   } catch (sheetError) {
@@ -514,25 +514,25 @@ export async function updateVisitorInfo(formData: FormData) {
   const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
   if (TELEGRAM_BOT_TOKEN) {
     let tgMessage = "";
-    
+
     // Format Pesan Selesai (Sama dengan format completeVisit)
     if (updatedVisitor.status === VisitStatus.SUCCESS) {
       const now = new Date();
-      const waktuSelesai = updatedVisitor.checkOutTime 
+      const waktuSelesai = updatedVisitor.checkOutTime
         ? new Intl.DateTimeFormat('id-ID', {
-            timeZone: 'Asia/Makassar',
-            weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
-            hour: '2-digit', minute: '2-digit', second: '2-digit', timeZoneName: 'short'
-          }).format(new Date(updatedVisitor.checkOutTime))
+          timeZone: 'Asia/Makassar',
+          weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+          hour: '2-digit', minute: '2-digit', second: '2-digit', timeZoneName: 'short'
+        }).format(new Date(updatedVisitor.checkOutTime))
         : "-";
 
       const checkIn = updatedVisitor.checkInTime || now;
       const start = updatedVisitor.serviceStartTime || checkIn;
       const end = updatedVisitor.checkOutTime || now;
-      
+
       const waitSeconds = Math.max(0, Math.floor((new Date(start).getTime() - new Date(checkIn).getTime()) / 1000));
       const durationSeconds = Math.max(0, Math.floor((new Date(end).getTime() - new Date(start).getTime()) / 1000));
-      
+
       const formatDur = (secs: number) => {
         if (secs <= 0) return "0 detik";
         if (secs < 60) return `${secs} detik`;
@@ -619,13 +619,13 @@ export async function updateVisitorInfo(formData: FormData) {
 
     // 1. Update pesan di grup CS jika adaa
     if (updatedVisitor.tgChatId && updatedVisitor.tgMsgId) {
-      await editTelegramMessage(updatedVisitor.tgChatId, updatedVisitor.tgMsgId).catch(() => {});
+      await editTelegramMessage(updatedVisitor.tgChatId, updatedVisitor.tgMsgId).catch(() => { });
     }
 
     // 2. Update pesan di grup Besar jika sudah selesai
     const TELEGRAM_CHAT_ID_COMPLETED = process.env.TELEGRAM_CHAT_ID_COMPLETED;
     if (updatedVisitor.status === VisitStatus.SUCCESS && TELEGRAM_CHAT_ID_COMPLETED && updatedVisitor.tgCompletedMsgId) {
-      await editTelegramMessage(TELEGRAM_CHAT_ID_COMPLETED, updatedVisitor.tgCompletedMsgId).catch(() => {});
+      await editTelegramMessage(TELEGRAM_CHAT_ID_COMPLETED, updatedVisitor.tgCompletedMsgId).catch(() => { });
     }
   }
   // 👆 AKHIR SINKRONISASI TELEGRAM 👆
@@ -648,8 +648,8 @@ export async function deleteVisitor(formData: FormData) {
 
   // 1. Delete from Telegram Completed Group if exists
   const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-  const TELEGRAM_CHAT_ID_COMPLETED = process.env.TELEGRAM_CHAT_ID_COMPLETED; 
-  
+  const TELEGRAM_CHAT_ID_COMPLETED = process.env.TELEGRAM_CHAT_ID_COMPLETED;
+
   if (TELEGRAM_BOT_TOKEN && TELEGRAM_CHAT_ID_COMPLETED && visitor.tgCompletedMsgId) {
     try {
       await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/deleteMessage`, {
