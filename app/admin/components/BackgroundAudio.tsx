@@ -69,15 +69,31 @@ export default function BackgroundAudio({ role = "admin", channel }: { role?: "a
 
   // Efek autoplay Kiosk
   useEffect(() => {
-    if (role === "kiosk" && audioRef.current) {
-      audioRef.current.volume = volume;
-      audioRef.current.play()
-        .then(() => setIsPlaying(true))
+    let isMounted = true;
+    const currentAudio = audioRef.current;
+    
+    if (role === "kiosk" && currentAudio) {
+      currentAudio.volume = volume;
+      currentAudio.play()
+        .then(() => {
+          if (isMounted) {
+            setIsPlaying(true);
+          } else {
+            currentAudio.pause();
+          }
+        })
         .catch(() => {
           console.log("Autoplay awal diblokir oleh browser.");
-          setIsPlaying(false);
+          if (isMounted) setIsPlaying(false);
         });
     }
+
+    return () => {
+      isMounted = false;
+      if (currentAudio) {
+        currentAudio.pause();
+      }
+    };
   }, [role]);
 
   const togglePlay = () => {
@@ -120,38 +136,40 @@ export default function BackgroundAudio({ role = "admin", channel }: { role?: "a
     }
   };
 
+  if (role === "kiosk") {
+    return (
+      <audio 
+        ref={audioRef} 
+        src={playlist[currentTrackIndex]} 
+        onEnded={() => handleNextTrack()}
+        className="kiosk-bg-audio hidden"
+      />
+    );
+  }
+
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 rounded-2xl border border-[#f0dfdb] bg-white/90 p-3 shadow-xl backdrop-blur-md">
-      {role === "kiosk" && (
-        <audio 
-          ref={audioRef} 
-          src={playlist[currentTrackIndex]} 
-          onEnded={() => handleNextTrack()}
-          className="kiosk-bg-audio"
-        />
-      )}
-      
-      <div className="flex items-center gap-2">
+    <div className="flex flex-col items-center gap-6 rounded-3xl border border-[#f0dfdb] bg-white p-10 shadow-sm">
+      <div className="flex items-center gap-6">
         <button 
           onClick={togglePlay}
-          className="flex h-10 w-10 items-center justify-center rounded-full bg-[#b3261e] text-white transition-transform hover:scale-105 active:scale-95"
+          className="flex h-20 w-20 items-center justify-center rounded-full bg-[#b3261e] text-white shadow-lg transition-transform hover:scale-105 active:scale-95" 
           title={isPlaying ? "Jeda (Pause)" : "Putar (Play)"}
         >
-          {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5 ml-1" />}
+          {isPlaying ? <Pause className="h-10 w-10" /> : <Play className="h-10 w-10 ml-2" />}
         </button>
 
         <button 
           onClick={handleNextTrack}
-          className="flex h-10 w-10 items-center justify-center rounded-full bg-[#fcedea] text-[#b3261e] transition-transform hover:scale-105 active:scale-95"
+          className="flex h-16 w-16 items-center justify-center rounded-full bg-[#fcedea] text-[#b3261e] shadow-sm transition-transform hover:scale-105 active:scale-95"
           title="Lewati ke lagu berikutnya"
         >
-          <SkipForward className="h-4 w-4" />
+          <SkipForward className="h-8 w-8" />
         </button>
       </div>
 
-      <div className="flex items-center gap-2 px-2 border-l border-[#f0dfdb] ml-1 pl-3">
+      <div className="flex w-full max-w-sm items-center gap-4 px-4 mt-4">
         <button onClick={toggleMute} className="text-[#725b56] hover:text-[#b3261e]">
-          {isMuted || volume === 0 ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+          {isMuted || volume === 0 ? <VolumeX className="h-8 w-8" /> : <Volume2 className="h-8 w-8" />}
         </button>
         <input 
           type="range" 
@@ -160,14 +178,13 @@ export default function BackgroundAudio({ role = "admin", channel }: { role?: "a
           step="0.01" 
           value={isMuted ? 0 : volume} 
           onChange={handleVolumeChange}
-          className="h-1.5 w-16 md:w-20 cursor-pointer appearance-none rounded-full bg-[#f0dfdb] accent-[#b3261e]"
+          className="cursor-pointer appearance-none rounded-full bg-[#f0dfdb] accent-[#b3261e] h-2 w-full"
           title="Volume Musik"
         />
       </div>
       
-      {/* Indikator Mode & Lagu */}
-      <div className="absolute -top-3 right-4 rounded-full bg-[#b3261e] px-2 py-0.5 text-[9px] font-bold text-white shadow-sm">
-        {role === "admin" ? "Remote Control" : `Track ${currentTrackIndex + 1}/${playlist.length}`}
+      <div className="mt-4 text-sm font-bold text-[#b3261e]">
+        Remote Control Mode Aktif
       </div>
     </div>
   );

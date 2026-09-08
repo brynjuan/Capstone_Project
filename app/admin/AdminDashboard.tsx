@@ -34,6 +34,7 @@ import {
   X,
   ShieldAlert,
   Trash2,
+  Music,
 } from "lucide-react";
 import { cancelVisit, completeVisit, reopenVisit, updateVisitorInfo, generateVisitorPin, clearAllPreRegisterVisitsAction, deleteVisitor } from "../actions/admin";
 import { logoutAdmin } from "../actions/auth";
@@ -93,7 +94,7 @@ type Props = {
 
 export default function AdminDashboard({ data, admin }: Props) {
   const router = useRouter();
-const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" | "pin" | "status" | "preregister" | "superadmin">("dashboard");
+const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" | "pin" | "status" | "preregister" | "superadmin" | "backsound">("dashboard");
   const [trafficRange, setTrafficRange] = useState<"daily" | "monthly" | "yearly">("daily");
   const [problemRange, setProblemRange] = useState<"daily" | "monthly" | "yearly">("monthly");
   const [peakHoursRange, setPeakHoursRange] = useState<"daily" | "monthly" | "yearly">("monthly");
@@ -365,11 +366,15 @@ const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" |
       title: "Pre-Register & PIN",
       description: "Tamu yang mendaftar via web/mobile dan belum melakukan check-in di Kiosk."
     },
-    // 👇 TAMBAHKAN BLOK SUPERADMIN INI 👇
     superadmin: {
       eyebrow: "Manajemen Akses",
       title: "Superadmin Panel",
       description: "Kelola akun pengelola dan admin untuk masing-masing cabang daerah."
+    },
+    backsound: {
+      eyebrow: "Pengaturan Musik",
+      title: "Backsound Kiosk",
+      description: "Kontrol pemutaran musik latar belakang (BGM) di Kiosk dari jarak jauh."
     }
     // 👆 SAMPAI SINI 👆
   }[activeView];
@@ -435,6 +440,12 @@ const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" |
                 setStatusFilter("ALL");
                 setPage(1);
               }}
+            />
+            <SidebarItem
+              icon={Music}
+              label="Backsound"
+              active={activeView === "backsound"}
+              onClick={() => setActiveView("backsound")}
             />
             <SidebarItem icon={Headset} label="Bantuan Langsung" href="/admin/live" />
           </nav>
@@ -756,6 +767,21 @@ const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" |
                     )}
                   </div>
                 </div>
+              </section>
+            </div>
+          )}
+
+          {activeView === "backsound" && (
+            <div className="mt-6">
+              <section className="min-w-0 rounded-2xl border border-[#f0dfdb] bg-white p-10 shadow-[0_16px_42px_rgba(70,31,25,0.06)] backdrop-blur-2xl flex flex-col items-center">
+                <div className="mb-10 text-center">
+                  <h3 className="text-2xl font-black text-[#2b211f]">Remote Control Kiosk</h3>
+                  <p className="mt-2 text-sm text-[#7a625d] max-w-lg mx-auto">
+                    Kendalikan pemutaran lagu latar belakang (background music) di mesin Kiosk secara langsung dari sini. Perubahan akan langsung disinkronkan ke Kiosk yang aktif.
+                  </p>
+                </div>
+                
+                <BackgroundAudio role="admin" channel={kioskChannel} />
               </section>
             </div>
           )}
@@ -1219,7 +1245,7 @@ const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" |
           <span className="text-sm font-bold tracking-wide">{notification.message}</span>
         </div>
       )}
-      <BackgroundAudio role="admin" channel={kioskChannel} />
+      
     </main>
   );
 }
