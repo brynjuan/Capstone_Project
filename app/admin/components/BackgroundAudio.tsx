@@ -172,7 +172,11 @@ export default function BackgroundAudio({ role = "admin", channel }: { role?: "a
         src={playlist[currentTrackIndex]} 
         onEnded={() => handleNextTrack()}
         onPlay={() => setIsPlaying(true)}
-        onPause={() => setIsPlaying(false)}
+        onPause={() => {
+          if (!audioRef.current?.ended) {
+            setIsPlaying(false);
+          }
+        }}
         className="kiosk-bg-audio hidden"
       />
     );
