@@ -66,6 +66,7 @@ import {
 } from "./components/QueueComponents";
 
 import { SuperadminPanel } from "./components/SuperadminPanel";
+import BackgroundAudio from "./components/BackgroundAudio";
 
 // Konstanta Kategori untuk Form Buat PIN
 const KATEGORI_KUNJUNGAN = [
@@ -1219,6 +1220,7 @@ const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" |
         </div>
       )}
       
+      <BackgroundAudio />
     </main>
   );
 }
