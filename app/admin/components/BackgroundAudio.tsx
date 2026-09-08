@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Play, Pause, Volume2, VolumeX, SkipForward } from "lucide-react";
 
-export default function BackgroundAudio() {
+export default function BackgroundAudio({ role = "admin", channel }: { role?: "admin" | "kiosk", channel?: any }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
@@ -11,51 +11,99 @@ export default function BackgroundAudio() {
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
 
   // Daftar lagu yang akan diputar bergantian
-  const playlist = ["/bg-music.mp3", "/bg-music(1).mp3"];
+  const playlist = ["/bg-music.mp3", "/bg-music(1).mp3", "/bg-music(2).mp3"];
 
-  const handleNextTrack = () => {
-    setCurrentTrackIndex((prevIndex) => (prevIndex + 1) % playlist.length);
+  const sendCommand = (action: string, value?: any) => {
+    if (role === "admin" && channel) {
+      channel.send({
+        type: 'broadcast',
+        event: 'music-control',
+        payload: { action, value }
+      });
+    }
   };
 
+  const handleNextTrack = () => {
+    if (role === "admin") {
+      sendCommand("next");
+    } else {
+      setCurrentTrackIndex((prevIndex) => (prevIndex + 1) % playlist.length);
+    }
+  };
+
+  // KIOSK: Listener perintah dari admin
   useEffect(() => {
-    if (audioRef.current) {
+    if (role === "kiosk" && channel) {
+      const musicListener = channel.on('broadcast', { event: 'music-control' }, (payload: any) => {
+        const { action, value } = payload.payload;
+        if (action === "play") {
+          setIsPlaying(true);
+        } else if (action === "pause") {
+          setIsPlaying(false);
+        } else if (action === "next") {
+          setCurrentTrackIndex((prev) => (prev + 1) % playlist.length);
+        } else if (action === "volume") {
+          setVolume(value);
+        } else if (action === "mute") {
+          setIsMuted(value);
+        }
+      });
+      return () => {
+        // channel di-cleanup di parent
+      };
+    }
+  }, [role, channel, playlist.length]);
+
+  useEffect(() => {
+    if (role === "kiosk" && audioRef.current) {
       audioRef.current.volume = volume;
+      audioRef.current.muted = isMuted;
       
-      // Karena sumber src berubah saat currentTrackIndex berubah,
-      // kita coba putar otomatis (autoplay) lagu selanjutnya jika isPlaying = true
       if (isPlaying) {
         audioRef.current.play().catch(e => console.error("Autoplay diblokir:", e));
+      } else {
+        audioRef.current.pause();
       }
     }
-  }, [currentTrackIndex, volume, isPlaying]);
+  }, [currentTrackIndex, volume, isPlaying, isMuted, role]);
 
-  // Efek untuk memicu autoplay pertama kali komponen dimuat (sering diblokir browser tanpa interaksi)
+  // Efek autoplay Kiosk
   useEffect(() => {
-    if (audioRef.current) {
+    if (role === "kiosk" && audioRef.current) {
       audioRef.current.volume = volume;
       audioRef.current.play()
         .then(() => setIsPlaying(true))
         .catch(() => {
-          console.log("Autoplay awal diblokir oleh browser, butuh interaksi user.");
+          console.log("Autoplay awal diblokir oleh browser.");
           setIsPlaying(false);
         });
     }
-  }, []);
+  }, [role]);
 
   const togglePlay = () => {
-    if (audioRef.current) {
+    if (role === "admin") {
+      const newPlayState = !isPlaying;
+      setIsPlaying(newPlayState);
+      sendCommand(newPlayState ? "play" : "pause");
+    } else {
       if (isPlaying) {
-        audioRef.current.pause();
+        audioRef.current?.pause();
       } else {
-        audioRef.current.play().catch(e => console.error("Autoplay diblokir:", e));
+        audioRef.current?.play().catch(e => console.error(e));
       }
       setIsPlaying(!isPlaying);
     }
   };
 
   const toggleMute = () => {
-    if (audioRef.current) {
-      audioRef.current.muted = !isMuted;
+    if (role === "admin") {
+      const newMuteState = !isMuted;
+      setIsMuted(newMuteState);
+      sendCommand("mute", newMuteState);
+    } else {
+      if (audioRef.current) {
+        audioRef.current.muted = !isMuted;
+      }
       setIsMuted(!isMuted);
     }
   };
@@ -63,19 +111,25 @@ export default function BackgroundAudio() {
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newVolume = parseFloat(e.target.value);
     setVolume(newVolume);
-    if (audioRef.current) {
-      audioRef.current.volume = newVolume;
+    if (role === "admin") {
+      sendCommand("volume", newVolume);
+    } else {
+      if (audioRef.current) {
+        audioRef.current.volume = newVolume;
+      }
     }
   };
 
   return (
     <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 rounded-2xl border border-[#f0dfdb] bg-white/90 p-3 shadow-xl backdrop-blur-md">
-      {/* src akan otomatis ganti ke lagu berikutnya ketika lagu selesai (onEnded) */}
-      <audio 
-        ref={audioRef} 
-        src={playlist[currentTrackIndex]} 
-        onEnded={handleNextTrack}
-      />
+      {role === "kiosk" && (
+        <audio 
+          ref={audioRef} 
+          src={playlist[currentTrackIndex]} 
+          onEnded={() => handleNextTrack()}
+          className="kiosk-bg-audio"
+        />
+      )}
       
       <div className="flex items-center gap-2">
         <button 
@@ -111,9 +165,9 @@ export default function BackgroundAudio() {
         />
       </div>
       
-      {/* Indikator Lagu Kecil (Opsional, untuk tau ini lagu ke berapa) */}
+      {/* Indikator Mode & Lagu */}
       <div className="absolute -top-3 right-4 rounded-full bg-[#b3261e] px-2 py-0.5 text-[9px] font-bold text-white shadow-sm">
-        Track {currentTrackIndex + 1}/{playlist.length}
+        {role === "admin" ? "Remote Control" : `Track ${currentTrackIndex + 1}/${playlist.length}`}
       </div>
     </div>
   );

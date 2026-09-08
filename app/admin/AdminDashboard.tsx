@@ -1219,8 +1219,7 @@ const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" |
           <span className="text-sm font-bold tracking-wide">{notification.message}</span>
         </div>
       )}
-      
-      <BackgroundAudio />
+      <BackgroundAudio role="admin" channel={kioskChannel} />
     </main>
   );
 }

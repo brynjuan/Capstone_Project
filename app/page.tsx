@@ -15,7 +15,7 @@ import { confirmMobileArrivalAction } from "./actions/kiosk";
 import NextImage from "next/image"; // Menggunakan alias 'NextImage'
 import imageCompression from "browser-image-compression";
 import { supabase } from "@/lib/supabase";
-
+import BackgroundAudio from "./admin/components/BackgroundAudio";
 
 const ZegoCall = dynamic(() => import("./components/ZegoCall"), {
   ssr: false
@@ -107,6 +107,7 @@ export default function KioskPage() {
 
   // --- MULAI KODE BARU ---
   const [kioskStatus, setKioskStatus] = useState<{ isBusy: boolean; message: string; region?: string } | null>(null);
+  const [kioskChannel, setKioskChannel] = useState<any>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -140,6 +141,7 @@ export default function KioskPage() {
 
     const channelName = `kiosk-commands-${kioskStatus.region.toLowerCase()}`;
     const channel = supabase.channel(channelName);
+    setKioskChannel(channel);
 
     channel.on('broadcast', { event: 'call-customer' }, (payload) => {
       const name = payload.payload.name;
@@ -171,13 +173,13 @@ export default function KioskPage() {
         }
 
         const duckVolume = () => {
-          const bgm = document.querySelector('audio[src="/bg-music.mp3"]') as HTMLAudioElement;
-          if (bgm) bgm.volume = 0.3; // Volume mengecil menjadi 30%
+          const bgm = document.querySelector('audio.kiosk-bg-audio') as HTMLAudioElement;
+          if (bgm) bgm.volume = 0.1; // Volume mengecil drastis agar pesan terdengar
         };
 
         const restoreVolume = () => {
-          const bgm = document.querySelector('audio[src="/bg-music.mp3"]') as HTMLAudioElement;
-          if (bgm) bgm.volume = 0.7; // Kembalikan ke volume 60%
+          const bgm = document.querySelector('audio.kiosk-bg-audio') as HTMLAudioElement;
+          if (bgm) bgm.volume = 0.5; // Kembalikan ke volume
         };
 
         msg.onstart = duckVolume;
@@ -1388,6 +1390,8 @@ export default function KioskPage() {
           </motion.div>
         </div>
       )}
+      
+      <BackgroundAudio role="kiosk" channel={kioskChannel} />
     </div>
   );
 }
