@@ -234,7 +234,7 @@ export default function KioskPage() {
 
   const previewWebcamRef = useRef<Webcam>(null);
   const photoboothWebcamRef = useRef<Webcam>(null);
-  const photoboothWebcamRef = useRef<Webcam>(null);
+
   const voiceRef = useRef<HTMLAudioElement>(null);
   const successVoiceRef = useRef<HTMLAudioElement>(null);
   const scanVoiceRef = useRef<HTMLAudioElement>(null);
