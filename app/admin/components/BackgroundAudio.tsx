@@ -118,15 +118,34 @@ export default function BackgroundAudio({ role = "admin", channel, isMutedFromPa
     if (role === "kiosk" && currentAudio) {
       currentAudio.volume = volume;
       currentAudio.muted = isMuted || isMutedFromParent;
-      currentAudio.play().catch(() => {
-        console.log("Autoplay awal diblokir oleh browser.");
-      });
+      
+      const playInteraction = () => {
+        if (isMounted && currentAudio.paused) {
+          currentAudio.play()
+            .then(() => setIsPlaying(true))
+            .catch(e => console.error(e));
+        }
+        window.removeEventListener('click', playInteraction);
+        window.removeEventListener('touchstart', playInteraction);
+      };
+
+      currentAudio.play()
+        .then(() => {
+          if (isMounted) setIsPlaying(true);
+        })
+        .catch(() => {
+          console.log("Autoplay awal diblokir oleh browser. Menunggu interaksi user...");
+          window.addEventListener('click', playInteraction);
+          window.addEventListener('touchstart', playInteraction);
+        });
+        
+      return () => {
+        isMounted = false;
+        if (currentAudio) currentAudio.pause();
+        window.removeEventListener('click', playInteraction);
+        window.removeEventListener('touchstart', playInteraction);
+      };
     }
-    
-    return () => {
-      isMounted = false;
-      if (currentAudio) currentAudio.pause();
-    };
   }, [role]); 
 
 
