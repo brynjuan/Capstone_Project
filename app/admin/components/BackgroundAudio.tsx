@@ -9,6 +9,7 @@ export default function BackgroundAudio({ role = "admin", channel }: { role?: "a
   const [isMuted, setIsMuted] = useState(false);
   const [volume, setVolume] = useState(0.2); // Default volume 20%
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
+  const [syncTrigger, setSyncTrigger] = useState(0);
 
   // Daftar lagu yang akan diputar bergantian
   const playlist = ["/bg-music.mp3", "/bg-music(1).mp3", "/bg-music(2).mp3"];
@@ -31,10 +32,32 @@ export default function BackgroundAudio({ role = "admin", channel }: { role?: "a
     }
   };
 
+  // ADMIN: Request initial state and listen to Kiosk state updates
+  useEffect(() => {
+    if (role === "admin" && channel) {
+      // Minta status awal ke Kiosk
+      channel.send({
+        type: 'broadcast',
+        event: 'music-request-state',
+        payload: {}
+      });
+
+      // Dengarkan update status dari Kiosk (sinkronisasi dua arah)
+      channel.on('broadcast', { event: 'music-state' }, (payload: any) => {
+        const { isPlaying: newPlaying, volume: newVol, isMuted: newMuted, currentTrackIndex: newIndex } = payload.payload;
+        setIsPlaying(newPlaying);
+        setVolume(newVol);
+        setIsMuted(newMuted);
+        setCurrentTrackIndex(newIndex);
+      });
+    }
+  }, [role, channel]);
+
+
   // KIOSK: Listener perintah dari admin
   useEffect(() => {
     if (role === "kiosk" && channel) {
-      const musicListener = channel.on('broadcast', { event: 'music-control' }, (payload: any) => {
+      channel.on('broadcast', { event: 'music-control' }, (payload: any) => {
         const { action, value } = payload.payload;
         if (action === "play") {
           setIsPlaying(true);
@@ -48,58 +71,64 @@ export default function BackgroundAudio({ role = "admin", channel }: { role?: "a
           setIsMuted(value);
         }
       });
-      return () => {
-        // channel di-cleanup di parent
-      };
+      
+      channel.on('broadcast', { event: 'music-request-state' }, () => {
+        setSyncTrigger((prev) => prev + 1);
+      });
     }
   }, [role, channel, playlist.length]);
 
+  // KIOSK: Broadcast status ke Admin setiap ada perubahan
+  useEffect(() => {
+    if (role === "kiosk" && channel) {
+      channel.send({
+        type: 'broadcast',
+        event: 'music-state',
+        payload: { isPlaying, volume, isMuted, currentTrackIndex }
+      });
+    }
+  }, [isPlaying, volume, isMuted, currentTrackIndex, syncTrigger, role, channel]);
+
+  // KIOSK: Sinkronisasi pemutar audio dengan state React
   useEffect(() => {
     if (role === "kiosk" && audioRef.current) {
       audioRef.current.volume = volume;
       audioRef.current.muted = isMuted;
       
       if (isPlaying) {
-        audioRef.current.play().catch(e => console.error("Autoplay diblokir:", e));
+        audioRef.current.play().catch(e => {
+          console.error("Autoplay diblokir:", e);
+          setIsPlaying(false); // Kembalikan state ke false jika diblokir
+        });
       } else {
         audioRef.current.pause();
       }
     }
   }, [currentTrackIndex, volume, isPlaying, isMuted, role]);
 
-  // Efek autoplay Kiosk
+  // KIOSK: Efek autoplay pada saat komponen dimuat
   useEffect(() => {
     let isMounted = true;
     const currentAudio = audioRef.current;
     
     if (role === "kiosk" && currentAudio) {
       currentAudio.volume = volume;
-      currentAudio.play()
-        .then(() => {
-          if (isMounted) {
-            setIsPlaying(true);
-          } else {
-            currentAudio.pause();
-          }
-        })
-        .catch(() => {
-          console.log("Autoplay awal diblokir oleh browser.");
-          if (isMounted) setIsPlaying(false);
-        });
+      currentAudio.play().catch(() => {
+        console.log("Autoplay awal diblokir oleh browser.");
+      });
     }
-
+    
     return () => {
       isMounted = false;
-      if (currentAudio) {
-        currentAudio.pause();
-      }
+      if (currentAudio) currentAudio.pause();
     };
-  }, [role]);
+  }, [role]); 
+
 
   const togglePlay = () => {
     if (role === "admin") {
       const newPlayState = !isPlaying;
-      setIsPlaying(newPlayState);
+      setIsPlaying(newPlayState); // Pembaruan UI optimistik, akan dikoreksi otomatis bila gagal
       sendCommand(newPlayState ? "play" : "pause");
     } else {
       if (isPlaying) {
@@ -142,6 +171,8 @@ export default function BackgroundAudio({ role = "admin", channel }: { role?: "a
         ref={audioRef} 
         src={playlist[currentTrackIndex]} 
         onEnded={() => handleNextTrack()}
+        onPlay={() => setIsPlaying(true)}
+        onPause={() => setIsPlaying(false)}
         className="kiosk-bg-audio hidden"
       />
     );
