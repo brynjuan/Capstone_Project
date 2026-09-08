@@ -4,8 +4,8 @@ import { useState, useRef, useEffect } from "react";
 import { Play, Pause, Volume2, VolumeX, SkipForward, Music, Radio, Disc } from "lucide-react";
 
 const PLAYLIST_DATA = [
-  { src: "/bg-music.mp3", title: "Telkom Corporate Vibe", artist: "Background Music 1" },
-  { src: "/bg-music(1).mp3", title: "Soft Piano Acoustic", artist: "Background Music 2" },
+  { src: "/bg-music.mp3", title: "Jayalah Telkom Indonesia", artist: "Mars Telkom Group" },
+  { src: "/bg-music(1).mp3", title: "Always The Best", artist: "Telkom Indonesia" },
   { src: "/bg-music(2).mp3", title: "Relaxing Instrumental", artist: "Background Music 3" }
 ];
 
