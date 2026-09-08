@@ -240,7 +240,7 @@ export default function BackgroundAudio({ role = "admin", channel, isMutedFromPa
 
           {/* Album Art / Disk */}
           <div className="relative mb-8">
-            <div className={\`w-48 h-48 rounded-full bg-gradient-to-tr from-[#1a1210] to-[#3a221f] border-4 border-[#5e2b25] shadow-2xl flex items-center justify-center transition-transform duration-1000 \${isPlaying ? 'animate-[spin_4s_linear_infinite]' : ''}\`}>
+            <div className={`w-48 h-48 rounded-full bg-gradient-to-tr from-[#1a1210] to-[#3a221f] border-4 border-[#5e2b25] shadow-2xl flex items-center justify-center transition-transform duration-1000 ${isPlaying ? 'animate-[spin_4s_linear_infinite]' : ''}`}>
               <div className="w-16 h-16 rounded-full bg-black/50 flex items-center justify-center border-2 border-[#b3261e]/30">
                 <Music className="w-6 h-6 text-[#ff8b7a]" />
               </div>
@@ -313,9 +313,9 @@ export default function BackgroundAudio({ role = "admin", channel, isMutedFromPa
               <button
                 key={idx}
                 onClick={() => jumpToTrack(idx)}
-                className={\`flex items-center gap-4 p-4 rounded-2xl text-left transition-all group \${isActive ? 'bg-[#fcedea] border border-[#f5b8b1] shadow-sm' : 'hover:bg-[#faf6f5] border border-transparent'}\`}
+                className={`flex items-center gap-4 p-4 rounded-2xl text-left transition-all group ${isActive ? 'bg-[#fcedea] border border-[#f5b8b1] shadow-sm' : 'hover:bg-[#faf6f5] border border-transparent'}`}
               >
-                <div className={\`flex items-center justify-center w-10 h-10 rounded-xl font-bold text-sm transition-colors \${isActive ? 'bg-[#b3261e] text-white' : 'bg-[#f0dfdb] text-[#7a625d] group-hover:bg-[#e8d2ce]'}\`}>
+                <div className={`flex items-center justify-center w-10 h-10 rounded-xl font-bold text-sm transition-colors ${isActive ? 'bg-[#b3261e] text-white' : 'bg-[#f0dfdb] text-[#7a625d] group-hover:bg-[#e8d2ce]'}`}>
                   {isActive && isPlaying ? (
                     <Music className="w-4 h-4 animate-pulse" />
                   ) : (
@@ -324,7 +324,7 @@ export default function BackgroundAudio({ role = "admin", channel, isMutedFromPa
                 </div>
                 
                 <div className="flex-1 min-w-0">
-                  <h4 className={\`truncate font-bold text-sm transition-colors \${isActive ? 'text-[#b3261e]' : 'text-[#2b211f]'}\`}>
+                  <h4 className={`truncate font-bold text-sm transition-colors ${isActive ? 'text-[#b3261e]' : 'text-[#2b211f]'}`}>
                     {track.title}
                   </h4>
                   <p className="text-xs text-[#7a625d] truncate mt-0.5">{track.artist}</p>
