@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Play, Pause, Volume2, VolumeX, SkipForward } from "lucide-react";
 
-export default function BackgroundAudio({ role = "admin", channel }: { role?: "admin" | "kiosk", channel?: any }) {
+export default function BackgroundAudio({ role = "admin", channel, isMutedFromParent = false }: { role?: "admin" | "kiosk", channel?: any, isMutedFromParent?: boolean }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
@@ -97,7 +97,7 @@ export default function BackgroundAudio({ role = "admin", channel }: { role?: "a
   useEffect(() => {
     if (role === "kiosk" && audioRef.current) {
       audioRef.current.volume = volume;
-      audioRef.current.muted = isMuted;
+      audioRef.current.muted = isMuted || isMutedFromParent;
       
       if (isPlaying) {
         audioRef.current.play().catch(e => {
@@ -108,7 +108,7 @@ export default function BackgroundAudio({ role = "admin", channel }: { role?: "a
         audioRef.current.pause();
       }
     }
-  }, [currentTrackIndex, volume, isPlaying, isMuted, role]);
+  }, [currentTrackIndex, volume, isPlaying, isMuted, isMutedFromParent, role]);
 
   // KIOSK: Efek autoplay pada saat komponen dimuat
   useEffect(() => {
@@ -117,6 +117,7 @@ export default function BackgroundAudio({ role = "admin", channel }: { role?: "a
     
     if (role === "kiosk" && currentAudio) {
       currentAudio.volume = volume;
+      currentAudio.muted = isMuted || isMutedFromParent;
       currentAudio.play().catch(() => {
         console.log("Autoplay awal diblokir oleh browser.");
       });

@@ -234,7 +234,7 @@ export default function KioskPage() {
 
   const previewWebcamRef = useRef<Webcam>(null);
   const photoboothWebcamRef = useRef<Webcam>(null);
-  const audioRef = useRef<HTMLAudioElement>(null);
+  const photoboothWebcamRef = useRef<Webcam>(null);
   const voiceRef = useRef<HTMLAudioElement>(null);
   const successVoiceRef = useRef<HTMLAudioElement>(null);
   const scanVoiceRef = useRef<HTMLAudioElement>(null);
@@ -325,33 +325,6 @@ export default function KioskPage() {
   const { register, handleSubmit, formState: { errors }, reset, trigger, setValue, getValues, watch } = useForm<KioskFormValues>();
 
   useEffect(() => {
-    const playMusic = () => {
-      if (audioRef.current && audioRef.current.paused) {
-        audioRef.current.volume = 0.6;
-        audioRef.current.play().catch(() => { });
-      }
-      window.removeEventListener('click', playMusic);
-      window.removeEventListener('touchstart', playMusic);
-    };
-
-    // Coba putar langsung (mungkin diblokir browser)
-    if (audioRef.current) {
-      audioRef.current.volume = 0.6;
-      audioRef.current.play().catch(() => {
-        // Jika diblokir, tunggu interaksi pertama user
-        window.addEventListener('click', playMusic);
-        window.addEventListener('touchstart', playMusic);
-      });
-    }
-
-    return () => {
-      window.removeEventListener('click', playMusic);
-      window.removeEventListener('touchstart', playMusic);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (audioRef.current) audioRef.current.muted = isMuted;
     if (voiceRef.current) voiceRef.current.muted = isMuted;
     if (successVoiceRef.current) successVoiceRef.current.muted = isMuted;
     if (scanVoiceRef.current) scanVoiceRef.current.muted = isMuted;
@@ -803,10 +776,9 @@ export default function KioskPage() {
       </AnimatePresence>
 
       <video autoPlay loop muted playsInline src="/video-telkom.mp4" className="absolute inset-0 w-full h-full object-cover z-0" />
-      <audio ref={audioRef} src="/bg-music.mp3" loop />
-      <audio ref={voiceRef} src="/welcome-voice.mp3" onPlay={() => { if (audioRef.current) audioRef.current.volume = 0.3; }} onEnded={() => { if (audioRef.current) audioRef.current.volume = 0.6; }} />
-      <audio ref={successVoiceRef} src="/success-voice.mp3" onPlay={() => { if (audioRef.current) audioRef.current.volume = 0.3; }} onEnded={() => { if (audioRef.current) audioRef.current.volume = 0.6; }} />
-      <audio ref={scanVoiceRef} src="/scan-instruction.mp3" onPlay={() => { if (audioRef.current) audioRef.current.volume = 0.3; }} onEnded={() => { if (audioRef.current) audioRef.current.volume = 0.6; }} />
+      <audio ref={voiceRef} src="/welcome-voice.mp3" onPlay={duckVolume} onEnded={restoreVolume} />
+      <audio ref={successVoiceRef} src="/success-voice.mp3" onPlay={duckVolume} onEnded={restoreVolume} />
+      <audio ref={scanVoiceRef} src="/scan-instruction.mp3" onPlay={duckVolume} onEnded={restoreVolume} />
 
       {/* Hidden webcam untuk capture foto/form OCR, tanpa menampilkan preview aktif ke pengguna */}
       {/* Kamera Tersembunyi: Diletakkan tepat di belakang background video Telkom (z-[-1]) agar 
@@ -1391,7 +1363,7 @@ export default function KioskPage() {
         </div>
       )}
       
-      <BackgroundAudio role="kiosk" channel={kioskChannel} />
+      <BackgroundAudio role="kiosk" channel={kioskChannel} isMutedFromParent={isMuted} />
     </div>
   );
 }
