@@ -87,11 +87,24 @@ async function getDashboardData(admin: { role: string; region: string | null }):
 
   try {
     // Terapkan regionFilter ke SEMUA pencarian database
-    const visitors = await prisma.visitorLog.findMany({
-      where: { ...regionFilter },
-      orderBy: [{ status: "asc" }, { checkInTime: "desc" }],
-      take: 200,
+    const activeVisitors = await prisma.visitorLog.findMany({
+      where: { 
+        status: { in: [VisitStatus.PRE_REGISTER, VisitStatus.PENDING, VisitStatus.ON_PROGRESS] }, 
+        ...regionFilter 
+      },
+      orderBy: { checkInTime: "asc" },
     });
+
+    const historyVisitors = await prisma.visitorLog.findMany({
+      where: { 
+        status: { in: [VisitStatus.SUCCESS, VisitStatus.CANCELLED] }, 
+        ...regionFilter 
+      },
+      orderBy: { checkOutTime: "desc" },
+      take: 1000,
+    });
+
+    const visitors = [...activeVisitors, ...historyVisitors];
 
     const totalToday = await prisma.visitorLog.count({
       where: { checkInTime: { gte: today }, ...regionFilter },
