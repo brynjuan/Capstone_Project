@@ -93,6 +93,12 @@ type Props = {
 };
 
 export default function AdminDashboard({ data, admin }: Props) {
+  const [localVisitors, setLocalVisitors] = useState<AdminVisitor[]>(data.visitors);
+
+  useEffect(() => {
+    setLocalVisitors(data.visitors);
+  }, [data.visitors]);
+
   const router = useRouter();
 const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" | "pin" | "status" | "preregister" | "superadmin" | "backsound">("dashboard");
   const [trafficRange, setTrafficRange] = useState<"daily" | "monthly" | "yearly">("daily");
@@ -100,7 +106,7 @@ const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" |
   const [peakHoursRange, setPeakHoursRange] = useState<"daily" | "monthly" | "yearly">("monthly");
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"ALL" | AdminVisitor["status"]>("ALL");
-  const [selectedVisitorId, setSelectedVisitorId] = useState(data.visitors[0]?.id ?? "");
+  const [selectedVisitorId, setSelectedVisitorId] = useState(localVisitors[0]?.id ?? "");
   const [page, setPage] = useState(1);
   const [previewPhoto, setPreviewPhoto] = useState<AdminVisitor | null>(null);
   const [editingVisitor, setEditingVisitor] = useState<AdminVisitor | null>(null);
@@ -109,11 +115,17 @@ const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" |
   const [generatedPin, setGeneratedPin] = useState<string | null>(null);
   const [isGeneratingPin, startGeneratingPin] = useTransition();
   const [notification, setNotification] = useState<{ show: boolean; message: string; type: "success" | "error" } | null>(null);
-  const [historyRange, setHistoryRange] = useState<"today" | "month" | "year" | "all">("today");
+  const [historyRange, setHistoryRange] = useState<string>("today");
   const [historyCategory, setHistoryCategory] = useState<string>("all");
 
   const [paginatedHistory, setPaginatedHistory] = useState<AdminVisitor[]>([]);
   const [historyTotal, setHistoryTotal] = useState(0);
+  const [serverHistoryMetrics, setServerHistoryMetrics] = useState({
+    successCount: 0,
+    avgRating: null as string | null,
+    avgWait: 0,
+    avgService: 0
+  });
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
 
   const showNotification = (message: string, type: "success" | "error" = "success") => {
@@ -150,8 +162,13 @@ const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" |
         'postgres_changes',
         { event: '*', schema: 'public', table: 'visitor_logs' },
         (payload) => { 
-          // Kita sudah memindahkan trigger notifikasi ke state queueVisitors 
-          // agar lebih stabil dan mencakup tamu scan PIN (UPDATE).
+          if (payload.eventType === 'INSERT') {
+            setLocalVisitors(prev => [payload.new as any, ...prev]);
+          } else if (payload.eventType === 'UPDATE') {
+            setLocalVisitors(prev => prev.map(v => v.id === payload.new.id ? payload.new as any : v));
+          } else if (payload.eventType === 'DELETE') {
+            setLocalVisitors(prev => prev.filter(v => v.id !== payload.old.id));
+          }
           router.refresh(); 
         }
       )
@@ -197,7 +214,7 @@ const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" |
 
   const queueVisitors = useMemo(
     () =>
-      data.visitors
+      localVisitors
         .filter((visitor) => ["PENDING", "ON_PROGRESS"].includes(visitor.status))
         .sort((a, b) => {
           const priority = (status: AdminVisitor["status"]) =>
@@ -208,7 +225,7 @@ const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" |
 
           return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
         }),
-    [data.visitors],
+    [localVisitors],
   );
 
   const [prevQueueCount, setPrevQueueCount] = useState<number | null>(null);
@@ -226,10 +243,10 @@ const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" |
   }, [queueVisitors.length, prevQueueCount]);
 
   const preRegisterVisitors = useMemo(() => {
-    return data.visitors
+    return localVisitors
       .filter((visitor) => visitor.status === "PRE_REGISTER")
       .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
-  }, [data.visitors]);
+  }, [localVisitors]);
 
   const totalPreRegister = preRegisterVisitors.length;
 
@@ -250,7 +267,7 @@ const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" |
 
   const historyVisitors = useMemo(() => {
     const now = new Date();
-    return data.visitors
+    return localVisitors
       .filter((visitor) => {
         if (!["SUCCESS", "CANCELLED"].includes(visitor.status)) return false;
         
@@ -272,7 +289,7 @@ const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" |
         return true;
       })
       .sort((a, b) => new Date(b.checkOutTime || 0).getTime() - new Date(a.checkOutTime || 0).getTime());
-  }, [data.visitors, historyRange, historyCategory]); 
+  }, [localVisitors, historyRange, historyCategory]); 
 
   // Fetch paginated history from server
   useEffect(() => {
@@ -283,6 +300,7 @@ const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" |
           .then((res) => {
             setPaginatedHistory(res.visitors as any);
             setHistoryTotal(res.totalCount);
+            setServerHistoryMetrics(res.metrics);
           })
           .catch(console.error)
           .finally(() => setIsHistoryLoading(false));
@@ -338,31 +356,7 @@ const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" |
     ? Math.max(0, durationSeconds(activeQueueVisitor.checkInTime, activeQueueVisitor.serviceStartTime))
     : 0;
 
-  const historyMetrics = useMemo(() => {
-    const successOnly = historyVisitors.filter(v => v.status === "SUCCESS");
-    
-    const rated = successOnly.filter(v => v.rating && v.rating > 0);
-    const avgRating = rated.length > 0 
-      ? (rated.reduce((acc, v) => acc + (v.rating || 0), 0) / rated.length).toFixed(1) 
-      : null;
-
-    const waitSum = successOnly.reduce((acc, v) => {
-      const waitTime = durationSeconds(v.checkInTime, v.serviceStartTime || v.checkOutTime);
-      return acc + Math.max(0, waitTime);
-    }, 0);
-    
-    const serviceSum = successOnly.reduce((acc, v) => {
-      if (v.serviceStartTime && v.checkOutTime) {
-        return acc + Math.max(0, durationSeconds(v.serviceStartTime, v.checkOutTime));
-      }
-      return acc;
-    }, 0);
-
-    const avgWait = successOnly.length > 0 ? Math.round(waitSum / successOnly.length) : 0;
-    const avgService = successOnly.length > 0 ? Math.round(serviceSum / successOnly.length) : 0;
-
-    return { successCount: successOnly.length, avgRating, avgWait, avgService };
-  }, [historyVisitors]);
+  const historyMetrics = serverHistoryMetrics;
 
   const viewCopy = {
     dashboard: {
@@ -912,19 +906,60 @@ const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" |
                     </div>
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center xl:justify-end">
                       
-                      <select
-                        value={historyRange}
-                        onChange={(event) => {
-                          setHistoryRange(event.target.value as "today" | "month" | "year" | "all");
-                          setPage(1); 
-                        }}
-                        className="h-9 rounded-lg border border-[#f0dfdb] bg-[#fff7f5] px-2 text-xs font-bold text-[#b3261e] outline-none focus:border-[#d23a2f]"
-                      >
-                        <option value="today">📅 Hari Ini</option>
-                        <option value="month">📅 Bulan Ini</option>
-                        <option value="year">📅 Tahun Ini</option>
-                        <option value="all">📅 Semua</option>
-                      </select>
+                      <div className="flex gap-2">
+                        <select
+                          value={historyRange.startsWith("custom") ? historyRange.split(":")[0] : historyRange}
+                          onChange={(event) => {
+                            const val = event.target.value;
+                            if (val === "custom-date") {
+                              setHistoryRange(`custom-date:${new Date().toISOString().split('T')[0]}`);
+                            } else if (val === "custom-month") {
+                              setHistoryRange(`custom-month:${new Date().toISOString().slice(0, 7)}`);
+                            } else if (val === "custom-year") {
+                              setHistoryRange(`custom-year:${new Date().getFullYear()}`);
+                            } else {
+                              setHistoryRange(val);
+                            }
+                            setPage(1); 
+                          }}
+                          className="h-9 rounded-lg border border-[#f0dfdb] bg-[#fff7f5] px-2 text-xs font-bold text-[#b3261e] outline-none focus:border-[#d23a2f]"
+                        >
+                          <option value="today">📅 Hari Ini</option>
+                          <option value="month">📅 Bulan Ini</option>
+                          <option value="year">📅 Tahun Ini</option>
+                          <option value="all">📅 Semua</option>
+                          <option value="custom-date">📅 Pilih Tanggal...</option>
+                          <option value="custom-month">📅 Pilih Bulan...</option>
+                          <option value="custom-year">📅 Pilih Tahun...</option>
+                        </select>
+
+                        {historyRange.startsWith("custom-date:") && (
+                          <input 
+                            type="date" 
+                            value={historyRange.split(":")[1]} 
+                            onChange={(e) => { setHistoryRange(`custom-date:${e.target.value}`); setPage(1); }} 
+                            className="h-9 rounded-lg border border-[#f0dfdb] bg-[#fff7f5] px-2 text-xs font-bold text-[#b3261e] outline-none focus:border-[#d23a2f]"
+                          />
+                        )}
+                        {historyRange.startsWith("custom-month:") && (
+                          <input 
+                            type="month" 
+                            value={historyRange.split(":")[1]} 
+                            onChange={(e) => { setHistoryRange(`custom-month:${e.target.value}`); setPage(1); }} 
+                            className="h-9 rounded-lg border border-[#f0dfdb] bg-[#fff7f5] px-2 text-xs font-bold text-[#b3261e] outline-none focus:border-[#d23a2f]"
+                          />
+                        )}
+                        {historyRange.startsWith("custom-year:") && (
+                          <input 
+                            type="number" 
+                            min="2000" 
+                            max="2100" 
+                            value={historyRange.split(":")[1]} 
+                            onChange={(e) => { setHistoryRange(`custom-year:${e.target.value}`); setPage(1); }} 
+                            className="h-9 w-[80px] rounded-lg border border-[#f0dfdb] bg-[#fff7f5] px-2 text-xs font-bold text-[#b3261e] outline-none focus:border-[#d23a2f]"
+                          />
+                        )}
+                      </div>
 
                       <select
                         value={historyCategory}

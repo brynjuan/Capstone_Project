@@ -1,6 +1,8 @@
 // File: app/admin/components/Charts.tsx
 
 import { Activity, Clock, PieChart } from "lucide-react";
+import { useState, useEffect } from "react";
+import { getCustomPeakHours } from "../../actions/charts";
 
 export function TrafficPanel({ activeRange, onRangeChange, dailyData, monthlyData, yearlyData }: any) {
   const rangeOptions = [ { value: "daily", label: "Harian", data: dailyData }, { value: "monthly", label: "Bulanan", data: monthlyData }, { value: "yearly", label: "Tahunan", data: yearlyData } ] as const;
@@ -47,6 +49,7 @@ export function TrafficPanel({ activeRange, onRangeChange, dailyData, monthlyDat
 }
 
 export function ProblemPanel({ activeRange, onRangeChange, dailyData, monthlyData, yearlyData }: any) {
+  const [activeCategories, setActiveCategories] = useState<string[]>([]);
   const rangeOptions = [ { value: "daily", label: "Harian", data: dailyData }, { value: "monthly", label: "Bulanan", data: monthlyData }, { value: "yearly", label: "Tahunan", data: yearlyData } ] as const;
   const series = rangeOptions.find((option) => option.value === activeRange)?.data ?? monthlyData;
   const chartWidth = 640; const chartHeight = 220; const padding = 28;
@@ -60,9 +63,9 @@ export function ProblemPanel({ activeRange, onRangeChange, dailyData, monthlyDat
   return (
     <section className="rounded-2xl border border-[#f0dfdb] bg-white p-5 shadow-[0_16px_42px_rgba(70,31,25,0.06)] backdrop-blur-2xl">
       <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex items-center gap-2">
-          <h3 className="text-lg font-bold">Permasalahan</h3>
-          <Activity className="h-5 w-5 text-[#b3261e]" />
+        <div className="flex flex-wrap items-center gap-2">
+          <h3 className="text-lg font-bold whitespace-nowrap">Permasalahan</h3>
+          <Activity className="h-5 w-5 flex-shrink-0 text-[#b3261e]" />
         </div>
         <div className="grid h-10 grid-cols-3 rounded-xl bg-[#fdebe7] p-1 text-xs font-bold text-[#6f5752] sm:w-[280px]">
           {rangeOptions.map((opt) => (
@@ -78,16 +81,22 @@ export function ProblemPanel({ activeRange, onRangeChange, dailyData, monthlyDat
                 {[0, 1, 2, 3].map((line) => ( <line key={`grid-${line}`} x1={padding} x2={chartWidth - padding} y1={padding + ((chartHeight - padding * 2) / 3) * line} y2={padding + ((chartHeight - padding * 2) / 3) * line} stroke="#f1dfdb" strokeWidth="1" /> ))}
                 {series.map((item: any, itemIndex: number) => {
                   const points = item.data.map((point: any, index: number) => `${xFor(index)},${yFor(point.value)}`).join(" ");
+                  const isActive = activeCategories.length === 0 || activeCategories.includes(item.name);
+                  const opacity = isActive ? 1 : 0.15;
+                  const strokeWidth = isActive ? "3" : "2";
+
                   return (
-                    <g key={item.name}>
-                      <polyline points={points} fill="none" stroke={colors[itemIndex % colors.length]} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                    <g key={item.name} style={{ opacity, transition: 'opacity 0.3s ease' }}>
+                      <polyline points={points} fill="none" stroke={colors[itemIndex % colors.length]} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
                       {item.data.map((point: any, index: number) => (
                         <g key={`${item.name}-${point.label}`} className="group cursor-pointer">
                           <circle cx={xFor(index)} cy={yFor(point.value)} r="12" fill="transparent" />
-                          <circle cx={xFor(index)} cy={yFor(point.value)} r="4" fill={colors[itemIndex % colors.length]} stroke="#ffffff" strokeWidth="2" className="transition-all group-hover:r-[6px]" />
-                          <text x={xFor(index)} y={yFor(point.value) - 10} textAnchor="middle" className="pointer-events-none opacity-0 transition-opacity group-hover:opacity-100 text-[12px] font-bold" fill={colors[itemIndex % colors.length]}>
-                            {point.value}
-                          </text>
+                          <circle cx={xFor(index)} cy={yFor(point.value)} r="4" fill={colors[itemIndex % colors.length]} stroke="#ffffff" strokeWidth="2" className={`transition-all ${isActive ? 'group-hover:r-[6px]' : ''}`} />
+                          {isActive && (
+                            <text x={xFor(index)} y={yFor(point.value) - 10} textAnchor="middle" className="pointer-events-none opacity-0 transition-opacity group-hover:opacity-100 text-[12px] font-bold" fill={colors[itemIndex % colors.length]}>
+                              {point.value}
+                            </text>
+                          )}
                         </g>
                       ))}
                     </g>
@@ -97,11 +106,24 @@ export function ProblemPanel({ activeRange, onRangeChange, dailyData, monthlyDat
               </svg>
             </div>
             <div className="mt-4 flex flex-wrap gap-3">
-              {series.map((item: any, index: number) => (
-                <div key={item.name} className="inline-flex items-center gap-2 text-xs font-semibold text-[#725b56]">
-                  <span className="h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: colors[index % colors.length] }} /> {item.name}
-                </div>
-              ))}
+              {series.map((item: any, index: number) => {
+                const isActive = activeCategories.length === 0 || activeCategories.includes(item.name);
+                return (
+                  <button 
+                    key={item.name} 
+                    onClick={() => {
+                      setActiveCategories(prev => 
+                        prev.includes(item.name) 
+                          ? prev.filter(c => c !== item.name)
+                          : [...prev, item.name]
+                      );
+                    }}
+                    className={`inline-flex items-center gap-2 text-xs font-semibold transition-all hover:opacity-100 ${isActive ? 'text-[#725b56] opacity-100' : 'text-[#806762] opacity-40'}`}
+                  >
+                    <span className="h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: colors[index % colors.length] }} /> {item.name}
+                  </button>
+                );
+              })}
             </div>
           </>
         ) : ( <div className="flex h-64 items-center justify-center rounded-xl border border-[#f0dfdb] bg-[#fff8f6] text-sm text-[#806762]">Tren kategori akan muncul setelah data kunjungan tersedia.</div> )}
@@ -111,8 +133,28 @@ export function ProblemPanel({ activeRange, onRangeChange, dailyData, monthlyDat
 }
 
 export function PeakHoursPanel({ activeRange, onRangeChange, dailyData, monthlyData, yearlyData }: any) {
+  const [customMonth, setCustomMonth] = useState("");
+  const [customYear, setCustomYear] = useState("");
+  const [dynamicSeries, setDynamicSeries] = useState<any[] | null>(null);
+
+  useEffect(() => {
+    async function fetchData() {
+      if (activeRange === "monthly" && customMonth) {
+        const data = await getCustomPeakHours("monthly", customMonth);
+        setDynamicSeries(data);
+      } else if (activeRange === "yearly" && customYear) {
+        const data = await getCustomPeakHours("yearly", customYear);
+        setDynamicSeries(data);
+      } else {
+        setDynamicSeries(null);
+      }
+    }
+    fetchData();
+  }, [activeRange, customMonth, customYear]);
+
   const rangeOptions = [ { value: "daily", label: "Harian", data: dailyData }, { value: "monthly", label: "Bulanan", data: monthlyData }, { value: "yearly", label: "Tahunan", data: yearlyData } ] as const;
-  const series = rangeOptions.find((option) => option.value === activeRange)?.data ?? monthlyData;
+  const defaultSeries = rangeOptions.find((option) => option.value === activeRange)?.data ?? monthlyData;
+  const series = dynamicSeries ?? defaultSeries;
   const chartWidth = 640; const chartHeight = 220; const paddingY = 28; const paddingX = 20;
   const maxValue = Math.max(1, ...series.map((item: any) => item.value));
   const barWidth = (chartWidth - paddingX * 2) / series.length * 0.6;
@@ -122,12 +164,30 @@ export function PeakHoursPanel({ activeRange, onRangeChange, dailyData, monthlyD
 
   return (
     <section className="rounded-2xl border border-[#f0dfdb] bg-white p-5 shadow-[0_16px_42px_rgba(70,31,25,0.06)] backdrop-blur-2xl">
-      <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex items-center gap-2">
-          <h3 className="text-lg font-bold">Jam Sibuk Kedatangan</h3>
-          <Clock className="h-5 w-5 text-[#b3261e]" />
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <h3 className="text-lg font-bold whitespace-nowrap">Jam Sibuk Kedatangan</h3>
+          <Clock className="h-5 w-5 flex-shrink-0 text-[#b3261e]" />
+          
+          {activeRange === "monthly" && (
+            <input 
+              type="month" 
+              value={customMonth}
+              onChange={(e) => setCustomMonth(e.target.value)}
+              className="ml-2 rounded-lg border border-[#f0dfdb] bg-[#fff8f6] px-2 py-1 text-xs font-semibold text-[#6f5752] outline-none"
+            />
+          )}
+          {activeRange === "yearly" && (
+            <input 
+              type="number" 
+              placeholder="Tahun"
+              value={customYear}
+              onChange={(e) => setCustomYear(e.target.value)}
+              className="ml-2 w-20 rounded-lg border border-[#f0dfdb] bg-[#fff8f6] px-2 py-1 text-xs font-semibold text-[#6f5752] outline-none"
+            />
+          )}
         </div>
-        <div className="grid h-10 grid-cols-3 rounded-xl bg-[#fdebe7] p-1 text-xs font-bold text-[#6f5752] sm:w-[280px]">
+        <div className="grid h-10 flex-shrink-0 grid-cols-3 rounded-xl bg-[#fdebe7] p-1 text-xs font-bold text-[#6f5752] sm:w-[280px]">
           {rangeOptions.map((opt) => (
             <button key={opt.value} type="button" onClick={() => onRangeChange(opt.value)} className={`rounded-lg transition ${activeRange === opt.value ? "bg-white text-[#b3261e] shadow-sm" : "hover:bg-white/45 hover:text-[#b3261e]"}`}>{opt.label}</button>
           ))}

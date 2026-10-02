@@ -42,15 +42,17 @@ export const waitSecondsFor = (visitor: AdminVisitor) =>
   durationSeconds(visitor.checkInTime, visitor.serviceStartTime || visitor.checkOutTime);
 
 export const formatDurationClock = (seconds: number) => {
-  const minutes = Math.floor(seconds / 60);
-  const rest = seconds % 60;
+  const roundedSeconds = Math.round(seconds);
+  const minutes = Math.floor(roundedSeconds / 60);
+  const rest = roundedSeconds % 60;
   return `${String(minutes).padStart(2, "0")} : ${String(rest).padStart(2, "0")}`;
 };
 
 export const formatCompactDuration = (seconds: number) => {
-  if (seconds < 60) return `${seconds}s`;
-  const minutes = Math.floor(seconds / 60);
-  const rest = seconds % 60;
+  const roundedSeconds = Math.round(seconds);
+  if (roundedSeconds < 60) return `${roundedSeconds}s`;
+  const minutes = Math.floor(roundedSeconds / 60);
+  const rest = roundedSeconds % 60;
   if (minutes < 60) return `${minutes}m ${String(rest).padStart(2, "0")}s`;
   const hours = Math.floor(minutes / 60);
   return `${hours}j ${minutes % 60}m`;

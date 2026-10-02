@@ -166,35 +166,35 @@ async function getDashboardData(admin: { role: string; region: string | null }):
 
     const dailyCounts = await prisma.$queryRaw<{ day_start: string; category: string | null; count: bigint }[]>`
       SELECT 
-        TO_CHAR("checkInTime" AT TIME ZONE 'Asia/Makassar', 'YYYY-MM-DD') as day_start,
+        TO_CHAR("checkInTime" AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Makassar', 'YYYY-MM-DD') as day_start,
         category,
         COUNT(*) as count
       FROM visitor_logs
       WHERE "checkInTime" >= ${dailyRanges[0].start}
       ${regionCondition}
-      GROUP BY TO_CHAR("checkInTime" AT TIME ZONE 'Asia/Makassar', 'YYYY-MM-DD'), category
+      GROUP BY TO_CHAR("checkInTime" AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Makassar', 'YYYY-MM-DD'), category
     `;
 
     const monthlyCounts = await prisma.$queryRaw<{ month_start: string; category: string | null; count: bigint }[]>`
       SELECT 
-        TO_CHAR("checkInTime" AT TIME ZONE 'Asia/Makassar', 'YYYY-MM-FM02') as month_start,
+        TO_CHAR("checkInTime" AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Makassar', 'YYYY-MM') as month_start,
         category,
         COUNT(*) as count
       FROM visitor_logs
       WHERE "checkInTime" >= ${monthlyRanges[0].start}
       ${regionCondition}
-      GROUP BY TO_CHAR("checkInTime" AT TIME ZONE 'Asia/Makassar', 'YYYY-MM-FM02'), category
+      GROUP BY TO_CHAR("checkInTime" AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Makassar', 'YYYY-MM'), category
     `;
 
     const yearlyCounts = await prisma.$queryRaw<{ year_start: string; category: string | null; count: bigint }[]>`
       SELECT 
-        TO_CHAR("checkInTime" AT TIME ZONE 'Asia/Makassar', 'YYYY') as year_start,
+        TO_CHAR("checkInTime" AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Makassar', 'YYYY') as year_start,
         category,
         COUNT(*) as count
       FROM visitor_logs
       WHERE "checkInTime" >= ${yearlyRanges[0].start}
       ${regionCondition}
-      GROUP BY TO_CHAR("checkInTime" AT TIME ZONE 'Asia/Makassar', 'YYYY'), category
+      GROUP BY TO_CHAR("checkInTime" AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Makassar', 'YYYY'), category
     `;
 
     // Process General Series (sum of all categories)
@@ -258,14 +258,14 @@ async function getDashboardData(admin: { role: string; region: string | null }):
 
     const peakHoursQuery = await prisma.$queryRaw<{ hour: number; total: bigint; today: bigint; month: bigint }[]>`
       SELECT 
-        EXTRACT(HOUR FROM "checkInTime" AT TIME ZONE 'Asia/Makassar')::int as hour,
+        EXTRACT(HOUR FROM "checkInTime" AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Makassar')::int as hour,
         COUNT(*) as total,
         SUM(CASE WHEN "checkInTime" >= ${today} THEN 1 ELSE 0 END) as today,
         SUM(CASE WHEN "checkInTime" >= ${month} THEN 1 ELSE 0 END) as month
       FROM visitor_logs
       WHERE "checkInTime" >= ${year}
       ${regionCondition}
-      GROUP BY EXTRACT(HOUR FROM "checkInTime" AT TIME ZONE 'Asia/Makassar')
+      GROUP BY EXTRACT(HOUR FROM "checkInTime" AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Makassar')
     `;
 
     for (const row of peakHoursQuery) {

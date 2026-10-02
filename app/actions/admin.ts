@@ -709,6 +709,31 @@ export async function getHistoryPaginated(page: number, limit: number, query: st
     year.setMonth(0, 1);
     year.setHours(0, 0, 0, 0);
     whereClause.checkOutTime = { gte: year };
+  } else if (historyRange.startsWith("custom-date:")) {
+    const dateStr = historyRange.split(":")[1]; // YYYY-MM-DD
+    if (dateStr) {
+      const startDate = new Date(dateStr);
+      startDate.setHours(0, 0, 0, 0);
+      const endDate = new Date(dateStr);
+      endDate.setHours(23, 59, 59, 999);
+      whereClause.checkOutTime = { gte: startDate, lte: endDate };
+    }
+  } else if (historyRange.startsWith("custom-month:")) {
+    const monthStr = historyRange.split(":")[1]; // YYYY-MM
+    if (monthStr) {
+      const [y, m] = monthStr.split("-").map(Number);
+      const startDate = new Date(y, m - 1, 1);
+      const endDate = new Date(y, m, 0, 23, 59, 59, 999);
+      whereClause.checkOutTime = { gte: startDate, lte: endDate };
+    }
+  } else if (historyRange.startsWith("custom-year:")) {
+    const yearStr = historyRange.split(":")[1]; // YYYY
+    if (yearStr) {
+      const y = Number(yearStr);
+      const startDate = new Date(y, 0, 1);
+      const endDate = new Date(y, 11, 31, 23, 59, 59, 999);
+      whereClause.checkOutTime = { gte: startDate, lte: endDate };
+    }
   }
 
   if (query) {
@@ -729,5 +754,48 @@ export async function getHistoryPaginated(page: number, limit: number, query: st
     take: limit,
   });
 
-  return { visitors, totalCount };
+  // Ambil metrik untuk tab history
+  const successWhereClause = { ...whereClause, status: VisitStatus.SUCCESS };
+  const allSuccessVisits = await prisma.visitorLog.findMany({
+    where: successWhereClause,
+    select: { rating: true, checkInTime: true, serviceStartTime: true, checkOutTime: true }
+  });
+
+  const successCount = allSuccessVisits.length;
+  
+  const rated = allSuccessVisits.filter(v => v.rating && v.rating > 0);
+  const avgRating = rated.length > 0 
+    ? (rated.reduce((acc, v) => acc + (v.rating || 0), 0) / rated.length).toFixed(1) 
+    : null;
+
+  const waitSum = allSuccessVisits.reduce((acc, v) => {
+    if (v.checkInTime) {
+      const start = v.serviceStartTime || v.checkOutTime;
+      if (start) {
+        return acc + Math.max(0, (start.getTime() - v.checkInTime.getTime()) / 1000);
+      }
+    }
+    return acc;
+  }, 0);
+  
+  const serviceSum = allSuccessVisits.reduce((acc, v) => {
+    if (v.serviceStartTime && v.checkOutTime) {
+      return acc + Math.max(0, (v.checkOutTime.getTime() - v.serviceStartTime.getTime()) / 1000);
+    }
+    return acc;
+  }, 0);
+
+  const avgWait = successCount > 0 ? waitSum / successCount : 0;
+  const avgService = successCount > 0 ? serviceSum / successCount : 0;
+
+  return { 
+    visitors, 
+    totalCount,
+    metrics: {
+      successCount,
+      avgRating,
+      avgWait,
+      avgService
+    }
+  };
 }
