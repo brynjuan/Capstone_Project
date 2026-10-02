@@ -109,7 +109,6 @@ const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" |
   const [generatedPin, setGeneratedPin] = useState<string | null>(null);
   const [isGeneratingPin, startGeneratingPin] = useTransition();
   const [notification, setNotification] = useState<{ show: boolean; message: string; type: "success" | "error" } | null>(null);
-  const [notification, setNotification] = useState<{ show: boolean; message: string; type: "success" | "error" } | null>(null);
   const [historyRange, setHistoryRange] = useState<"today" | "month" | "year" | "all">("today");
   const [historyCategory, setHistoryCategory] = useState<string>("all");
 
@@ -271,7 +270,6 @@ const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" |
           return compareDate.getFullYear() === now.getFullYear();
         }
         return true;
-      })
       })
       .sort((a, b) => new Date(b.checkOutTime || 0).getTime() - new Date(a.checkOutTime || 0).getTime());
   }, [data.visitors, historyRange, historyCategory]); 

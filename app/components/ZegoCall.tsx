@@ -27,7 +27,7 @@ export default function ZegoCall({ roomID, onClose, userID, userName }: ZegoCall
     // =================================================================
 
     const appID = Number(process.env.NEXT_PUBLIC_ZEGO_APP_ID);
-    const serverSecret = process.env.NEXT_PUBLIC_ZEGO_SERVER_SECRET as string;
+    const serverSecret = process.env.NEXT_PUBLIC_ZEGO_SERVER_CONFIG as string;
     
     if (!appID || !serverSecret) return;
 
