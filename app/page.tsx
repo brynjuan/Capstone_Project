@@ -123,7 +123,7 @@ export default function KioskPage() {
         console.error("Gagal mengambil status Kiosk:", error);
       } finally {
         if (isMounted) {
-          timeoutId = setTimeout(fetchStatus, 10000); // Diperbesar ke 10 detik agar tidak membebani server
+          timeoutId = setTimeout(fetchStatus, 600000); // Diperbesar ke 10 menit agar tidak membebani server
         }
       }
     };

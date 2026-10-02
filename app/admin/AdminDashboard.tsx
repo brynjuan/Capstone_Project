@@ -109,8 +109,13 @@ const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" |
   const [generatedPin, setGeneratedPin] = useState<string | null>(null);
   const [isGeneratingPin, startGeneratingPin] = useTransition();
   const [notification, setNotification] = useState<{ show: boolean; message: string; type: "success" | "error" } | null>(null);
+  const [notification, setNotification] = useState<{ show: boolean; message: string; type: "success" | "error" } | null>(null);
   const [historyRange, setHistoryRange] = useState<"today" | "month" | "year" | "all">("today");
   const [historyCategory, setHistoryCategory] = useState<string>("all");
+
+  const [paginatedHistory, setPaginatedHistory] = useState<AdminVisitor[]>([]);
+  const [historyTotal, setHistoryTotal] = useState(0);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(false);
 
   const showNotification = (message: string, type: "success" | "error" = "success") => {
     setNotification({ show: true, message, type });
@@ -159,7 +164,7 @@ const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" |
 
     const fallbackTimer = window.setInterval(() => {
       router.refresh();
-    }, 12000);
+    }, 600000);
 
     return () => {
       window.clearInterval(fallbackTimer);
@@ -267,10 +272,27 @@ const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" |
         }
         return true;
       })
+      })
       .sort((a, b) => new Date(b.checkOutTime || 0).getTime() - new Date(a.checkOutTime || 0).getTime());
   }, [data.visitors, historyRange, historyCategory]); 
 
-  const tableSource = activeView === "history" ? historyVisitors : queueVisitors;
+  // Fetch paginated history from server
+  useEffect(() => {
+    if (activeView === "history") {
+      setIsHistoryLoading(true);
+      import("../actions/admin").then(({ getHistoryPaginated }) => {
+        getHistoryPaginated(page, pageSize, query, historyCategory, historyRange, statusFilter)
+          .then((res) => {
+            setPaginatedHistory(res.visitors as any);
+            setHistoryTotal(res.totalCount);
+          })
+          .catch(console.error)
+          .finally(() => setIsHistoryLoading(false));
+      });
+    }
+  }, [activeView, page, query, historyCategory, historyRange, statusFilter]);
+
+  const tableSource = queueVisitors;
 
   const filteredVisitors = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -294,9 +316,18 @@ const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" |
     });
   }, [query, statusFilter, tableSource]);
 
-  const selectedVisitor = tableSource.find((visitor) => visitor.id === selectedVisitorId) ?? filteredVisitors[0] ?? null;
-  const totalPages = Math.max(1, Math.ceil(filteredVisitors.length / pageSize));
-  const visibleVisitors = filteredVisitors.slice((page - 1) * pageSize, page * pageSize);
+  const selectedVisitor = activeView === "history" 
+    ? (paginatedHistory.find((visitor) => visitor.id === selectedVisitorId) ?? paginatedHistory[0] ?? null)
+    : (tableSource.find((visitor) => visitor.id === selectedVisitorId) ?? filteredVisitors[0] ?? null);
+    
+  const totalPages = activeView === "history" 
+    ? Math.max(1, Math.ceil(historyTotal / pageSize))
+    : Math.max(1, Math.ceil(filteredVisitors.length / pageSize));
+    
+  const visibleVisitors = activeView === "history"
+    ? paginatedHistory
+    : filteredVisitors.slice((page - 1) * pageSize, page * pageSize);
+    
   const activeQueueVisitor = queueVisitors.find((visitor) => visitor.status === "ON_PROGRESS") ?? queueVisitors[0] ?? null;
   const activeQueueIndex = activeQueueVisitor
     ? Math.max(0, queueVisitors.findIndex((visitor) => visitor.id === activeQueueVisitor.id))
@@ -958,7 +989,12 @@ const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" |
                       <th className="px-5 py-3 text-center">Aksi</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[#f7ece9]">
+                  <tbody className="divide-y divide-[#f7ece9] relative">
+                    {isHistoryLoading && activeView === "history" && (
+                      <div className="absolute inset-0 bg-white/50 backdrop-blur-sm z-10 flex items-center justify-center">
+                        <div className="animate-spin h-8 w-8 border-4 border-[#b3261e] border-t-transparent rounded-full"></div>
+                      </div>
+                    )}
                     {visibleVisitors.map((visitor) => (
                       <tr
                         key={visitor.id}
@@ -1111,7 +1147,7 @@ const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" |
                 </table>
               </div>
 
-              {filteredVisitors.length === 0 && (
+              {visibleVisitors.length === 0 && !isHistoryLoading && (
                 <div className="px-5 py-14 text-center">
                   <UsersRound className="mx-auto h-10 w-10 text-[#bba5a0]" />
                   <p className="mt-3 font-bold text-[#6f5752]">Belum ada data sesuai filter.</p>
@@ -1119,11 +1155,11 @@ const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" |
                 </div>
               )}
 
-              {filteredVisitors.length > 0 && (
+              {visibleVisitors.length > 0 && (
                 <div className="flex flex-col gap-3 border-t border-[#f0dfdb] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
                   <p className="text-sm text-[#806762]">
                     Menampilkan {(page - 1) * pageSize + 1}-
-                    {Math.min(page * pageSize, filteredVisitors.length)} dari {filteredVisitors.length} data
+                    {Math.min(page * pageSize, activeView === "history" ? historyTotal : filteredVisitors.length)} dari {activeView === "history" ? historyTotal : filteredVisitors.length} data
                   </p>
                   <div className="flex items-center gap-2">
                     <button

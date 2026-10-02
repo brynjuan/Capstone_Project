@@ -3,7 +3,7 @@ import { getAdminSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import AdminDashboard from "./AdminDashboard";
 import { AdminDashboardData } from "./types"; 
-import { VisitStatus } from "@prisma/client";
+import { VisitStatus, Prisma } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
@@ -101,7 +101,7 @@ async function getDashboardData(admin: { role: string; region: string | null }):
         ...regionFilter 
       },
       orderBy: { checkOutTime: "desc" },
-      take: 1000,
+      take: 100, // Dikurangi dari 1000 ke 100 untuk menghemat egress
     });
 
     const visitors = [...activeVisitors, ...historyVisitors];
@@ -151,90 +151,129 @@ async function getDashboardData(admin: { role: string; region: string | null }):
       take: 8,
     });
 
-    const dailySeries = [];
-    for (const range of dailyRanges) {
-      const count = await prisma.visitorLog.count({
-        where: { checkInTime: { gte: range.start, lt: range.end }, ...regionFilter },
-      });
-      dailySeries.push({ label: range.label, value: count });
-    }
+    // --- OPTIMIZATION: USE RAW SQL FOR CHARTS ---
+    const regionCondition = admin.role === "SUPERADMIN" 
+      ? Prisma.empty 
+      : Prisma.sql`AND region = ${admin.region || ""}`;
 
-    const monthlySeries = [];
-    for (const range of monthlyRanges) {
-      const count = await prisma.visitorLog.count({
-        where: { checkInTime: { gte: range.start, lt: range.end }, ...regionFilter },
-      });
-      monthlySeries.push({ label: range.label, value: count });
-    }
+    // Helper formatter to match DB TO_CHAR output
+    const toDateStr = (date: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Makassar' }).format(date);
+    const toMonthStr = (date: Date) => {
+      const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Makassar', year: 'numeric', month: '2-digit' }).formatToParts(date);
+      return `${parts.find(p => p.type === 'year')?.value}-${parts.find(p => p.type === 'month')?.value}`;
+    };
+    const toYearStr = (date: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Makassar', year: 'numeric' }).format(date);
 
-    const yearlySeries = [];
-    for (const range of yearlyRanges) {
-      const count = await prisma.visitorLog.count({
-        where: { checkInTime: { gte: range.start, lt: range.end }, ...regionFilter },
-      });
-      yearlySeries.push({ label: range.label, value: count });
-    }
+    const dailyCounts = await prisma.$queryRaw<{ day_start: string; category: string | null; count: bigint }[]>`
+      SELECT 
+        TO_CHAR("checkInTime" AT TIME ZONE 'Asia/Makassar', 'YYYY-MM-DD') as day_start,
+        category,
+        COUNT(*) as count
+      FROM visitor_logs
+      WHERE "checkInTime" >= ${dailyRanges[0].start}
+      ${regionCondition}
+      GROUP BY TO_CHAR("checkInTime" AT TIME ZONE 'Asia/Makassar', 'YYYY-MM-DD'), category
+    `;
 
+    const monthlyCounts = await prisma.$queryRaw<{ month_start: string; category: string | null; count: bigint }[]>`
+      SELECT 
+        TO_CHAR("checkInTime" AT TIME ZONE 'Asia/Makassar', 'YYYY-MM-FM02') as month_start,
+        category,
+        COUNT(*) as count
+      FROM visitor_logs
+      WHERE "checkInTime" >= ${monthlyRanges[0].start}
+      ${regionCondition}
+      GROUP BY TO_CHAR("checkInTime" AT TIME ZONE 'Asia/Makassar', 'YYYY-MM-FM02'), category
+    `;
+
+    const yearlyCounts = await prisma.$queryRaw<{ year_start: string; category: string | null; count: bigint }[]>`
+      SELECT 
+        TO_CHAR("checkInTime" AT TIME ZONE 'Asia/Makassar', 'YYYY') as year_start,
+        category,
+        COUNT(*) as count
+      FROM visitor_logs
+      WHERE "checkInTime" >= ${yearlyRanges[0].start}
+      ${regionCondition}
+      GROUP BY TO_CHAR("checkInTime" AT TIME ZONE 'Asia/Makassar', 'YYYY'), category
+    `;
+
+    // Process General Series (sum of all categories)
+    const dailySeries = dailyRanges.map(range => {
+      const dateStr = toDateStr(range.start);
+      const total = dailyCounts.filter(r => r.day_start === dateStr).reduce((acc, curr) => acc + Number(curr.count), 0);
+      return { label: range.label, value: total };
+    });
+
+    const monthlySeries = monthlyRanges.map(range => {
+      const monthStr = toMonthStr(range.start);
+      const total = monthlyCounts.filter(r => r.month_start === monthStr).reduce((acc, curr) => acc + Number(curr.count), 0);
+      return { label: range.label, value: total };
+    });
+
+    const yearlySeries = yearlyRanges.map(range => {
+      const yearStr = toYearStr(range.start);
+      const total = yearlyCounts.filter(r => r.year_start === yearStr).reduce((acc, curr) => acc + Number(curr.count), 0);
+      return { label: range.label, value: total };
+    });
+
+    // Process Category Series
     const topCategories = categoryGroups.map((item) => item.category);
     const categoryDailySeries = [];
     const categoryMonthlySeries = [];
     const categoryYearlySeries = [];
     
     for (const category of topCategories) {
-      const dataDaily = [];
-      for (const range of dailyRanges) {
-        const count = await prisma.visitorLog.count({
-          where: { category, checkInTime: { gte: range.start, lt: range.end }, ...regionFilter },
-        });
-        dataDaily.push({ label: range.label, value: count });
-      }
-      categoryDailySeries.push({ name: category || "Tanpa kategori", data: dataDaily });
+      categoryDailySeries.push({ 
+        name: category || "Tanpa kategori", 
+        data: dailyRanges.map(range => {
+          const dateStr = toDateStr(range.start);
+          const val = dailyCounts.find(r => r.day_start === dateStr && r.category === category);
+          return { label: range.label, value: val ? Number(val.count) : 0 };
+        })
+      });
 
-      const dataMonthly = [];
-      for (const range of monthlyRanges) {
-        const count = await prisma.visitorLog.count({
-          where: { category, checkInTime: { gte: range.start, lt: range.end }, ...regionFilter },
-        });
-        dataMonthly.push({ label: range.label, value: count });
-      }
-      categoryMonthlySeries.push({ name: category || "Tanpa kategori", data: dataMonthly });
+      categoryMonthlySeries.push({ 
+        name: category || "Tanpa kategori", 
+        data: monthlyRanges.map(range => {
+          const monthStr = toMonthStr(range.start);
+          const val = monthlyCounts.find(r => r.month_start === monthStr && r.category === category);
+          return { label: range.label, value: val ? Number(val.count) : 0 };
+        })
+      });
 
-      const dataYearly = [];
-      for (const range of yearlyRanges) {
-        const count = await prisma.visitorLog.count({
-          where: { category, checkInTime: { gte: range.start, lt: range.end }, ...regionFilter },
-        });
-        dataYearly.push({ label: range.label, value: count });
-      }
-      categoryYearlySeries.push({ name: category || "Tanpa kategori", data: dataYearly });
+      categoryYearlySeries.push({ 
+        name: category || "Tanpa kategori", 
+        data: yearlyRanges.map(range => {
+          const yearStr = toYearStr(range.start);
+          const val = yearlyCounts.find(r => r.year_start === yearStr && r.category === category);
+          return { label: range.label, value: val ? Number(val.count) : 0 };
+        })
+      });
     }
-
-    const allVisitsThisYear = await prisma.visitorLog.findMany({
-      where: { checkInTime: { gte: year }, ...regionFilter },
-      select: { checkInTime: true }
-    });
     
+    // Process Peak Hours Series directly from DB
     const peakHoursDailySeries = Array.from({ length: 11 }, (_, i) => ({ label: `${String(i + 7).padStart(2, '0')}:00`, value: 0 }));
     const peakHoursMonthlySeries = Array.from({ length: 11 }, (_, i) => ({ label: `${String(i + 7).padStart(2, '0')}:00`, value: 0 }));
     const peakHoursYearlySeries = Array.from({ length: 11 }, (_, i) => ({ label: `${String(i + 7).padStart(2, '0')}:00`, value: 0 }));
-    
-    for (const visit of allVisitsThisYear) {
-      if (visit.checkInTime) {
-        const dateStr = visit.checkInTime.toLocaleString("en-US", { timeZone: "Asia/Makassar" });
-        const hour = new Date(dateStr).getHours();
-        
-        if (hour >= 7 && hour <= 17) {
-          const index = hour - 7;
-          peakHoursYearlySeries[index].value += 1;
-          
-          if (visit.checkInTime >= month) {
-            peakHoursMonthlySeries[index].value += 1;
-          }
-          
-          if (visit.checkInTime >= today) {
-            peakHoursDailySeries[index].value += 1;
-          }
-        }
+
+    const peakHoursQuery = await prisma.$queryRaw<{ hour: number; total: bigint; today: bigint; month: bigint }[]>`
+      SELECT 
+        EXTRACT(HOUR FROM "checkInTime" AT TIME ZONE 'Asia/Makassar')::int as hour,
+        COUNT(*) as total,
+        SUM(CASE WHEN "checkInTime" >= ${today} THEN 1 ELSE 0 END) as today,
+        SUM(CASE WHEN "checkInTime" >= ${month} THEN 1 ELSE 0 END) as month
+      FROM visitor_logs
+      WHERE "checkInTime" >= ${year}
+      ${regionCondition}
+      GROUP BY EXTRACT(HOUR FROM "checkInTime" AT TIME ZONE 'Asia/Makassar')
+    `;
+
+    for (const row of peakHoursQuery) {
+      if (row.hour >= 7 && row.hour <= 17) {
+        const index = row.hour - 7;
+        peakHoursYearlySeries[index].value = Number(row.total);
+        peakHoursMonthlySeries[index].value = Number(row.month);
+        peakHoursDailySeries[index].value = Number(row.today);
       }
     }
 

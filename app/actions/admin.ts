@@ -673,8 +673,61 @@ export async function deleteVisitor(formData: FormData) {
     console.error("Gagal memanggil deleteFromSpreadsheet:", err);
   }
 
-  // 3. Delete from DB
   await prisma.visitorLog.delete({ where: { id } });
 
   revalidatePath("/admin");
+}
+
+export async function getHistoryPaginated(page: number, limit: number, query: string, historyCategory: string, historyRange: string, statusFilter: string) {
+  const { session, regionFilter } = await getSessionAndFilter();
+
+  const whereClause: any = {
+    status: { in: [VisitStatus.SUCCESS, VisitStatus.CANCELLED] },
+    ...regionFilter
+  };
+
+  if (statusFilter !== "ALL") {
+    whereClause.status = statusFilter;
+  }
+
+  if (historyCategory !== "all") {
+    whereClause.category = historyCategory;
+  }
+
+  const now = new Date();
+  if (historyRange === "today") {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    whereClause.checkOutTime = { gte: today };
+  } else if (historyRange === "month") {
+    const month = new Date();
+    month.setDate(1);
+    month.setHours(0, 0, 0, 0);
+    whereClause.checkOutTime = { gte: month };
+  } else if (historyRange === "year") {
+    const year = new Date();
+    year.setMonth(0, 1);
+    year.setHours(0, 0, 0, 0);
+    whereClause.checkOutTime = { gte: year };
+  }
+
+  if (query) {
+    whereClause.OR = [
+      { fullName: { contains: query, mode: "insensitive" } },
+      { institution: { contains: query, mode: "insensitive" } },
+      { phoneNumber: { contains: query, mode: "insensitive" } },
+      { internetNumber: { contains: query, mode: "insensitive" } },
+      { hostName: { contains: query, mode: "insensitive" } },
+    ];
+  }
+
+  const totalCount = await prisma.visitorLog.count({ where: whereClause });
+  const visitors = await prisma.visitorLog.findMany({
+    where: whereClause,
+    orderBy: { checkOutTime: "desc" },
+    skip: (page - 1) * limit,
+    take: limit,
+  });
+
+  return { visitors, totalCount };
 }
