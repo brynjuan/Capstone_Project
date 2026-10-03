@@ -117,6 +117,7 @@ const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" |
   const [notification, setNotification] = useState<{ show: boolean; message: string; type: "success" | "error" } | null>(null);
   const [historyRange, setHistoryRange] = useState<string>("today");
   const [historyCategory, setHistoryCategory] = useState<string>("all");
+  const [historyRegion, setHistoryRegion] = useState<string>("all");
 
   const [paginatedHistory, setPaginatedHistory] = useState<AdminVisitor[]>([]);
   const [historyTotal, setHistoryTotal] = useState(0);
@@ -291,12 +292,11 @@ const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" |
       .sort((a, b) => new Date(b.checkOutTime || 0).getTime() - new Date(a.checkOutTime || 0).getTime());
   }, [localVisitors, historyRange, historyCategory]); 
 
-  // Fetch paginated history from server
   useEffect(() => {
     if (activeView === "history") {
       setIsHistoryLoading(true);
       import("../actions/admin").then(({ getHistoryPaginated }) => {
-        getHistoryPaginated(page, pageSize, query, historyCategory, historyRange, statusFilter)
+        getHistoryPaginated(page, pageSize, query, historyCategory, historyRange, statusFilter, historyRegion)
           .then((res) => {
             setPaginatedHistory(res.visitors as any);
             setHistoryTotal(res.totalCount);
@@ -306,7 +306,7 @@ const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" |
           .finally(() => setIsHistoryLoading(false));
       });
     }
-  }, [activeView, page, query, historyCategory, historyRange, statusFilter]);
+  }, [activeView, page, query, historyCategory, historyRange, statusFilter, historyRegion]);
 
   const tableSource = queueVisitors;
 
@@ -961,6 +961,21 @@ const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" |
                         )}
                       </div>
 
+                      {admin.role === "SUPERADMIN" && activeView === "history" && (
+                        <select
+                          value={historyRegion}
+                          onChange={(event) => {
+                            setHistoryRegion(event.target.value);
+                            setPage(1);
+                          }}
+                          className="h-9 max-w-[140px] truncate rounded-lg border border-[#f0dfdb] bg-[#fff7f5] px-2 text-xs font-bold text-[#b3261e] outline-none focus:border-[#d23a2f]"
+                        >
+                          <option value="all">📍 Semua Lokasi</option>
+                          <option value="Palu">📍 Palu</option>
+                          <option value="Gorontalo">📍 Gorontalo</option>
+                        </select>
+                      )}
+
                       <select
                         value={historyCategory}
                         onChange={(event) => {
@@ -1225,7 +1240,7 @@ const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" |
       </div>
 
       {previewPhoto?.photoUrl && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#2b211f]/70 p-6 backdrop-blur-md">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-[#2b211f]/70 p-6 backdrop-blur-md">
           <section className="w-full max-w-3xl overflow-hidden rounded-2xl border border-[#f0dfdb] bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b border-[#f0dfdb] px-5 py-4">
               <div>

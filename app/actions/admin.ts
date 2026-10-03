@@ -678,13 +678,17 @@ export async function deleteVisitor(formData: FormData) {
   revalidatePath("/admin");
 }
 
-export async function getHistoryPaginated(page: number, limit: number, query: string, historyCategory: string, historyRange: string, statusFilter: string) {
+export async function getHistoryPaginated(page: number, limit: number, query: string, historyCategory: string, historyRange: string, statusFilter: string, historyRegion: string = "all") {
   const { session, regionFilter } = await getSessionAndFilter();
 
   const whereClause: any = {
     status: { in: [VisitStatus.SUCCESS, VisitStatus.CANCELLED] },
     ...regionFilter
   };
+
+  if (session.role === "SUPERADMIN" && historyRegion !== "all") {
+    whereClause.region = historyRegion;
+  }
 
   if (statusFilter !== "ALL") {
     whereClause.status = statusFilter;
