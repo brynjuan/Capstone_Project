@@ -118,6 +118,7 @@ const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" |
   const [historyRange, setHistoryRange] = useState<string>("today");
   const [historyCategory, setHistoryCategory] = useState<string>("all");
   const [historyRegion, setHistoryRegion] = useState<string>("all");
+  const [historyRefresh, setHistoryRefresh] = useState(0);
 
   const [paginatedHistory, setPaginatedHistory] = useState<AdminVisitor[]>([]);
   const [historyTotal, setHistoryTotal] = useState(0);
@@ -314,7 +315,7 @@ const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" |
           .finally(() => setIsHistoryLoading(false));
       });
     }
-  }, [activeView, page, query, historyCategory, historyRange, statusFilter, historyRegion]);
+  }, [activeView, page, query, historyCategory, historyRange, statusFilter, historyRegion, historyRefresh]);
 
   const tableSource = queueVisitors;
 
@@ -1178,10 +1179,15 @@ const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" |
                             )}
 
                             {["SUCCESS", "CANCELLED"].includes(visitor.status) && activeView === "history" && (
-                              <form action={deleteVisitor} onSubmit={(e) => {
+                              <form onSubmit={async (e) => {
+                                e.preventDefault();
                                 if (!confirm("Apakah Anda yakin ingin menghapus data ini? Aksi ini akan menghapus data di database, spreadsheet, dan telegram laporan.")) {
-                                  e.preventDefault();
+                                  return;
                                 }
+                                const formData = new FormData(e.currentTarget);
+                                await deleteVisitor(formData);
+                                setHistoryRefresh(prev => prev + 1);
+                                showNotification("Riwayat berhasil dihapus", "success");
                               }}>
                                 <input type="hidden" name="id" value={visitor.id} />
                                 <button
