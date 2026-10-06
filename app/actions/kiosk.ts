@@ -156,6 +156,7 @@ export async function submitVisitorData(formData: any, photoBase64: string | nul
     }
 
     // 3. SIMPAN KE DATABASE DENGAN REGION
+    const defaultHostName = currentRegion.toUpperCase() === "GORONTALO" ? "Pricillya" : "Nita Wulandari";
     let newVisitor;
 
     if (formData.pin) {
@@ -168,7 +169,7 @@ export async function submitVisitorData(formData: any, photoBase64: string | nul
           internetNumber: formData.internetNumber,
           address: formData.address,
           category: formData.category,
-          hostName: formData.hostName || "Nita Wulandari",
+          hostName: formData.hostName || defaultHostName,
           purpose: formData.purpose || "Kunjungan Umum",
           photoUrl: photoUrl,
           status: initialStatus,
@@ -186,7 +187,7 @@ export async function submitVisitorData(formData: any, photoBase64: string | nul
           internetNumber: formData.internetNumber,
           address: formData.address,
           category: formData.category,
-          hostName: formData.hostName || "Nita Wulandari", 
+          hostName: formData.hostName || defaultHostName, 
           purpose: formData.purpose || "Kunjungan Umum",
           photoUrl: photoUrl, 
           status: initialStatus,
@@ -240,7 +241,7 @@ export async function submitVisitorData(formData: any, photoBase64: string | nul
 🏠 <b>Alamat:</b> ${formData.address || '-'}
 
 🎯 <b>Kategori:</b> ${formData.category}
-👩‍💼 <b>Bertemu:</b> ${formData.hostName || "Nita Wulandari"}
+👩‍💼 <b>Bertemu:</b> ${formData.hostName || defaultHostName}
 📝 <b>Keperluan:</b> 
 <i>${formData.purpose || "-"}</i>
 `;
