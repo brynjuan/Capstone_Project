@@ -283,8 +283,8 @@ export async function submitVisitorData(formData: any, photoBase64: string | nul
       }
     }
 
-    // Biarkan R2 & Telegram berjalan di background tanpa menahan response (Fire and Forget)
-    Promise.all([r2Task, telegramTask]).catch((err) => {
+    // Await R2 & Telegram agar proses tidak diputus oleh Next.js Serverless Environment
+    await Promise.all([r2Task, telegramTask]).catch((err) => {
       console.error("Background task error:", err);
     });
 
@@ -385,22 +385,22 @@ export async function confirmMobileArrivalAction(inputPin: string) {
       };
 
       if (updatedVisitor.photoUrl) {
-        fetch(updatedVisitor.photoUrl)
+        await fetch(updatedVisitor.photoUrl)
           .then(res => res.arrayBuffer())
-          .then(buffer => {
+          .then(async buffer => {
             const blob = new Blob([buffer], { type: "image/jpeg" });
             const tgFormData = new FormData();
             tgFormData.append("chat_id", TELEGRAM_CHAT_ID);
             tgFormData.append("photo", blob, "visitor.jpg");
             tgFormData.append("caption", tgMessage);
             tgFormData.append("parse_mode", "HTML");
-            fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendPhoto`, { method: "POST", body: tgFormData }).then(processTgResponse);
+            await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendPhoto`, { method: "POST", body: tgFormData }).then(processTgResponse);
           })
-          .catch(() => {
-             fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text: tgMessage, parse_mode: "HTML" }) }).then(processTgResponse);
+          .catch(async () => {
+             await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text: tgMessage, parse_mode: "HTML" }) }).then(processTgResponse);
           });
       } else {
-        fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text: tgMessage, parse_mode: "HTML" }) }).then(processTgResponse);
+        await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text: tgMessage, parse_mode: "HTML" }) }).then(processTgResponse);
       }
     }
 

@@ -163,10 +163,18 @@ const [activeView, setActiveView] = useState<"dashboard" | "queue" | "history" |
         'postgres_changes',
         { event: '*', schema: 'public', table: 'visitor_logs' },
         (payload) => { 
+          const isSuperAdmin = admin.role === "SUPERADMIN";
+          
           if (payload.eventType === 'INSERT') {
-            setLocalVisitors(prev => [payload.new as any, ...prev]);
+            const newRecord = payload.new as any;
+            if (isSuperAdmin || newRecord.region === admin.region) {
+              setLocalVisitors(prev => [newRecord, ...prev]);
+            }
           } else if (payload.eventType === 'UPDATE') {
-            setLocalVisitors(prev => prev.map(v => v.id === payload.new.id ? payload.new as any : v));
+            const updatedRecord = payload.new as any;
+            if (isSuperAdmin || updatedRecord.region === admin.region) {
+              setLocalVisitors(prev => prev.map(v => v.id === updatedRecord.id ? updatedRecord : v));
+            }
           } else if (payload.eventType === 'DELETE') {
             setLocalVisitors(prev => prev.filter(v => v.id !== payload.old.id));
           }
